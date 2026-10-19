@@ -220,3 +220,38 @@ __marimo__/
 .streamlit/secrets.toml
 .env
 
+
+# ==========================================
+# Variables de entorno y secretos adicionales
+# ==========================================
+.env.*
+!.env.example
+!.env.template
+
+# ==========================================
+# Docker
+# ==========================================
+# Archivos de datos o volúmenes montados localmente
+.dockerdata/
+docker-data/
+postgres_data/
+pgdata/
+
+# Override local para docker-compose (opcional si usas ajustes locales)
+docker-compose.override.yml
+
+# ==========================================
+# Archivos estáticos y subidas en Django
+# ==========================================
+# Archivos de media (subidas de usuarios)
+/media/
+/staticfiles/
+/static_root/
+
+# ==========================================
+# Archivos del sistema y editores
+# ==========================================
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
