@@ -255,3 +255,10 @@ docker-compose.override.yml
 Thumbs.db
 .vscode/
 .idea/
+.env
+node_modules/
+__pycache__/
+*.pyc
+.angular/
+dist/
+.venv/
