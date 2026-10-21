@@ -1,0 +1,40 @@
+{
+  "generado_en": "2026-10-21T10:30:00-05:00",
+  "resumen_operativo": {
+    "clientes_activos": 12,
+    "tickets_abiertos": 28,
+    "mantenimientos_hoy": 4,
+    "incidentes_criticos": 3
+  },
+  "incidentes": [
+    {
+      "id": 1,
+      "codigo": "INC-0001",
+      "titulo": "Servidor de base de datos sin respuesta",
+      "empresa": { "id": 1, "nombre": "Empresa Ejemplo S.A.S." },
+      "severidad": "critica",
+      "estado": "en_progreso",
+      "tecnico_asignado": { "id": 5, "nombre": "Carlos Pérez" },
+      "ultima_accion": {
+        "descripcion": "Se inició el diagnóstico del servidor",
+        "fecha": "2026-10-21T09:30:00-05:00"
+      }
+    },
+    {
+      "id": 2,
+      "codigo": "INC-0002",
+      "titulo": "Caída intermitente del enlace principal",
+      "empresa": { "id": 2, "nombre": "Comercial del Sur" },
+      "severidad": "critica",
+      "estado": "abierto",
+      "tecnico_asignado": null,
+      "ultima_accion": null
+    }
+  ],
+  "infraestructura": {
+    "servidores": { "total": 25, "operativos": 22, "advertencia": 2, "criticos": 1 },
+    "redes": { "total": 15, "operativos": 13, "advertencia": 1, "criticos": 1 },
+    "backups": { "total": 20, "exitosos": 18, "fallidos": 1, "pendientes": 1 },
+    "incidentes_criticos": { "total": 3, "abiertos": 1, "en_progreso": 2, "sin_tecnico": 1 }
+  }
+}
