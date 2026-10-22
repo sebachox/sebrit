@@ -36,6 +36,8 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    "apps.accounts", "apps.organizations", "apps.assets",
+    "apps.tickets", "apps.incidents", "apps.maintenance", "apps.dashboard",
 ]
 
 MIDDLEWARE = [
@@ -139,3 +141,10 @@ DATABASES = {
     }
 }
 CORS_ALLOWED_ORIGINS = ["http://localhost:4200"]
+
+AUTH_USER_MODEL = "accounts.Usuario"
+TIME_ZONE = "America/Bogota"
+REST_FRAMEWORK = {
+    "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
+    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+}
