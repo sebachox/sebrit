@@ -148,3 +148,6 @@ REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
 }
+
+from datetime import timedelta
+SIMPLE_JWT = {"ACCESS_TOKEN_LIFETIME": timedelta(minutes=60)}
