@@ -1,11 +1,129 @@
-<div class="row g-3 mb-3">
-  <div class="col-6 col-lg-3">
-    <app-stat-card titulo="Clientes activos" [valor]="12" icono="bi-building" color="primary" />
+@if (estado() === 'cargando') {
+  <div class="text-center py-5">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p class="mt-2 text-muted">Cargando dashboard...</p>
   </div>
-  <div class="col-6 col-lg-3">
-    <app-stat-card titulo="Incidentes críticos" [valor]="3" icono="bi-exclamation-triangle" color="danger" />
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el dashboard.</span>
+    <button class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
   </div>
-</div>
-<app-status-badge valor="critica" />
-<app-status-badge valor="en_progreso" />
-<app-status-badge valor="exitoso" />
+} @else if (datos(); as d) {
+  <div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">Dashboard</h4>
+    <small class="text-muted">Actualizado: {{ d.generado_en | date: 'dd/MM/yyyy HH:mm' }}</small>
+  </div>
+
+  <!-- Resumen operativo -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Clientes activos" [valor]="d.resumen_operativo.clientes_activos" icono="bi-building" color="primary" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Tickets abiertos" [valor]="d.resumen_operativo.tickets_abiertos" icono="bi-ticket-perforated" color="info" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Mantenimientos hoy" [valor]="d.resumen_operativo.mantenimientos_hoy" icono="bi-tools" color="warning" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Incidentes críticos" [valor]="d.resumen_operativo.incidentes_criticos" icono="bi-exclamation-triangle" color="danger" />
+    </div>
+  </div>
+
+  <!-- Tabla de incidentes -->
+  <div class="card shadow-sm mb-4">
+    <div class="card-header bg-white fw-semibold">Incidentes activos</div>
+    <div class="table-responsive">
+      <table class="table table-hover align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Código</th>
+            <th>Título</th>
+            <th>Empresa</th>
+            <th>Severidad</th>
+            <th>Estado</th>
+            <th>Técnico</th>
+            <th>Última acción</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (i of d.incidentes; track i.id) {
+            <tr>
+              <td class="fw-semibold">{{ i.codigo }}</td>
+              <td>{{ i.titulo }}</td>
+              <td>{{ i.empresa.nombre }}</td>
+              <td><app-status-badge [valor]="i.severidad" /></td>
+              <td><app-status-badge [valor]="i.estado" /></td>
+              <td>{{ i.tecnico_asignado?.nombre ?? 'Sin asignar' }}</td>
+              <td>{{ i.ultima_accion?.descripcion ?? '—' }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td colspan="7" class="text-center text-muted py-4">No hay incidentes activos.</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Infraestructura -->
+  <h5 class="mb-3">Infraestructura</h5>
+  <div class="row g-3">
+    <div class="col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted"><i class="bi bi-hdd-rack me-1"></i>Servidores</h6>
+          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.servidores.total }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-success">{{ d.infraestructura.servidores.operativos }} operativos</span>
+            <span class="badge text-bg-warning">{{ d.infraestructura.servidores.advertencia }} advertencia</span>
+            <span class="badge text-bg-danger">{{ d.infraestructura.servidores.criticos }} críticos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted"><i class="bi bi-diagram-3 me-1"></i>Redes</h6>
+          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.redes.total }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-success">{{ d.infraestructura.redes.operativos }} operativos</span>
+            <span class="badge text-bg-warning">{{ d.infraestructura.redes.advertencia }} advertencia</span>
+            <span class="badge text-bg-danger">{{ d.infraestructura.redes.criticos }} críticos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted"><i class="bi bi-cloud-arrow-up me-1"></i>Backups</h6>
+          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.backups.total }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-success">{{ d.infraestructura.backups.exitosos }} exitosos</span>
+            <span class="badge text-bg-danger">{{ d.infraestructura.backups.fallidos }} fallidos</span>
+            <span class="badge text-bg-secondary">{{ d.infraestructura.backups.pendientes }} pendientes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="col-md-6 col-xl-3">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted"><i class="bi bi-exclamation-octagon me-1"></i>Incidentes críticos</h6>
+          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.incidentes_criticos.total }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge text-bg-danger">{{ d.infraestructura.incidentes_criticos.abiertos }} abiertos</span>
+            <span class="badge text-bg-warning">{{ d.infraestructura.incidentes_criticos.en_progreso }} en progreso</span>
+            <span class="badge text-bg-dark">{{ d.infraestructura.incidentes_criticos.sin_tecnico }} sin técnico</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}
