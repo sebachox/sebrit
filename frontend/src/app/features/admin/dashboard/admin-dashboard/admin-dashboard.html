@@ -1,1 +1,11 @@
-<p>admin-dashboard works!</p>
+<div class="row g-3 mb-3">
+  <div class="col-6 col-lg-3">
+    <app-stat-card titulo="Clientes activos" [valor]="12" icono="bi-building" color="primary" />
+  </div>
+  <div class="col-6 col-lg-3">
+    <app-stat-card titulo="Incidentes críticos" [valor]="3" icono="bi-exclamation-triangle" color="danger" />
+  </div>
+</div>
+<app-status-badge valor="critica" />
+<app-status-badge valor="en_progreso" />
+<app-status-badge valor="exitoso" />
