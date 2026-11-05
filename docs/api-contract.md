@@ -103,6 +103,7 @@ Un incidente o ticket está **activo** si su estado es `abierto` o `en_progreso`
 - Las claves siempre están presentes. Cuando no hay valor se usa `null`; las listas vacías son `[]`, nunca `null`.
 - Contadores: enteros mayores o iguales a 0.
 - Fechas: ISO 8601 con zona horaria.
+
 ---
 
 # Organizaciones (clientes)
