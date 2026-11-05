@@ -1,0 +1,139 @@
+<a
+  [routerLink]="id ? ['/admin/clientes', id] : '/admin/clientes'"
+  class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3"
+>
+  <i class="bi bi-arrow-left"></i>{{ id ? 'Volver a la ficha' : 'Clientes' }}
+</a>
+
+<h4 class="mb-3">{{ id ? 'Editar cliente' : 'Nuevo cliente' }}</h4>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando cliente...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="alert alert-warning">
+    Cliente no encontrado. <a routerLink="/admin/clientes" class="alert-link">Volver a clientes</a>
+  </div>
+} @else if (estado() === 'error_carga') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el cliente.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar(id!)">Reintentar</button>
+  </div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="guardar()" novalidate class="card shadow-sm border-0">
+    <div class="card-body p-4">
+      @if (errorGeneral(); as e) {
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+          <i class="bi bi-exclamation-circle"></i><span>{{ e }}</span>
+        </div>
+      }
+
+      <!-- Empresa -->
+      <fieldset class="mb-4">
+        <legend class="h6 fw-semibold mb-3">Empresa</legend>
+        <div class="row g-3">
+          <div class="col-md-8">
+            <label for="nombre" class="form-label">Nombre <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="nombre" class="form-control" formControlName="nombre" autocomplete="organization" [class.is-invalid]="invalido('nombre')" />
+            <div class="invalid-feedback">{{ mensaje('nombre') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="nit" class="form-label">NIT <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="nit" class="form-control numerico" formControlName="nit" placeholder="900123456-7" inputmode="numeric" [class.is-invalid]="invalido('nit')" />
+            <div class="invalid-feedback">{{ mensaje('nit') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="sector" class="form-label">Sector</label>
+            <input id="sector" class="form-control" formControlName="sector" [class.is-invalid]="invalido('sector')" />
+            <div class="invalid-feedback">{{ mensaje('sector') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="telefono" class="form-label">Teléfono</label>
+            <input id="telefono" type="tel" class="form-control" formControlName="telefono" autocomplete="tel" [class.is-invalid]="invalido('telefono')" />
+            <div class="invalid-feedback">{{ mensaje('telefono') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="correo" class="form-label">Correo</label>
+            <input id="correo" type="email" class="form-control" formControlName="correo" autocomplete="email" [class.is-invalid]="invalido('correo')" />
+            <div class="invalid-feedback">{{ mensaje('correo') }}</div>
+          </div>
+          <div class="col-md-8">
+            <label for="direccion" class="form-label">Dirección</label>
+            <input id="direccion" class="form-control" formControlName="direccion" autocomplete="street-address" [class.is-invalid]="invalido('direccion')" />
+            <div class="invalid-feedback">{{ mensaje('direccion') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="ciudad" class="form-label">Ciudad</label>
+            <input id="ciudad" class="form-control" formControlName="ciudad" autocomplete="address-level2" [class.is-invalid]="invalido('ciudad')" />
+            <div class="invalid-feedback">{{ mensaje('ciudad') }}</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Contacto -->
+      <fieldset class="mb-4">
+        <legend class="h6 fw-semibold mb-3">Contacto principal</legend>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="contacto_nombre" class="form-label">Nombre</label>
+            <input id="contacto_nombre" class="form-control" formControlName="contacto_nombre" autocomplete="off" [class.is-invalid]="invalido('contacto_nombre')" />
+            <div class="invalid-feedback">{{ mensaje('contacto_nombre') }}</div>
+          </div>
+          <div class="col-md-6">
+            <label for="contacto_cargo" class="form-label">Cargo</label>
+            <input id="contacto_cargo" class="form-control" formControlName="contacto_cargo" [class.is-invalid]="invalido('contacto_cargo')" />
+            <div class="invalid-feedback">{{ mensaje('contacto_cargo') }}</div>
+          </div>
+          <div class="col-md-6">
+            <label for="contacto_correo" class="form-label">Correo</label>
+            <input id="contacto_correo" type="email" class="form-control" formControlName="contacto_correo" autocomplete="off" [class.is-invalid]="invalido('contacto_correo')" />
+            <div class="invalid-feedback">{{ mensaje('contacto_correo') }}</div>
+          </div>
+          <div class="col-md-6">
+            <label for="contacto_telefono" class="form-label">Teléfono</label>
+            <input id="contacto_telefono" type="tel" class="form-control" formControlName="contacto_telefono" autocomplete="off" [class.is-invalid]="invalido('contacto_telefono')" />
+            <div class="invalid-feedback">{{ mensaje('contacto_telefono') }}</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <!-- Contrato -->
+      <fieldset>
+        <legend class="h6 fw-semibold mb-3">Contrato</legend>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="plan" class="form-label">Plan</label>
+            <select id="plan" class="form-select" formControlName="plan">
+              <option value="">Sin plan</option>
+              @for (p of planes; track p.valor) {
+                <option [value]="p.valor">{{ p.texto }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-4">
+            <label for="fecha_inicio_contrato" class="form-label">Inicio</label>
+            <input id="fecha_inicio_contrato" type="date" class="form-control" formControlName="fecha_inicio_contrato" />
+          </div>
+          <div class="col-md-4">
+            <label for="fecha_fin_contrato" class="form-label">Fin</label>
+            <input id="fecha_fin_contrato" type="date" class="form-control" formControlName="fecha_fin_contrato" [class.is-invalid]="invalido('fecha_fin_contrato')" />
+            <div class="invalid-feedback">{{ mensaje('fecha_fin_contrato') }}</div>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="card-footer bg-white d-flex justify-content-end gap-2 p-3">
+      <a class="btn btn-outline-secondary" [routerLink]="id ? ['/admin/clientes', id] : '/admin/clientes'">Cancelar</a>
+      <button type="submit" class="btn btn-primary" [disabled]="enviando()">
+        @if (enviando()) {
+          <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando...
+        } @else {
+          <i class="bi bi-check-lg me-1"></i>Guardar
+        }
+      </button>
+    </div>
+  </form>
+}

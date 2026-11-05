@@ -37,6 +37,18 @@ export const routes: Routes = [
           ),
       },
       {
+        path: 'admin/clientes/nuevo',
+        canActivate: [permisoGuard('clientes', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/clientes/cliente-form/cliente-form').then((m) => m.ClienteForm),
+      },
+      {
+        path: 'admin/clientes/:id/editar',
+        canActivate: [permisoGuard('clientes', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/clientes/cliente-form/cliente-form').then((m) => m.ClienteForm),
+      },
+      {
         path: 'admin/clientes/:id',
         canActivate: [permisoGuard('clientes', 'ver')],
         loadComponent: () =>
