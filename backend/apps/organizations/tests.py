@@ -1,3 +1,4 @@
+from datetime import date
 from io import StringIO
 
 from django.core.exceptions import ValidationError
@@ -9,6 +10,8 @@ from rest_framework.test import APITestCase
 from apps.accounts.models import Usuario
 
 from apps.organizations.models import Organizacion
+from apps.assets.models import Activo
+from apps.incidents.models import Incidente
 from apps.tickets.models import Ticket
 
 
@@ -97,3 +100,123 @@ class PermisosOrganizacionesTests(APITestCase):
     def test_detalle_inexistente_da_404(self):
         self.client.force_authenticate(self.admin)
         self.assertEqual(self.client.get(f"{URL}99999/").status_code, 404)
+
+
+class ValidacionOrganizacionTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(Usuario.objects.create_user("admin1", rol="admin"))
+
+    def crear(self, **datos):
+        return self.client.post(URL, datos, format="json")
+
+    def test_nit_obligatorio_al_crear(self):
+        r = self.crear(nombre="Sin NIT")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["nit"], ["El NIT es obligatorio."])
+
+    def test_nit_formato_invalido(self):
+        r = self.crear(nombre="Puntos", nit="900.123.456-7")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.data["nit"], ["Escribe el NIT sin puntos ni espacios, por ejemplo 900123456-7."]
+        )
+
+    def test_nit_con_espacios_se_recorta(self):
+        r = self.crear(nombre="Espacios", nit=" 900123456-7 ")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["nit"], "900123456-7")
+
+    def test_nit_duplicado(self):
+        self.crear(nombre="Uno", nit="900123456-7")
+        r = self.crear(nombre="Dos", nit="900123456-7")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["nit"], ["Ya existe una organización con este NIT."])
+
+    def test_nombre_duplicado_sin_importar_mayusculas(self):
+        self.crear(nombre="Empresa Ejemplo", nit="900000001")
+        r = self.crear(nombre="empresa ejemplo", nit="900000002")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["nombre"], ["Ya existe una organización con este nombre."])
+
+    def test_editar_con_su_propio_nombre_es_valido(self):
+        org = Organizacion.objects.create(nombre="Propia", nit="900000001")
+        r = self.client.patch(
+            url_detalle(org), {"nombre": "Propia", "nit": "900000001"}, format="json"
+        )
+        self.assertEqual(r.status_code, 200)
+
+    def test_plan_invalido_da_400(self):
+        r = self.crear(nombre="Plan", nit="900000001", plan="oro")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("plan", r.data)
+
+    def test_fecha_fin_anterior_a_inicio_da_400(self):
+        r = self.crear(
+            nombre="Fechas", nit="900000001",
+            fecha_inicio_contrato="2026-06-01", fecha_fin_contrato="2026-01-01",
+        )
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(
+            r.data["fecha_fin_contrato"], ["La fecha de fin no puede ser anterior a la de inicio."]
+        )
+
+    def test_patch_solo_fecha_fin_valida_contra_la_guardada(self):
+        org = Organizacion.objects.create(
+            nombre="Contrato", nit="900000001", fecha_inicio_contrato=date(2026, 6, 1)
+        )
+        r = self.client.patch(url_detalle(org), {"fecha_fin_contrato": "2026-01-01"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("fecha_fin_contrato", r.data)
+
+    def test_vaciar_nit_al_editar_da_400(self):
+        org = Organizacion.objects.create(nombre="Con NIT", nit="900000001")
+        r = self.client.patch(url_detalle(org), {"nit": ""}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["nit"], ["El NIT es obligatorio."])
+
+
+class DetalleOrganizacionTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(Usuario.objects.create_user("admin1", rol="admin"))
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+
+    def test_resumen_cuenta_solo_lo_activo(self):
+        Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="S1")
+        Activo.objects.create(organizacion=self.org, tipo="red", nombre="R1")
+        Ticket.objects.create(organizacion=self.org, titulo="A", estado="abierto")
+        Ticket.objects.create(organizacion=self.org, titulo="B", estado="cerrado")
+        Incidente.objects.create(
+            codigo="INC-1", titulo="X", organizacion=self.org, severidad="alta", estado="en_progreso"
+        )
+        Incidente.objects.create(
+            codigo="INC-2", titulo="Y", organizacion=self.org, severidad="baja", estado="resuelto"
+        )
+        Usuario.objects.create_user("cli1", rol="cliente", organizacion=self.org)
+
+        r = self.client.get(url_detalle(self.org))
+        self.assertEqual(
+            r.data["resumen"],
+            {"activos": 2, "tickets_abiertos": 1, "incidentes_activos": 1, "usuarios": 1},
+        )
+
+    def test_opcionales_vacios_salen_como_null(self):
+        d = self.client.get(url_detalle(self.org)).data
+        for campo in ["sector", "correo", "contacto_nombre", "plan", "fecha_fin_contrato"]:
+            self.assertIsNone(d[campo], campo)
+
+    def test_null_en_opcional_se_guarda_vacio(self):
+        r = self.client.patch(url_detalle(self.org), {"ciudad": None}, format="json")
+        self.assertEqual(r.status_code, 200)
+        self.org.refresh_from_db()
+        self.assertEqual(self.org.ciudad, "")
+
+    def test_desactivar_no_borra_y_sale_del_dashboard(self):
+        ticket = Ticket.objects.create(organizacion=self.org, titulo="A")
+        antes = self.client.get("/api/dashboard/admin/").data["resumen_operativo"]["clientes_activos"]
+
+        r = self.client.patch(url_detalle(self.org), {"activa": False}, format="json")
+        self.assertEqual(r.status_code, 200)
+
+        despues = self.client.get("/api/dashboard/admin/").data["resumen_operativo"]["clientes_activos"]
+        self.assertEqual(despues, antes - 1)
+        self.assertTrue(Ticket.objects.filter(pk=ticket.pk).exists())
