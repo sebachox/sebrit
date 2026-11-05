@@ -1,5 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Modulo } from '../../auth/permisos';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -20,7 +21,12 @@ export class Layout {
     this.menuAbierto.set(false);
   }
 
-  enlaces = [
-    { ruta: '/admin/dashboard', icono: 'bi-speedometer2', texto: 'Dashboard' },
+  tituloPanel = computed(() =>
+    this.auth.usuario()?.rol === 'tecnico' ? 'Panel técnico' : 'Panel de administración',
+  );
+
+  readonly enlaces: { ruta: string; icono: string; texto: string; modulo: Modulo }[] = [
+    { ruta: '/admin/dashboard', icono: 'bi-speedometer2', texto: 'Dashboard', modulo: 'dashboard' },
+    { ruta: '/admin/clientes', icono: 'bi-building', texto: 'Clientes', modulo: 'clientes' },
   ];
 }

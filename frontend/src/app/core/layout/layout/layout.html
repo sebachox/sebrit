@@ -7,14 +7,27 @@
     <ul class="nav nav-pills flex-column p-2 gap-1">
       @for (e of enlaces; track e.ruta) {
         <li class="nav-item">
-          <a
-            class="nav-link text-white"
-            [routerLink]="e.ruta"
-            routerLinkActive="active"
-            (click)="cerrarMenu()"
-          >
-            <i class="bi {{ e.icono }} me-2"></i>{{ e.texto }}
-          </a>
+          @if (auth.puede(e.modulo, 'ver')) {
+            <a
+              class="nav-link text-white"
+              [routerLink]="e.ruta"
+              routerLinkActive="active"
+              (click)="cerrarMenu()"
+            >
+              <i class="bi {{ e.icono }} me-2"></i>{{ e.texto }}
+            </a>
+          } @else {
+            <span
+              class="nav-link bloqueado"
+              aria-disabled="true"
+              tabindex="0"
+              [attr.aria-describedby]="'pista-' + e.modulo"
+            >
+              <i class="bi {{ e.icono }} me-2"></i>{{ e.texto }}
+              <i class="bi bi-lock-fill ms-auto candado" aria-hidden="true"></i>
+              <span class="pista" role="tooltip" [id]="'pista-' + e.modulo">Solo administradores</span>
+            </span>
+          }
         </li>
       }
     </ul>
@@ -26,7 +39,7 @@
       <button class="btn btn-outline-secondary d-md-none" (click)="alternarMenu()">
         <i class="bi bi-list"></i>
       </button>
-      <span class="navbar-text ms-2 fw-semibold">Panel de administración</span>
+      <span class="navbar-text ms-2 fw-semibold">{{ tituloPanel() }}</span>
       <div class="ms-auto d-flex align-items-center gap-2">
         <i class="bi bi-person-circle fs-4"></i>
         <span class="d-none d-sm-inline">{{ auth.usuario()?.nombre }}</span>

@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard, invitadoGuard } from './core/guards/auth.guard';
+import { inicioGuard, permisoGuard } from './core/guards/permiso.guard';
 import { Layout } from './core/layout/layout/layout';
 
 export const routes: Routes = [
@@ -21,12 +22,13 @@ export const routes: Routes = [
     children: [
       {
         path: 'admin/dashboard',
+        canActivate: [permisoGuard('dashboard', 'ver')],
         loadComponent: () =>
           import('./features/admin/dashboard/admin-dashboard/admin-dashboard').then(
             (m) => m.AdminDashboard,
           ),
       },
-      { path: '', redirectTo: 'admin/dashboard', pathMatch: 'full' },
+      { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },
   { path: '**', redirectTo: '' },

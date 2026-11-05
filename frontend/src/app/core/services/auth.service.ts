@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Observable, map, tap } from 'rxjs';
+import { Accion, Modulo, puede } from '../auth/permisos';
 import { API_URL } from '../config/api';
 import { Credenciales, RespuestaLogin, RespuestaRefresh, Usuario } from '../models/auth';
 
@@ -58,7 +59,18 @@ export class AuthService {
 
   /** Ruta de inicio según el rol del usuario. */
   rutaInicio(): string {
-    return this._usuario()?.rol === 'admin' ? '/admin/dashboard' : '/sin-permiso';
+    switch (this._usuario()?.rol) {
+      case 'admin':
+        return '/admin/dashboard';
+      case 'tecnico':
+        return '/admin/clientes';
+      default:
+        return '/sin-permiso';
+    }
+  }
+
+  puede(modulo: Modulo, accion: Accion): boolean {
+    return puede(this._usuario()?.rol, modulo, accion);
   }
 
   private leerUsuario(): Usuario | null {

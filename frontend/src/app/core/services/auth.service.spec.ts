@@ -58,11 +58,20 @@ describe('AuthService', () => {
     expect(service.rutaInicio()).toBe('/admin/dashboard');
   });
 
-  it('rutaInicio lleva a un técnico a /sin-permiso', () => {
+  it('rutaInicio lleva a un técnico a clientes', () => {
     service.login({ username: 'tec', password: 'x' }).subscribe();
     http
       .expectOne(`${API_URL}/auth/login/`)
       .flush({ access: 'a1', refresh: 'r1', usuario: { ...usuario, rol: 'tecnico' } });
+
+    expect(service.rutaInicio()).toBe('/admin/clientes');
+  });
+
+  it('rutaInicio lleva a un cliente a /sin-permiso', () => {
+    service.login({ username: 'cli', password: 'x' }).subscribe();
+    http
+      .expectOne(`${API_URL}/auth/login/`)
+      .flush({ access: 'a1', refresh: 'r1', usuario: { ...usuario, rol: 'cliente' } });
 
     expect(service.rutaInicio()).toBe('/sin-permiso');
   });
