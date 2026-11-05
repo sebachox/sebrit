@@ -28,6 +28,14 @@ export const routes: Routes = [
             (m) => m.AdminDashboard,
           ),
       },
+      {
+        path: 'admin/clientes',
+        canActivate: [permisoGuard('clientes', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/clientes/clientes-lista/clientes-lista').then(
+            (m) => m.ClientesLista,
+          ),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },
