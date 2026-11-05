@@ -1,4 +1,5 @@
 import { DatePipe } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { DashboardAdmin } from '../../../../core/models/dashboard-admin';
 import { DashboardService } from '../../../../core/services/dashboard.service';
@@ -28,7 +29,10 @@ export class AdminDashboard implements OnInit {
         this.datos.set(d);
         this.estado.set('listo');
       },
-      error: () => this.estado.set('error'),
+      // Un 403 lo maneja el interceptor redirigiendo a /sin-permiso.
+      error: (e: HttpErrorResponse) => {
+        if (e.status !== 403) this.estado.set('error');
+      },
     });
   }
 }

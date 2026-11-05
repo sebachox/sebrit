@@ -14,6 +14,8 @@ describe('StatCard', () => {
 
     fixture = TestBed.createComponent(StatCard);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('titulo', 'Clientes');
+    fixture.componentRef.setInput('valor', 5);
     fixture.detectChanges();
   });
 

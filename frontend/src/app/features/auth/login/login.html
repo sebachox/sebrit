@@ -1,0 +1,128 @@
+<div class="login d-flex min-vh-100">
+  <!-- Panel de marca: mismo mundo visual del sidebar -->
+  <aside class="marca bg-dark text-white d-none d-md-flex flex-column p-4 p-lg-5">
+    <span class="fs-4 fw-bold">SEBRIT</span>
+
+    <div class="my-auto py-4">
+      <!-- Diagrama de la red que gestiona la plataforma -->
+      <div class="topologia mb-5" aria-hidden="true">
+        <svg class="enlaces" viewBox="0 0 100 75" preserveAspectRatio="none">
+          @for (n of nodos; track n.icono) {
+            <line
+              x1="50" y1="37.5"
+              [attr.x2]="n.x" [attr.y2]="n.y * 0.75"
+              vector-effect="non-scaling-stroke"
+            />
+          }
+          @for (n of nodos; track n.icono; let i = $index) {
+            <circle class="paquete" r="0.9">
+              <animateMotion
+                [attr.dur]="3 + i * 0.6 + 's'"
+                [attr.begin]="i * 0.7 + 's'"
+                repeatCount="indefinite"
+                [attr.path]="'M50,37.5 L' + n.x + ',' + n.y * 0.75"
+              />
+            </circle>
+          }
+        </svg>
+
+        <div class="nodo nodo-central" style="left: 50%; top: 50%">
+          <i class="bi bi-hdd-rack"></i>
+        </div>
+        @for (n of nodos; track n.icono) {
+          <div class="nodo" [style.left.%]="n.x" [style.top.%]="n.y">
+            <i class="bi {{ n.icono }}"></i>
+            <span class="estado bg-{{ n.estado }}"></span>
+          </div>
+        }
+      </div>
+
+      <h1 class="titulo fw-semibold mb-4">Gestión de soporte e infraestructura</h1>
+      <ul class="list-unstyled d-grid gap-3 mb-0 caracteristicas">
+        <li><i class="bi bi-ticket-perforated"></i>Tickets e incidentes de tus clientes</li>
+        <li><i class="bi bi-hdd-rack"></i>Estado de servidores, redes y backups</li>
+        <li><i class="bi bi-tools"></i>Mantenimientos programados</li>
+      </ul>
+    </div>
+
+    <small class="text-white-50">© SEBRIT</small>
+  </aside>
+
+  <!-- Formulario -->
+  <main class="acceso d-flex align-items-center justify-content-center p-3 p-sm-4">
+    <div class="w-100 formulario">
+      <div class="text-center mb-4 d-md-none">
+        <span class="fs-3 fw-bold">SEBRIT</span>
+      </div>
+
+      <div class="card shadow-sm border-0">
+        <div class="card-body p-4 p-sm-5">
+          <h2 class="h3 fw-semibold mb-2">Iniciar sesión</h2>
+          <p class="text-muted mb-4">Ingresa con tu usuario para acceder al panel.</p>
+
+          @if (error(); as mensaje) {
+            <div class="alert alert-danger d-flex align-items-center gap-2 py-2" role="alert">
+              <i class="bi bi-exclamation-circle"></i>
+              <span>{{ mensaje }}</span>
+            </div>
+          }
+
+          <form [formGroup]="form" (ngSubmit)="ingresar()" novalidate>
+            <div class="mb-3">
+              <label for="username" class="form-label fw-medium">Usuario</label>
+              <div class="input-group input-group-lg has-validation">
+                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                <input
+                  id="username"
+                  type="text"
+                  class="form-control"
+                  formControlName="username"
+                  autocomplete="username"
+                  [class.is-invalid]="invalido('username')"
+                />
+                <div class="invalid-feedback">Ingresa tu usuario.</div>
+              </div>
+            </div>
+
+            <div class="mb-4">
+              <label for="password" class="form-label fw-medium">Contraseña</label>
+              <div class="input-group input-group-lg has-validation">
+                <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                <input
+                  id="password"
+                  class="form-control"
+                  formControlName="password"
+                  autocomplete="current-password"
+                  [type]="verClave() ? 'text' : 'password'"
+                  [class.is-invalid]="invalido('password')"
+                />
+                <button
+                  type="button"
+                  class="btn btn-light border"
+                  (click)="verClave.set(!verClave())"
+                  [attr.aria-label]="verClave() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
+                >
+                  <i class="bi" [class.bi-eye]="!verClave()" [class.bi-eye-slash]="verClave()"></i>
+                </button>
+                <div class="invalid-feedback">Ingresa tu contraseña.</div>
+              </div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-100" [disabled]="enviando()">
+              @if (enviando()) {
+                <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                Ingresando...
+              } @else {
+                <i class="bi bi-box-arrow-in-right me-2"></i>Ingresar
+              }
+            </button>
+          </form>
+        </div>
+      </div>
+
+      <p class="text-muted small text-center mt-4 mb-0">
+        ¿No puedes ingresar? Pide a un administrador que revise tu cuenta.
+      </p>
+    </div>
+  </main>
+</div>

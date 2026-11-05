@@ -1,0 +1,31 @@
+.sin-permiso {
+  caret-color: var(--bs-primary);
+
+  ::selection {
+    background: rgba(var(--bs-primary-rgb), 0.2);
+  }
+}
+
+.contenido {
+  max-width: 440px;
+}
+
+.card {
+  border-radius: 1rem;
+}
+
+.icono {
+  display: grid;
+  place-items: center;
+  width: 4.5rem;
+  height: 4.5rem;
+  border-radius: 50%;
+  background: var(--bs-warning-bg-subtle);
+  color: var(--bs-warning-text-emphasis);
+  font-size: 2rem;
+}
+
+h1 {
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}

@@ -14,6 +14,7 @@ describe('StatusBadge', () => {
 
     fixture = TestBed.createComponent(StatusBadge);
     component = fixture.componentInstance;
+    fixture.componentRef.setInput('valor', 'abierto');
     fixture.detectChanges();
   });
 
