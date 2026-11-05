@@ -8,7 +8,7 @@ export type Accion = 'ver' | 'editar';
  * (que es quien realmente los aplica); aquí solo decide qué se muestra bloqueado.
  */
 const PERMISOS: Record<Modulo, Record<Accion, readonly Rol[]>> = {
-  dashboard: { ver: ['admin'], editar: [] },
+  dashboard: { ver: ['admin', 'tecnico'], editar: [] },
   clientes: { ver: ['admin', 'tecnico'], editar: ['admin'] },
 };
 

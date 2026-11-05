@@ -10,8 +10,12 @@ describe('puede', () => {
     expect(puede('tecnico', 'clientes', 'editar')).toBeFalse();
   });
 
-  it('el técnico no ve el dashboard', () => {
-    expect(puede('tecnico', 'dashboard', 'ver')).toBeFalse();
+  it('el técnico ve el dashboard', () => {
+    expect(puede('tecnico', 'dashboard', 'ver')).toBeTrue();
+  });
+
+  it('el cliente no ve el dashboard', () => {
+    expect(puede('cliente', 'dashboard', 'ver')).toBeFalse();
   });
 
   it('el cliente no ve clientes', () => {

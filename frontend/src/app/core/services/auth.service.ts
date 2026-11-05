@@ -61,9 +61,8 @@ export class AuthService {
   rutaInicio(): string {
     switch (this._usuario()?.rol) {
       case 'admin':
-        return '/admin/dashboard';
       case 'tecnico':
-        return '/admin/clientes';
+        return '/admin/dashboard';
       default:
         return '/sin-permiso';
     }

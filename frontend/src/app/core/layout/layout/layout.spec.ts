@@ -28,14 +28,17 @@ function enlace(fixture: ComponentFixture<Layout>, texto: string): HTMLElement {
 describe('Layout', () => {
   afterEach(() => localStorage.clear());
 
-  it('para el técnico, el Dashboard está bloqueado y Clientes no', () => {
+  it('para el técnico, Dashboard y Clientes están habilitados', () => {
     const fixture = crear('tecnico');
+    expect(enlace(fixture, 'Dashboard').getAttribute('href')).toBe('/admin/dashboard');
+    expect(enlace(fixture, 'Clientes').getAttribute('href')).toBe('/admin/clientes');
+  });
 
+  it('un módulo sin permiso aparece bloqueado y sin enlace', () => {
+    const fixture = crear('cliente');
     const dashboard = enlace(fixture, 'Dashboard');
     expect(dashboard.getAttribute('aria-disabled')).toBe('true');
     expect(dashboard.hasAttribute('href')).toBeFalse();
-
-    expect(enlace(fixture, 'Clientes').getAttribute('href')).toBe('/admin/clientes');
   });
 
   it('para el admin, todo está habilitado', () => {

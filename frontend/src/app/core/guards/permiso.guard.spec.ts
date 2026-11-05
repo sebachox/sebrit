@@ -11,7 +11,7 @@ function sesion(rol: string) {
 describe('permisoGuard', () => {
   const ejecutar = () =>
     TestBed.runInInjectionContext(() =>
-      permisoGuard('dashboard', 'ver')({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
+      permisoGuard('clientes', 'editar')({} as ActivatedRouteSnapshot, {} as RouterStateSnapshot),
     );
 
   afterEach(() => localStorage.clear());

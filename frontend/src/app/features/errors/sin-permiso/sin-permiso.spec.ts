@@ -49,7 +49,7 @@ describe('SinPermiso', () => {
     ).find((b) => b.textContent?.includes('Volver a mi panel'));
     expect(volver).toBeDefined();
     volver!.click();
-    expect(navegar).toHaveBeenCalledWith('/admin/clientes');
+    expect(navegar).toHaveBeenCalledWith('/admin/dashboard');
   });
 });
 
