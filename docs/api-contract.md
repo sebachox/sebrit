@@ -49,9 +49,9 @@ Devuelve el usuario de la sesión, con la misma forma que `usuario` del login. 4
 
 | Código | Cuándo |
 |---|---|
-| 200 | Usuario autenticado con rol `admin` |
+| 200 | Usuario autenticado con rol `admin` o `tecnico` (solo lectura) |
 | 401 | Sin token o token inválido |
-| 403 | Usuario autenticado sin rol `admin` |
+| 403 | Usuario con rol `cliente` (o método distinto de GET para el técnico) |
 
 Ejemplo completo: [`docs/examples/dashboard-admin.json`](examples/dashboard-admin.json)
 

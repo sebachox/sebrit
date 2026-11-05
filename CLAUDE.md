@@ -150,6 +150,7 @@ Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 org
 | Usuario | Rol | Notas |
 |---|---|---|
 | `sebri` | admin, superusuario | |
+| `sebas` | tecnico | Cuenta de pruebas creada el 2026-11-05 |
 | `brigi` | admin, superusuario | Promovida el 2026-11-04 |
 | `carlos`, `laura` | tecnico | Del seed, sin contraseña |
 
@@ -203,12 +204,12 @@ El admin de Django (`accounts/admin.py`) permite elegir rol y organización al c
 | POST | `/api/auth/login/` | Público. Recibe `username` y `password`; devuelve `access`, `refresh` y `usuario` (`id`, `username`, `nombre`, `rol`) |
 | POST | `/api/auth/refresh/` | Público. Recibe `refresh`, devuelve un nuevo `access` |
 | GET | `/api/auth/me/` | JWT. Devuelve el `usuario` de la sesión |
-| GET | `/api/dashboard/admin/` | JWT y `rol = admin`. 401 sin token, 403 si no es admin |
+| GET | `/api/dashboard/admin/` | JWT, admin o técnico. 401 sin token, 403 para cliente |
 | GET | `/api/organizaciones/` | admin y técnico. Paginada (20, máx. 100); `q`, `activa`, `plan`, `ordering` |
 | GET | `/api/organizaciones/{id}/` | admin y técnico. Incluye `resumen` |
 | POST, PATCH | `/api/organizaciones/`, `/{id}/` | Solo admin. PUT y DELETE dan 405 |
 
-El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. El permiso `EsAdmin` (en `apps/dashboard/views.py`) comprueba `rol == "admin"`; `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico. Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
+El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
 
 ### Reglas de cálculo del dashboard
 
@@ -222,7 +223,7 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 
 ### Pruebas
 
-- `apps/dashboard/tests.py` (4): sin token 401, técnico 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico.
+- `apps/dashboard/tests.py` (6): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico.
 - `apps/accounts/tests.py` (5): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200.
 - `apps/organizations/tests.py` (33): modelo y `PROTECT`, seed, permisos por rol y método, validaciones, `resumen`, nulos, búsqueda, filtros, orden y paginación.
 
@@ -293,14 +294,14 @@ Admin y técnico usan el mismo layout. Lo que un rol no puede usar **se muestra 
 
 | Módulo | Ver | Editar |
 |---|---|---|
-| `dashboard` | admin | — |
+| `dashboard` | admin, técnico | — |
 | `clientes` | admin, técnico | admin |
 
 Al agregar un módulo: una fila en `PERMISOS`, un enlace en `Layout.enlaces` y `permisoGuard(modulo, accion)` en sus rutas. El mapa solo refleja lo que el backend ya permite.
 
 ### Autenticación en el frontend (implementada)
 
-- `AuthService` (`core/services/auth.service.ts`): guarda en `localStorage` `sebrit.access`, `sebrit.refresh` y `sebrit.usuario`; expone `usuario()` y `autenticado()` como signals; `logout()` borra todo y redirige a `/login`; `puede(modulo, accion)`; `rutaInicio()` devuelve `/admin/dashboard` para `admin`, `/admin/clientes` para `tecnico` y `/sin-permiso` para `cliente`.
+- `AuthService` (`core/services/auth.service.ts`): guarda en `localStorage` `sebrit.access`, `sebrit.refresh` y `sebrit.usuario`; expone `usuario()` y `autenticado()` como signals; `logout()` borra todo y redirige a `/login`; `puede(modulo, accion)`; `rutaInicio()` devuelve `/admin/dashboard` para `admin` y `tecnico`, y `/sin-permiso` para `cliente`.
 - `authInterceptor`: añade `Authorization: Bearer <token>` **solo** a peticiones a `API_URL` (excepto login y refresh). Ante 401 intenta **un** refresh compartido y reintenta; si falla, cierra sesión. Ante 403 redirige a `/sin-permiso`.
 - `authGuard`: sin sesión redirige a `/login?volver=<ruta>`. `invitadoGuard`: con sesión, `/login` redirige a `rutaInicio()`. `permisoGuard(modulo, accion)`: sin permiso redirige a `/sin-permiso`. `inicioGuard`: la raíz del panel va a `rutaInicio()`.
 
@@ -326,7 +327,7 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 2. Una clave incorrecta muestra "Credenciales incorrectas". ✅
 3. Con un usuario admin entra y los números coinciden con los del admin de Django. ✅
 4. `INC-0002` muestra "Sin asignar" y "—". ✅ (manejado en el template)
-5. Un usuario con rol `tecnico` llega a `/admin/clientes` con el Dashboard bloqueado (cambiado en el módulo 02; antes terminaba en `/sin-permiso`). ✅
+5. Un usuario con rol `tecnico` entra al mismo panel: ve Dashboard y Clientes, pero crear, editar y desactivar clientes aparecen bloqueados (cambiado en el módulo 02; antes terminaba en `/sin-permiso`). ✅
 6. "Cerrar sesión" borra el token y vuelve al login. ✅
 7. Con el backend apagado, el dashboard muestra el estado de error con "Reintentar". ✅
 
