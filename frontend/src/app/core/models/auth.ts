@@ -1,5 +1,11 @@
 export type Rol = 'admin' | 'tecnico' | 'cliente';
 
+export const ETIQUETA_ROL: Record<Rol, string> = {
+  admin: 'Administrador',
+  tecnico: 'Técnico',
+  cliente: 'Cliente',
+};
+
 export interface Usuario {
   id: number;
   username: string;

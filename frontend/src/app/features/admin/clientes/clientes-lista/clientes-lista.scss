@@ -1,0 +1,19 @@
+.numerico {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.fila {
+  cursor: pointer;
+}
+
+th {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+// Un botón deshabilitado no recibe eventos de puntero; el contenedor muestra el cursor.
+.btn:disabled {
+  pointer-events: auto;
+  cursor: not-allowed;
+}

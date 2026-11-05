@@ -1,6 +1,5 @@
 from django.db.models import Count, Q
 from django.utils import timezone
-from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -8,15 +7,10 @@ from apps.assets.models import Activo, Backup
 from apps.incidents.models import Incidente
 from apps.maintenance.models import Mantenimiento
 from apps.organizations.models import Organizacion
+from apps.organizations.permissions import EsAdminOTecnicoLectura
 from apps.tickets.models import Ticket
 
 ACTIVOS = ["abierto", "en_progreso"]
-
-
-class EsAdmin(BasePermission):
-    def has_permission(self, request, view):
-        u = request.user
-        return u.is_authenticated and u.rol == "admin"
 
 
 def conteo_activos(tipo):
@@ -54,7 +48,7 @@ def serializar_incidente(i):
 
 
 class AdminDashboardView(APIView):
-    permission_classes = [EsAdmin]
+    permission_classes = [EsAdminOTecnicoLectura]
 
     def get(self, request):
         hoy = timezone.localdate()

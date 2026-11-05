@@ -1,0 +1,170 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h4 class="mb-0">
+    Clientes
+    @if (datos(); as d) {
+      <span class="text-muted fw-normal fs-6 ms-1">{{ d.count }}</span>
+    }
+  </h4>
+  <button
+    type="button"
+    class="btn btn-primary"
+    [disabled]="!puedeEditar()"
+    [title]="puedeEditar() ? '' : 'Solo administradores'"
+    (click)="nuevo()"
+  >
+    <i class="bi me-1" [class.bi-plus-lg]="puedeEditar()" [class.bi-lock-fill]="!puedeEditar()"></i>
+    Nuevo cliente
+  </button>
+</div>
+
+<div class="card shadow-sm border-0">
+  <!-- Filtros -->
+  <div class="card-body border-bottom">
+    <div class="row g-2">
+      <div class="col-12 col-lg-6">
+        <label for="buscar" class="visually-hidden">Buscar clientes</label>
+        <div class="input-group">
+          <span class="input-group-text bg-white"><i class="bi bi-search"></i></span>
+          <input
+            id="buscar"
+            type="search"
+            class="form-control"
+            placeholder="Buscar por nombre, NIT, ciudad o contacto"
+            autocomplete="off"
+            [value]="q()"
+            (input)="alEscribir($any($event.target).value)"
+            (keydown.enter)="aplicarBusqueda($any($event.target).value)"
+          />
+        </div>
+      </div>
+      <div class="col-6 col-lg-3">
+        <label for="estado" class="visually-hidden">Estado</label>
+        <select id="estado" class="form-select" (change)="cambiarEstado($any($event.target).value)">
+          <option value="activos" [selected]="filtroEstado() === 'activos'">Activos</option>
+          <option value="inactivos" [selected]="filtroEstado() === 'inactivos'">Inactivos</option>
+          <option value="todos" [selected]="filtroEstado() === 'todos'">Todos</option>
+        </select>
+      </div>
+      <div class="col-6 col-lg-3">
+        <label for="plan" class="visually-hidden">Plan</label>
+        <select id="plan" class="form-select" (change)="cambiarPlan($any($event.target).value)">
+          <option value="">Todos los planes</option>
+          @for (p of planes; track p.valor) {
+            <option [value]="p.valor" [selected]="plan() === p.valor">{{ p.texto }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
+  @if (estado() === 'cargando') {
+    <div class="text-center py-5" role="status">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2 mb-0 text-muted">Cargando clientes...</p>
+    </div>
+  } @else if (estado() === 'error') {
+    <div class="card-body">
+      <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+        <span>No se pudo cargar la lista de clientes.</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">
+          Reintentar
+        </button>
+      </div>
+    </div>
+  } @else if (datos(); as d) {
+    @if (d.results.length === 0) {
+      <div class="vacio text-center py-5 px-3">
+        <i class="bi bi-building fs-1 text-muted"></i>
+        @if (q()) {
+          <p class="mt-2 mb-0">No hay clientes que coincidan con «{{ q() }}».</p>
+          <p class="text-muted small mb-0">Prueba con otra parte del nombre, el NIT o la ciudad.</p>
+        } @else if (hayFiltros()) {
+          <p class="mt-2 mb-0">No hay clientes con estos filtros.</p>
+        } @else {
+          <p class="mt-2 mb-3">Aún no hay clientes activos.</p>
+          @if (puedeEditar()) {
+            <button type="button" class="btn btn-outline-primary" (click)="nuevo()">
+              <i class="bi bi-plus-lg me-1"></i>Crear el primer cliente
+            </button>
+          }
+        }
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead class="table-light">
+            <tr>
+              <th>Nombre</th>
+              <th>NIT</th>
+              <th>Ciudad</th>
+              <th>Plan</th>
+              <th>Contacto</th>
+              <th>Fin de contrato</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (o of d.results; track o.id) {
+              <tr class="fila" (click)="abrir(o.id)">
+                <td>
+                  <a class="fw-semibold text-body text-decoration-none" [routerLink]="['/admin/clientes', o.id]" (click)="$event.stopPropagation()">
+                    {{ o.nombre }}
+                  </a>
+                </td>
+                <td class="numerico">{{ o.nit ?? '—' }}</td>
+                <td>{{ o.ciudad ?? '—' }}</td>
+                <td>
+                  @if (o.plan) {
+                    <app-status-badge [valor]="o.plan" />
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td>{{ o.contacto_nombre ?? '—' }}</td>
+                @if (vencido(o.fecha_fin_contrato)) {
+                  <td class="numerico text-danger">
+                    <i class="bi bi-exclamation-circle me-1" aria-hidden="true"></i>
+                    {{ o.fecha_fin_contrato | date: 'dd/MM/yyyy' : 'UTC' }}
+                    <span class="visually-hidden">(vencido)</span>
+                  </td>
+                } @else {
+                  <td class="numerico">{{ (o.fecha_fin_contrato | date: 'dd/MM/yyyy' : 'UTC') ?? '—' }}</td>
+                }
+                <td><app-status-badge [valor]="o.activa ? 'activa' : 'inactiva'" /></td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPaginas() > 1) {
+        <div class="card-body border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <small class="text-muted numerico">
+            Mostrando {{ desde() }}–{{ hasta() }} de {{ d.count }}
+          </small>
+          <nav aria-label="Paginación de clientes" class="d-flex align-items-center gap-2">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              [disabled]="pagina() === 1"
+              (click)="irAPagina(pagina() - 1)"
+              aria-label="Página anterior"
+            >
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <span class="small numerico">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-secondary"
+              [disabled]="pagina() >= totalPaginas()"
+              (click)="irAPagina(pagina() + 1)"
+              aria-label="Página siguiente"
+            >
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </nav>
+        </div>
+      }
+    }
+  }
+</div>

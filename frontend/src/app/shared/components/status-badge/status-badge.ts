@@ -19,6 +19,13 @@ const ESTILOS: Record<string, { texto: string; clase: string }> = {
   exitoso: { texto: 'Exitoso', clase: 'success' },
   fallido: { texto: 'Fallido', clase: 'danger' },
   pendiente: { texto: 'Pendiente', clase: 'secondary' },
+  // estado de organización
+  activa: { texto: 'Activo', clase: 'success' },
+  inactiva: { texto: 'Inactivo', clase: 'secondary' },
+  // plan de servicio
+  basico: { texto: 'Básico', clase: 'secondary' },
+  estandar: { texto: 'Estándar', clase: 'info' },
+  premium: { texto: 'Premium', clase: 'primary' },
 };
 
 @Component({

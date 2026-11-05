@@ -1,6 +1,6 @@
 # SEBRIT: contexto del proyecto para Claude Code
 
-Última actualización: 2026-11-04. Este archivo resume lo que ya está construido y lo que se va a desarrollar. Léelo completo antes de proponer o hacer cambios.
+Última actualización: 2026-11-05. Este archivo resume lo que ya está construido y lo que se va a desarrollar. Léelo completo antes de proponer o hacer cambios.
 
 ## 1. Qué es SEBRIT
 
@@ -12,8 +12,8 @@ Principio clave: **la autorización se hace en el backend**. Ocultar opciones en
 
 | # | Módulo | Estado |
 |---|---|---|
-| 01 | Dashboard (administrativo primero) | Sprint 1, casi cerrado |
-| 02 | Clientes y organizaciones | Solo modelo base |
+| 01 | Dashboard (administrativo primero) | Sprint 1, hecho |
+| 02 | Clientes y organizaciones | Hecho (CRUD sin borrado, panel compartido admin/técnico) |
 | 03 | Infraestructura y activos | Solo modelo base |
 | 04 | Tickets y soporte | Solo modelo base |
 | 05 | Incidentes | Solo modelo base |
@@ -88,7 +88,7 @@ sebrit/
 │   ├── config/              # settings.py, urls.py
 │   └── apps/
 │       ├── accounts/        # Usuario personalizado (rol, organizacion), login JWT, /me
-│       ├── organizations/   # Organizacion
+│       ├── organizations/   # Organizacion, API /api/organizaciones/ (viewset, permisos, serializers)
 │       ├── assets/          # Activo, Backup
 │       ├── tickets/         # Ticket
 │       ├── incidents/       # Incidente, AccionIncidente
@@ -99,12 +99,13 @@ sebrit/
 │   ├── Dockerfile
 │   ├── public/mock/dashboard-admin.json   # ya no se usa; queda para pruebas
 │   └── src/app/
-│       ├── core/            # config/api.ts, models, services (auth, dashboard), interceptors, guards, layout
+│       ├── core/            # auth/permisos.ts, config/api.ts, models, services, interceptors, guards, layout
 │       ├── shared/components/   # stat-card, status-badge
-│       └── features/        # admin/dashboard, auth/login, errors/sin-permiso
+│       └── features/        # admin/dashboard, admin/clientes, auth/login, errors/sin-permiso
 ├── docs/
 │   ├── api-contract.md      # fuente de verdad del contrato de la API
-│   └── examples/dashboard-admin.json
+│   ├── examples/            # dashboard-admin.json, organizacion.json
+│   └── superpowers/         # specs/ y plans/ de cada módulo
 ├── docker-compose.yml
 ├── .env.example
 ├── .github/                 # CODEOWNERS, plantilla de PR
@@ -142,13 +143,14 @@ cd frontend && npx ng build
 
 Variables de `.env`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` (=`db`), `POSTGRES_PORT`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`.
 
-Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 organizaciones (una inactiva), 25 servidores y 15 equipos de red, 20 backups, 28 tickets abiertos y 5 cerrados, 5 incidentes (3 críticos activos, uno sin técnico), 5 mantenimientos (4 de hoy). Los números se parecen al JSON de ejemplo pero no son iguales (por ejemplo 2 clientes activos, no 12).
+Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 organizaciones con NIT, ciudad y plan (una inactiva), 25 servidores y 15 equipos de red, 20 backups, 28 tickets abiertos y 5 cerrados, 5 incidentes (3 críticos activos, uno sin técnico), 5 mantenimientos (4 de hoy). Los números se parecen al JSON de ejemplo pero no son iguales (por ejemplo 2 clientes activos, no 12).
 
 ### Usuarios en la base local de Seb
 
 | Usuario | Rol | Notas |
 |---|---|---|
 | `sebri` | admin, superusuario | |
+| `sebas` | tecnico | Cuenta de pruebas creada el 2026-11-05 |
 | `brigi` | admin, superusuario | Promovida el 2026-11-04 |
 | `carlos`, `laura` | tecnico | Del seed, sin contraseña |
 
@@ -181,13 +183,15 @@ Conexión: host `localhost`, puerto `5433`, base y usuario de `POSTGRES_DB` / `P
 | Modelo (app) | Campos principales |
 |---|---|
 | `Usuario` (accounts) | Extiende `AbstractUser`. `rol` (`admin`, `tecnico`, `cliente`), `organizacion` (FK opcional). Todo superusuario recibe `rol = admin` en `save()` |
-| `Organizacion` | `nombre` (único), `activa` |
+| `Organizacion` | `nombre` (único), `nit` (único; nulo solo en registros anteriores al módulo 02), `sector`, `telefono`, `correo`, `direccion`, `ciudad`, `contacto_*` (nombre, cargo, correo, teléfono), `plan` (`basico`, `estandar`, `premium`), `fecha_inicio_contrato`, `fecha_fin_contrato`, `activa`, `creado_en`, `actualizado_en` |
 | `Activo` (assets) | `organizacion`, `tipo` (`servidor`, `red`), `nombre`, `estado` (`operativo`, `advertencia`, `critico`) |
 | `Backup` (assets) | `organizacion`, `activo` (opcional), `estado` (`exitoso`, `fallido`, `pendiente`), `fecha` |
 | `Ticket` | `organizacion`, `titulo`, `estado`, `creado_en` |
 | `Incidente` | `codigo` (único, ej. `INC-0001`), `titulo`, `organizacion`, `severidad`, `estado`, `tecnico` (FK a Usuario, **puede ser null**), `creado_en` |
 | `AccionIncidente` | `incidente`, `descripcion`, `fecha` (la más reciente es la `ultima_accion`) |
 | `Mantenimiento` | `organizacion`, `titulo`, `fecha_programada`, `estado` (`programado`, `en_curso`, `completado`) |
+
+Las FK `organizacion` de `Activo`, `Backup`, `Ticket`, `Incidente` y `Mantenimiento` usan `on_delete=PROTECT`: un cliente con datos no se puede borrar (se desactiva).
 
 Los estados usan `TextChoices` con los valores del contrato. Los nombres de dominio (modelos, campos, claves JSON) van **en español, sin tildes**; el código del framework en inglés.
 
@@ -200,9 +204,12 @@ El admin de Django (`accounts/admin.py`) permite elegir rol y organización al c
 | POST | `/api/auth/login/` | Público. Recibe `username` y `password`; devuelve `access`, `refresh` y `usuario` (`id`, `username`, `nombre`, `rol`) |
 | POST | `/api/auth/refresh/` | Público. Recibe `refresh`, devuelve un nuevo `access` |
 | GET | `/api/auth/me/` | JWT. Devuelve el `usuario` de la sesión |
-| GET | `/api/dashboard/admin/` | JWT y `rol = admin`. 401 sin token, 403 si no es admin |
+| GET | `/api/dashboard/admin/` | JWT, admin o técnico. 401 sin token, 403 para cliente |
+| GET | `/api/organizaciones/` | admin y técnico. Paginada (20, máx. 100); `q`, `activa`, `plan`, `ordering` |
+| GET | `/api/organizaciones/{id}/` | admin y técnico. Incluye `resumen` |
+| POST, PATCH | `/api/organizaciones/`, `/{id}/` | Solo admin. PUT y DELETE dan 405 |
 
-El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. El permiso `EsAdmin` (en `apps/dashboard/views.py`) comprueba `rol == "admin"`. Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
+El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
 
 ### Reglas de cálculo del dashboard
 
@@ -216,14 +223,15 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 
 ### Pruebas
 
-- `apps/dashboard/tests.py` (4): sin token 401, técnico 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico.
+- `apps/dashboard/tests.py` (6): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico.
 - `apps/accounts/tests.py` (5): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200.
+- `apps/organizations/tests.py` (33): modelo y `PROTECT`, seed, permisos por rol y método, validaciones, `resumen`, nulos, búsqueda, filtros, orden y paginación.
 
 Todo endpoint nuevo debe traer pruebas de permisos (401 / 403 / 200).
 
 ## 8. Contrato de la API
 
-Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/dashboard-admin.json`**. Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
+Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
 
 ```
 GET /api/dashboard/admin/
@@ -260,6 +268,7 @@ Convenciones: claves `snake_case`; claves siempre presentes; `null` cuando no ha
 - Bootstrap 5 y Bootstrap Icons están instalados con npm y referenciados en `angular.json` (`styles`).
 - URL base de la API: `core/config/api.ts` (`API_URL = 'http://localhost:8000/api'`). Las URLs terminan en `/` (Django devuelve 404 sin la barra final).
 - `DashboardService` llama siempre a la API real (`${API_URL}/dashboard/admin/`); el mock ya no se usa.
+- Las fechas `YYYY-MM-DD` se formatean con `DatePipe` en `'UTC'` (si no, en Bogotá se ven un día antes).
 - Manejar siempre los `null` (`tecnico_asignado` → "Sin asignar", `ultima_accion` → "—") y los estados cargando, error (con "Reintentar") y lista vacía.
 - Revisar si ya existe un componente equivalente antes de crear uno nuevo.
 
@@ -275,12 +284,26 @@ Mismo mundo en todas las pantallas: panel/sidebar `bg-dark` con la marca "SEBRIT
 | Layout administrativo (sidebar; navbar con nombre del usuario y "Salir") | contenedor de `/admin/...` | Usuario de la sesión |
 | Dashboard admin: 4 tarjetas, tabla de incidentes, indicadores de servidores, redes, backups e incidentes críticos | `/admin/dashboard` | `GET /api/dashboard/admin/` |
 | Sin permiso (nombre y rol del usuario, botón "Ingresar con otra cuenta") | `/sin-permiso` | Usuario de la sesión |
+| Clientes: lista con búsqueda, filtros y paginación | `/admin/clientes` | `GET /api/organizaciones/` |
+| Clientes: ficha con resumen y desactivar/reactivar | `/admin/clientes/:id` | `GET`/`PATCH /api/organizaciones/{id}/` |
+| Clientes: formulario crear/editar (solo admin) | `/admin/clientes/nuevo`, `/admin/clientes/:id/editar` | `POST`/`PATCH` |
+
+### Panel compartido y permisos en el frontend
+
+Admin y técnico usan el mismo layout. Lo que un rol no puede usar **se muestra bloqueado** (candado y "Solo administradores"), no se oculta. El mapa está en `core/auth/permisos.ts`:
+
+| Módulo | Ver | Editar |
+|---|---|---|
+| `dashboard` | admin, técnico | — |
+| `clientes` | admin, técnico | admin |
+
+Al agregar un módulo: una fila en `PERMISOS`, un enlace en `Layout.enlaces` y `permisoGuard(modulo, accion)` en sus rutas. El mapa solo refleja lo que el backend ya permite.
 
 ### Autenticación en el frontend (implementada)
 
-- `AuthService` (`core/services/auth.service.ts`): guarda en `localStorage` `sebrit.access`, `sebrit.refresh` y `sebrit.usuario`; expone `usuario()` y `autenticado()` como signals; `logout()` borra todo y redirige a `/login`; `rutaInicio()` devuelve `/admin/dashboard` para `admin` y `/sin-permiso` para los demás roles.
+- `AuthService` (`core/services/auth.service.ts`): guarda en `localStorage` `sebrit.access`, `sebrit.refresh` y `sebrit.usuario`; expone `usuario()` y `autenticado()` como signals; `logout()` borra todo y redirige a `/login`; `puede(modulo, accion)`; `rutaInicio()` devuelve `/admin/dashboard` para `admin` y `tecnico`, y `/sin-permiso` para `cliente`.
 - `authInterceptor`: añade `Authorization: Bearer <token>` **solo** a peticiones a `API_URL` (excepto login y refresh). Ante 401 intenta **un** refresh compartido y reintenta; si falla, cierra sesión. Ante 403 redirige a `/sin-permiso`.
-- `authGuard`: sin sesión redirige a `/login?volver=<ruta>`. `invitadoGuard`: con sesión, `/login` redirige a `rutaInicio()`.
+- `authGuard`: sin sesión redirige a `/login?volver=<ruta>`. `invitadoGuard`: con sesión, `/login` redirige a `rutaInicio()`. `permisoGuard(modulo, accion)`: sin permiso redirige a `/sin-permiso`. `inicioGuard`: la raíz del panel va a `rutaInicio()`.
 
 ## 10. Estado del Sprint 1
 
@@ -304,14 +327,14 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 2. Una clave incorrecta muestra "Credenciales incorrectas". ✅
 3. Con un usuario admin entra y los números coinciden con los del admin de Django. ✅
 4. `INC-0002` muestra "Sin asignar" y "—". ✅ (manejado en el template)
-5. Un usuario con rol `tecnico` termina en `/sin-permiso`. ✅
+5. Un usuario con rol `tecnico` entra al mismo panel: ve Dashboard y Clientes, pero crear, editar y desactivar clientes aparecen bloqueados (cambiado en el módulo 02; antes terminaba en `/sin-permiso`). ✅
 6. "Cerrar sesión" borra el token y vuelve al login. ✅
 7. Con el backend apagado, el dashboard muestra el estado de error con "Reintentar". ✅
 
 ## 11. Qué sigue después del Sprint 1
 
 1. Dashboard del técnico y del cliente (mismos endpoints con datos filtrados por rol y organización).
-2. CRUD de clientes y activos, luego tickets e incidentes (creación, asignación, estados, comentarios, historial), luego mantenimientos.
+2. ~~CRUD de clientes~~ (hecho, módulo 02); sigue activos (módulo 03), luego tickets e incidentes (creación, asignación, estados, comentarios, historial), luego mantenimientos.
 3. Aislamiento por organización en el backend (un cliente nunca ve datos de otra empresa), con pruebas con dos organizaciones.
 4. Reportes y SLA cuando se definan las reglas de negocio.
 5. Monitoreo y alertas con integraciones externas.
@@ -340,7 +363,8 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 | `could not translate host name "db"` | El backend no está en la misma red que la base: levantar solo con `docker compose up`, sin contenedores sueltos |
 | `InconsistentMigrationHistory` | La base tiene migraciones del usuario por defecto: `docker compose down -v` y migrar de nuevo |
 | El frontend no encuentra Bootstrap | Falta `bootstrap` en `package.json` o un volumen viejo: `docker compose run --rm --no-deps frontend npm install bootstrap` y luego `down -v` y `up --build` |
-| Un usuario válido termina en `/sin-permiso` | Su `rol` no es `admin`: editarlo en `/admin/` |
+| Un usuario válido termina en `/sin-permiso` | Su `rol` es `cliente` (o una ruta exige otro permiso): editarlo en `/admin/` |
+| Al editar un cliente antiguo pide NIT | Las organizaciones creadas antes del módulo 02 no tienen NIT; hay que completarlo para guardar |
 | Sesión cerrada tras un rato | El refresh token venció o es inválido: iniciar sesión de nuevo |
 | `InsecureKeyLengthWarning` en las pruebas | `DJANGO_SECRET_KEY` tiene menos de 32 caracteres: cambiarla en `.env` (cierra las sesiones abiertas) |
 | `Cannot start ChromeHeadless` en `ng test` | No hay Chrome: usar `CHROME_BIN` apuntando a Edge (ver sección 6) |

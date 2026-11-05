@@ -12,13 +12,22 @@ class DashboardAdminTests(APITestCase):
     def setUp(self):
         self.admin = Usuario.objects.create_user("admin1", password="x", rol="admin")
         self.tecnico = Usuario.objects.create_user("tec1", password="x", rol="tecnico")
+        self.cliente = Usuario.objects.create_user("cli1", password="x", rol="cliente")
 
     def test_sin_token_da_401(self):
         self.assertEqual(self.client.get(URL).status_code, 401)
 
-    def test_tecnico_da_403(self):
+    def test_tecnico_da_200(self):
         self.client.force_authenticate(self.tecnico)
+        self.assertEqual(self.client.get(URL).status_code, 200)
+
+    def test_cliente_da_403(self):
+        self.client.force_authenticate(self.cliente)
         self.assertEqual(self.client.get(URL).status_code, 403)
+
+    def test_tecnico_no_puede_escribir(self):
+        self.client.force_authenticate(self.tecnico)
+        self.assertEqual(self.client.post(URL, {}).status_code, 403)
 
     def test_admin_da_200_y_respeta_el_contrato(self):
         self.client.force_authenticate(self.admin)
