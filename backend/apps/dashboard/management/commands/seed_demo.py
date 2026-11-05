@@ -17,9 +17,15 @@ class Command(BaseCommand):
             self.stdout.write("Ya hay datos; no se carga nada.")
             return
 
-        org1 = Organizacion.objects.create(nombre="Empresa Ejemplo S.A.S.")
-        org2 = Organizacion.objects.create(nombre="Comercial del Sur")
-        Organizacion.objects.create(nombre="Inactiva Ltda.", activa=False)
+        org1 = Organizacion.objects.create(
+            nombre="Empresa Ejemplo S.A.S.", nit="900123456-7", ciudad="Bogotá", plan="premium",
+        )
+        org2 = Organizacion.objects.create(
+            nombre="Comercial del Sur", nit="800987654-3", ciudad="Cali", plan="estandar",
+        )
+        Organizacion.objects.create(
+            nombre="Inactiva Ltda.", nit="901555222-1", ciudad="Medellín", plan="basico", activa=False,
+        )
 
         carlos = Usuario.objects.create_user("carlos", first_name="Carlos", last_name="Pérez", rol="tecnico")
         laura = Usuario.objects.create_user("laura", first_name="Laura", last_name="Gómez", rol="tecnico")

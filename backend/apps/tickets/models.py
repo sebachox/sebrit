@@ -8,7 +8,7 @@ class Ticket(models.Model):
         RESUELTO = "resuelto"
         CERRADO = "cerrado"
 
-    organizacion = models.ForeignKey("organizations.Organizacion", on_delete=models.CASCADE)
+    organizacion = models.ForeignKey("organizations.Organizacion", on_delete=models.PROTECT)
     titulo = models.CharField(max_length=200)
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.ABIERTO)
     creado_en = models.DateTimeField(default=timezone.now)

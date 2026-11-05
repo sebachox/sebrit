@@ -17,7 +17,7 @@ class Incidente(models.Model):
 
     codigo = models.CharField(max_length=20, unique=True)
     titulo = models.CharField(max_length=200)
-    organizacion = models.ForeignKey("organizations.Organizacion", on_delete=models.CASCADE)
+    organizacion = models.ForeignKey("organizations.Organizacion", on_delete=models.PROTECT)
     severidad = models.CharField(max_length=10, choices=Severidad.choices)
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.ABIERTO)
     tecnico = models.ForeignKey(

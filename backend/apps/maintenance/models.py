@@ -6,7 +6,7 @@ class Mantenimiento(models.Model):
         EN_CURSO = "en_curso"
         COMPLETADO = "completado"
 
-    organizacion = models.ForeignKey("organizations.Organizacion", on_delete=models.CASCADE)
+    organizacion = models.ForeignKey("organizations.Organizacion", on_delete=models.PROTECT)
     titulo = models.CharField(max_length=200)
     fecha_programada = models.DateTimeField()
     estado = models.CharField(max_length=12, choices=Estado.choices, default=Estado.PROGRAMADO)
