@@ -15,11 +15,10 @@
     transform: translateX(0);
   }
 }
-// Módulo sin permiso: visible pero inerte, con candado y pista accesible.
+// Módulo sin permiso: visible pero inerte, con candado. La pista se despliega
+// en línea (no flota sobre el contenido) al pasar el mouse o llegar con teclado.
 .bloqueado {
-  position: relative;
-  display: flex;
-  align-items: center;
+  display: block;
   color: rgba(255, 255, 255, 0.5);
   cursor: not-allowed;
 
@@ -33,25 +32,22 @@
   }
 
   .pista {
-    position: absolute;
-    left: calc(100% - 0.5rem);
-    top: 50%;
-    translate: 0 -50%;
-    z-index: 1050;
-    white-space: nowrap;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.375rem;
-    background: var(--bs-white);
-    color: var(--bs-body-color);
+    display: block;
+    max-height: 0;
+    overflow: hidden;
+    padding-left: 1.5rem;
     font-size: 0.8rem;
-    box-shadow: 0 0.25rem 0.75rem rgba(0, 0, 0, 0.15);
-    opacity: 0;
-    pointer-events: none;
-    transition: opacity 0.15s ease-out;
+    color: rgba(255, 255, 255, 0.65);
+    transition: max-height 0.2s ease-out;
   }
 
   &:hover .pista,
   &:focus-visible .pista {
-    opacity: 1;
+    max-height: 1.5rem;
   }
+}
+
+// Sin esto, un hijo ancho (p. ej. una tabla) estira el flex item y desborda la página en móvil.
+.contenido {
+  min-width: 0;
 }

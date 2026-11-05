@@ -23,9 +23,11 @@
               tabindex="0"
               [attr.aria-describedby]="'pista-' + e.modulo"
             >
-              <i class="bi {{ e.icono }} me-2"></i>{{ e.texto }}
-              <i class="bi bi-lock-fill ms-auto candado" aria-hidden="true"></i>
-              <span class="pista" role="tooltip" [id]="'pista-' + e.modulo">Solo administradores</span>
+              <span class="d-flex align-items-center">
+                <i class="bi {{ e.icono }} me-2"></i>{{ e.texto }}
+                <i class="bi bi-lock-fill ms-auto candado" aria-hidden="true"></i>
+              </span>
+              <span class="pista" [id]="'pista-' + e.modulo">Solo administradores</span>
             </span>
           }
         </li>
@@ -34,7 +36,7 @@
   </aside>
 
   <!-- Contenido -->
-  <div class="flex-grow-1 min-vh-100">
+  <div class="contenido flex-grow-1 min-vh-100">
     <nav class="navbar bg-white border-bottom px-3">
       <button class="btn btn-outline-secondary d-md-none" (click)="alternarMenu()">
         <i class="bi bi-list"></i>
