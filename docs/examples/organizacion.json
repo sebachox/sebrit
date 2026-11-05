@@ -1,0 +1,26 @@
+{
+  "id": 1,
+  "nombre": "Empresa Ejemplo S.A.S.",
+  "nit": "900123456-7",
+  "sector": "Retail",
+  "telefono": "+57 601 555 0100",
+  "correo": "contacto@empresaejemplo.co",
+  "direccion": "Calle 100 # 10-20",
+  "ciudad": "Bogotá",
+  "contacto_nombre": "Ana Ruiz",
+  "contacto_cargo": "Jefe de TI",
+  "contacto_correo": "ana.ruiz@empresaejemplo.co",
+  "contacto_telefono": "+57 310 555 0101",
+  "plan": "premium",
+  "fecha_inicio_contrato": "2026-02-01",
+  "fecha_fin_contrato": "2027-01-31",
+  "activa": true,
+  "creado_en": "2026-11-05T09:54:34.549645-05:00",
+  "actualizado_en": "2026-11-05T09:54:34.550128-05:00",
+  "resumen": {
+    "activos": 0,
+    "tickets_abiertos": 5,
+    "incidentes_activos": 0,
+    "usuarios": 0
+  }
+}

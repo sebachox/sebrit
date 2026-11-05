@@ -1,4 +1,4 @@
-# Contrato de API: Dashboard administrativo (v1)
+# Contrato de API SEBRIT (v1)
 
 Fuente de verdad entre backend (Django) y frontend (Angular). Cualquier cambio se acuerda por PR a este archivo.
 
@@ -103,3 +103,97 @@ Un incidente o ticket está **activo** si su estado es `abierto` o `en_progreso`
 - Las claves siempre están presentes. Cuando no hay valor se usa `null`; las listas vacías son `[]`, nunca `null`.
 - Contadores: enteros mayores o iguales a 0.
 - Fechas: ISO 8601 con zona horaria.
+---
+
+# Organizaciones (clientes)
+
+Recurso `/api/organizaciones/`. No hay borrado: un cliente se desactiva con `PATCH {"activa": false}` y se reactiva con `{"activa": true}`.
+
+## Permisos
+
+| Método | Ruta | Admin | Técnico | Cliente | Sin token |
+|---|---|---|---|---|---|
+| GET | `/api/organizaciones/` | 200 | 200 | 403 | 401 |
+| GET | `/api/organizaciones/{id}/` | 200 | 200 | 403 | 401 |
+| POST | `/api/organizaciones/` | 201 | 403 | 403 | 401 |
+| PATCH | `/api/organizaciones/{id}/` | 200 | 403 | 403 | 401 |
+| PUT, DELETE | `/api/organizaciones/{id}/` | 405 | 403 | 403 | 401 |
+
+Un `id` inexistente da 404.
+
+## Lista: `GET /api/organizaciones/`
+
+| Parámetro | Valores | Por defecto |
+|---|---|---|
+| `q` | Texto. Busca, sin distinguir mayúsculas, en `nombre`, `nit`, `ciudad` y `contacto_nombre`. Solo espacios = sin filtro | — |
+| `activa` | `true`, `false` (otro valor se ignora) | Sin filtro |
+| `plan` | `basico`, `estandar`, `premium` (otro valor se ignora) | Sin filtro |
+| `ordering` | `nombre`, `-nombre`, `creado_en`, `-creado_en` | `nombre` (sin distinguir mayúsculas) |
+| `page` | Entero ≥ 1. Una página fuera de rango da 404 | 1 |
+| `page_size` | Entero; máximo 100 | 20 |
+
+Respuesta:
+
+```json
+{
+  "count": 3,
+  "next": null,
+  "previous": null,
+  "results": [
+    {
+      "id": 1,
+      "nombre": "Empresa Ejemplo S.A.S.",
+      "nit": "900123456-7",
+      "ciudad": "Bogotá",
+      "plan": "premium",
+      "contacto_nombre": "Ana Ruiz",
+      "fecha_fin_contrato": "2027-01-31",
+      "activa": true
+    }
+  ]
+}
+```
+
+## Detalle, creación y edición
+
+`GET /api/organizaciones/{id}/`, `POST` (201) y `PATCH` (200) responden con el detalle completo. Ejemplo: [`docs/examples/organizacion.json`](examples/organizacion.json).
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | entero | Solo lectura |
+| `nombre` | string | Obligatorio, máx. 150. Único sin distinguir mayúsculas |
+| `nit` | string | Obligatorio al crear; no se puede vaciar. Formato `^\d{6,10}(-\d)?$` (sin puntos ni espacios). Único. Puede ser `null` solo en organizaciones anteriores al módulo |
+| `sector`, `telefono`, `correo`, `direccion`, `ciudad` | string o `null` | Opcionales. `correo` debe ser un email válido |
+| `contacto_nombre`, `contacto_cargo`, `contacto_correo`, `contacto_telefono` | string o `null` | Contacto principal, opcional |
+| `plan` | string o `null` | `basico`, `estandar`, `premium` |
+| `fecha_inicio_contrato`, `fecha_fin_contrato` | string `YYYY-MM-DD` o `null` | Fin no puede ser anterior a inicio (también en `PATCH` parcial) |
+| `activa` | booleano | Por defecto `true` |
+| `creado_en`, `actualizado_en` | string ISO 8601 | Solo lectura |
+| `resumen` | objeto | Solo lectura, solo en el detalle (ver abajo) |
+
+`resumen`:
+
+| Campo | Regla |
+|---|---|
+| `activos` | Todos los activos de la organización |
+| `tickets_abiertos` | Tickets en `abierto` o `en_progreso` |
+| `incidentes_activos` | Incidentes en `abierto` o `en_progreso` |
+| `usuarios` | Usuarios asignados a la organización |
+
+En la entrada, los opcionales aceptan `null` o `""`; en la salida, vacío siempre es `null`.
+
+## Errores de validación (400)
+
+Errores por campo:
+
+```json
+{ "nit": ["Ya existe una organización con este NIT."] }
+```
+
+| Campo | Mensaje |
+|---|---|
+| `nit` | `El NIT es obligatorio.` |
+| `nit` | `Escribe el NIT sin puntos ni espacios, por ejemplo 900123456-7.` |
+| `nit` | `Ya existe una organización con este NIT.` |
+| `nombre` | `Ya existe una organización con este nombre.` |
+| `fecha_fin_contrato` | `La fecha de fin no puede ser anterior a la de inicio.` |

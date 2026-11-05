@@ -220,3 +220,54 @@ class DetalleOrganizacionTests(APITestCase):
         despues = self.client.get("/api/dashboard/admin/").data["resumen_operativo"]["clientes_activos"]
         self.assertEqual(despues, antes - 1)
         self.assertTrue(Ticket.objects.filter(pk=ticket.pk).exists())
+
+
+class ListaOrganizacionesTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(Usuario.objects.create_user("admin1", rol="admin"))
+        Organizacion.objects.create(nombre="Beta", nit="800000001", ciudad="Cali", plan="basico")
+        Organizacion.objects.create(
+            nombre="alfa", nit="900000002", ciudad="Bogotá", plan="premium",
+            contacto_nombre="Ana Ruiz",
+        )
+        Organizacion.objects.create(nombre="Gamma", nit="700000003", activa=False)
+
+    def nombres(self, query=""):
+        return [o["nombre"] for o in self.client.get(f"{URL}{query}").data["results"]]
+
+    def test_orden_por_defecto_por_nombre(self):
+        self.assertEqual(self.nombres(), ["alfa", "Beta", "Gamma"])
+
+    def test_orden_descendente(self):
+        self.assertEqual(self.nombres("?ordering=-nombre"), ["Gamma", "Beta", "alfa"])
+
+    def test_busqueda_por_nombre_nit_ciudad_y_contacto(self):
+        self.assertEqual(self.nombres("?q=bogo"), ["alfa"])
+        self.assertEqual(self.nombres("?q=ana"), ["alfa"])
+        self.assertEqual(self.nombres("?q=BETA"), ["Beta"])
+        self.assertEqual(self.nombres("?q=7000"), ["Gamma"])
+
+    def test_busqueda_solo_espacios_no_filtra(self):
+        self.assertEqual(self.client.get(f"{URL}?q=%20%20").data["count"], 3)
+
+    def test_filtro_activa(self):
+        self.assertEqual(self.nombres("?activa=false"), ["Gamma"])
+        self.assertEqual(self.nombres("?activa=true"), ["alfa", "Beta"])
+
+    def test_filtro_plan(self):
+        self.assertEqual(self.nombres("?plan=premium"), ["alfa"])
+
+    def test_page_size_maximo_100(self):
+        Organizacion.objects.bulk_create(
+            [Organizacion(nombre=f"Org {n:03d}", nit=f"6{n:08d}") for n in range(101)]
+        )
+        r = self.client.get(f"{URL}?page_size=500")
+        self.assertEqual(len(r.data["results"]), 100)
+        self.assertEqual(r.data["count"], 104)
+
+    def test_lista_trae_solo_campos_resumidos(self):
+        r = self.client.get(URL)
+        self.assertEqual(
+            set(r.data["results"][0]),
+            {"id", "nombre", "nit", "ciudad", "plan", "contacto_nombre", "fecha_fin_contrato", "activa"},
+        )
