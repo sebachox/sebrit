@@ -119,4 +119,14 @@ describe('ClientesLista', () => {
     responder(pagina([org({ fecha_fin_contrato: '2020-01-01' })]));
     expect(el().querySelector('td.text-danger')?.textContent).toContain('2020');
   });
+
+  it('una búsqueda nueva cancela la anterior para no mostrar resultados viejos', () => {
+    crear();
+    responder(pagina([org()]));
+    fixture.componentInstance.aplicarBusqueda('a');
+    const vieja = http.expectOne((r) => r.url === BASE && r.params.get('q') === 'a');
+    fixture.componentInstance.aplicarBusqueda('ab');
+    expect(vieja.cancelled).toBeTrue();
+    http.expectOne((r) => r.params.get('q') === 'ab').flush(pagina([org()]));
+  });
 });

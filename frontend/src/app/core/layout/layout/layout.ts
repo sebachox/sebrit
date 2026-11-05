@@ -1,6 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Modulo } from '../../auth/permisos';
+import { ETIQUETA_ROL } from '../../models/auth';
 import { AuthService } from '../../services/auth.service';
 
 @Component({
@@ -20,6 +21,11 @@ export class Layout {
   cerrarMenu() {
     this.menuAbierto.set(false);
   }
+
+  rol = computed(() => {
+    const r = this.auth.usuario()?.rol;
+    return r ? ETIQUETA_ROL[r] : null;
+  });
 
   tituloPanel = computed(() =>
     this.auth.usuario()?.rol === 'tecnico' ? 'Panel técnico' : 'Panel de administración',

@@ -45,6 +45,9 @@
       <div class="ms-auto d-flex align-items-center gap-2">
         <i class="bi bi-person-circle fs-4"></i>
         <span class="d-none d-sm-inline">{{ auth.usuario()?.nombre }}</span>
+        @if (rol(); as r) {
+          <span class="badge rounded-pill text-bg-light border d-none d-sm-inline">{{ r }}</span>
+        }
         <button
           class="btn btn-sm btn-outline-secondary ms-2"
           (click)="auth.logout()"

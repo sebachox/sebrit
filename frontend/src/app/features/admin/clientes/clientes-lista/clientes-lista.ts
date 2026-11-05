@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
+import { Subscription } from 'rxjs';
 import {
   FiltrosOrganizaciones,
   OrganizacionResumida,
@@ -53,6 +54,7 @@ export class ClientesLista implements OnInit, OnDestroy {
   hayFiltros = computed(() => this.plan() !== null || this.filtroEstado() !== 'activos');
 
   private temporizador?: ReturnType<typeof setTimeout>;
+  private peticion?: Subscription;
 
   ngOnInit() {
     this.cargar();
@@ -60,11 +62,14 @@ export class ClientesLista implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     clearTimeout(this.temporizador);
+    this.peticion?.unsubscribe();
   }
 
   cargar() {
     this.estado.set('cargando');
-    this.servicio.listar(this.filtros()).subscribe({
+    // Cancela la petición anterior: una respuesta vieja no debe pisar a la nueva.
+    this.peticion?.unsubscribe();
+    this.peticion = this.servicio.listar(this.filtros()).subscribe({
       next: (d) => {
         this.datos.set(d);
         this.estado.set('listo');
@@ -87,6 +92,7 @@ export class ClientesLista implements OnInit, OnDestroy {
   }
 
   aplicarBusqueda(texto: string) {
+    clearTimeout(this.temporizador);
     this.q.set(texto.trim());
     this.reiniciar();
   }

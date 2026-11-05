@@ -50,4 +50,11 @@ describe('Layout', () => {
       'Panel técnico',
     );
   });
+
+  it('el navbar muestra el nombre y el rol', () => {
+    const fixture = crear('tecnico');
+    const navbar = (fixture.nativeElement as HTMLElement).querySelector('.navbar')?.textContent;
+    expect(navbar).toContain('Laura Gómez');
+    expect(navbar).toContain('Técnico');
+  });
 });

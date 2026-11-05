@@ -21,11 +21,22 @@
           </p>
         }
         <p class="text-muted mb-4">
-          Por ahora el panel solo está disponible para administradores. Si necesitas acceso,
+          Esta sección solo está disponible para administradores. Si necesitas acceso,
           pide a un administrador que revise tu cuenta.
         </p>
 
-        <button type="button" class="btn btn-primary btn-lg w-100" (click)="auth.logout()">
+        @if (tienePanel()) {
+          <button type="button" class="btn btn-primary btn-lg w-100 mb-2" (click)="volver()">
+            <i class="bi bi-arrow-left me-2"></i>Volver a mi panel
+          </button>
+        }
+        <button
+          type="button"
+          class="btn btn-lg w-100"
+          [class.btn-primary]="!tienePanel()"
+          [class.btn-outline-secondary]="tienePanel()"
+          (click)="auth.logout()"
+        >
           <i class="bi bi-box-arrow-left me-2"></i>Ingresar con otra cuenta
         </button>
       </div>

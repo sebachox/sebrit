@@ -1,12 +1,7 @@
 import { Component, computed, inject } from '@angular/core';
-import { Rol } from '../../../core/models/auth';
+import { Router } from '@angular/router';
+import { ETIQUETA_ROL } from '../../../core/models/auth';
 import { AuthService } from '../../../core/services/auth.service';
-
-const NOMBRE_ROL: Record<Rol, string> = {
-  admin: 'administrador',
-  tecnico: 'técnico',
-  cliente: 'cliente',
-};
 
 @Component({
   selector: 'app-sin-permiso',
@@ -15,9 +10,17 @@ const NOMBRE_ROL: Record<Rol, string> = {
 })
 export class SinPermiso {
   protected auth = inject(AuthService);
+  private router = inject(Router);
 
   rol = computed(() => {
     const r = this.auth.usuario()?.rol;
-    return r ? NOMBRE_ROL[r] : null;
+    return r ? ETIQUETA_ROL[r].toLowerCase() : null;
   });
+
+  /** El rol tiene un panel propio al que volver (admin y técnico). */
+  tienePanel = computed(() => this.auth.rutaInicio() !== '/sin-permiso');
+
+  volver() {
+    this.router.navigateByUrl(this.auth.rutaInicio());
+  }
 }
