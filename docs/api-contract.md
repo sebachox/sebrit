@@ -4,9 +4,44 @@ Fuente de verdad entre backend (Django) y frontend (Angular). Cualquier cambio s
 
 ## Autenticación
 
-- `POST /api/auth/login/` con `{"username": "...", "password": "..."}` devuelve `{"access": "...", "refresh": "..."}`.
-- `POST /api/auth/refresh/` con `{"refresh": "..."}` devuelve un nuevo `access`.
-- Las peticiones protegidas llevan `Authorization: Bearer <access>`.
+Las peticiones protegidas llevan `Authorization: Bearer <access>`. El `access` dura 60 minutos.
+
+### `POST /api/auth/login/` (público)
+
+Recibe `{"username": "...", "password": "..."}`.
+
+| Código | Cuándo |
+|---|---|
+| 200 | Credenciales válidas |
+| 400 | Falta `username` o `password` |
+| 401 | Credenciales incorrectas o usuario inactivo |
+
+Respuesta 200:
+
+```json
+{
+  "access": "<jwt>",
+  "refresh": "<jwt>",
+  "usuario": { "id": 1, "username": "admin", "nombre": "Ana Ruiz", "rol": "admin" }
+}
+```
+
+### `POST /api/auth/refresh/` (público)
+
+Recibe `{"refresh": "..."}` y devuelve `{"access": "..."}`. 401 si el `refresh` es inválido o venció.
+
+### `GET /api/auth/me/` (autenticado)
+
+Devuelve el usuario de la sesión, con la misma forma que `usuario` del login. 401 sin token.
+
+### Objeto `usuario`
+
+| Campo | Tipo | Notas |
+|---|---|---|
+| `id` | entero | |
+| `username` | string | |
+| `nombre` | string | Nombre completo; si está vacío, el `username` |
+| `rol` | string | `admin`, `tecnico` o `cliente` |
 
 ## Endpoint
 
@@ -58,6 +93,7 @@ Ejemplo completo: [`docs/examples/dashboard-admin.json`](examples/dashboard-admi
 | `estado` (incidente) | `abierto`, `en_progreso`, `resuelto`, `cerrado` |
 | Estado de activo | `operativo`, `advertencia`, `critico` |
 | Estado de backup | `exitoso`, `fallido`, `pendiente` |
+| `rol` (usuario) | `admin`, `tecnico`, `cliente` |
 
 Un incidente o ticket está **activo** si su estado es `abierto` o `en_progreso`.
 

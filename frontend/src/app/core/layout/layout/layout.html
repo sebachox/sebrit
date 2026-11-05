@@ -29,7 +29,15 @@
       <span class="navbar-text ms-2 fw-semibold">Panel de administración</span>
       <div class="ms-auto d-flex align-items-center gap-2">
         <i class="bi bi-person-circle fs-4"></i>
-        <span class="d-none d-sm-inline">Administrador</span>
+        <span class="d-none d-sm-inline">{{ auth.usuario()?.nombre }}</span>
+        <button
+          class="btn btn-sm btn-outline-secondary ms-2"
+          (click)="auth.logout()"
+          title="Cerrar sesión"
+        >
+          <i class="bi bi-box-arrow-right"></i>
+          <span class="d-none d-sm-inline ms-1">Salir</span>
+        </button>
       </div>
     </nav>
 
