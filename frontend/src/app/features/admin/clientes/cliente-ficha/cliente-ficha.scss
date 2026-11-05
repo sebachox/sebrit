@@ -1,0 +1,25 @@
+.numerico {
+  font-variant-numeric: tabular-nums;
+}
+
+.dato + .dato {
+  margin-top: 0.75rem;
+}
+
+dd {
+  overflow-wrap: anywhere;
+}
+
+.volver {
+  color: var(--bs-secondary-color);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--bs-primary);
+  }
+}
+
+.btn:disabled {
+  pointer-events: auto;
+  cursor: not-allowed;
+}

@@ -36,6 +36,14 @@ export const routes: Routes = [
             (m) => m.ClientesLista,
           ),
       },
+      {
+        path: 'admin/clientes/:id',
+        canActivate: [permisoGuard('clientes', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/clientes/cliente-ficha/cliente-ficha').then(
+            (m) => m.ClienteFicha,
+          ),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },

@@ -1,0 +1,159 @@
+<a routerLink="/admin/clientes" class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3">
+  <i class="bi bi-arrow-left"></i>Clientes
+</a>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando cliente...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-building-x fs-1 text-muted"></i>
+      <h4 class="mt-2">Cliente no encontrado</h4>
+      <p class="text-muted">Puede que el enlace esté mal escrito.</p>
+      <a routerLink="/admin/clientes" class="btn btn-outline-primary">Volver a clientes</a>
+    </div>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el cliente.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (org(); as o) {
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <h4 class="mb-0">{{ o.nombre }}</h4>
+        <app-status-badge [valor]="o.activa ? 'activa' : 'inactiva'" />
+      </div>
+      @if (o.nit) {
+        <div class="text-muted small numerico mt-1">NIT {{ o.nit }}</div>
+      }
+    </div>
+
+    <div class="d-flex gap-2">
+      <button
+        type="button"
+        class="btn btn-outline-primary"
+        [disabled]="!puedeEditar()"
+        [title]="puedeEditar() ? '' : 'Solo administradores'"
+        (click)="editar()"
+      >
+        <i class="bi me-1" [class.bi-pencil]="puedeEditar()" [class.bi-lock-fill]="!puedeEditar()"></i>Editar
+      </button>
+      @if (o.activa) {
+        <button
+          type="button"
+          class="btn btn-outline-danger"
+          [disabled]="!puedeEditar() || confirmando()"
+          [title]="puedeEditar() ? '' : 'Solo administradores'"
+          (click)="pedirDesactivar()"
+        >
+          <i class="bi me-1" [class.bi-slash-circle]="puedeEditar()" [class.bi-lock-fill]="!puedeEditar()"></i>Desactivar
+        </button>
+      } @else {
+        <button
+          type="button"
+          class="btn btn-outline-success"
+          [disabled]="!puedeEditar() || cambiando()"
+          [title]="puedeEditar() ? '' : 'Solo administradores'"
+          (click)="cambiarEstado(true)"
+        >
+          <i class="bi me-1" [class.bi-arrow-counterclockwise]="puedeEditar()" [class.bi-lock-fill]="!puedeEditar()"></i>Reactivar
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (guardado()) {
+    <div class="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-check-circle"></i>
+      <span>Cliente guardado correctamente.</span>
+      <button type="button" class="btn-close" aria-label="Cerrar" (click)="guardado.set(false)"></button>
+    </div>
+  }
+
+  @if (confirmando()) {
+    <div class="alert alert-warning" role="alertdialog" aria-labelledby="confirmar-titulo">
+      <p id="confirmar-titulo" class="fw-semibold mb-1">¿Desactivar a {{ o.nombre }}?</p>
+      <p class="mb-3">
+        Dejará de contar como cliente activo. Sus activos, tickets e incidentes se conservan y
+        puedes reactivarlo cuando quieras.
+      </p>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-danger" [disabled]="cambiando()" (click)="cambiarEstado(false)">
+          @if (cambiando()) {
+            <span class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+          }
+          Sí, desactivar
+        </button>
+        <button type="button" class="btn btn-outline-secondary" [disabled]="cambiando()" (click)="confirmando.set(false)">
+          Cancelar
+        </button>
+      </div>
+    </div>
+  }
+
+  @if (errorEstado()) {
+    <div class="alert alert-danger" role="alert">No se pudo actualizar el estado. Intenta de nuevo.</div>
+  }
+
+  <!-- Resumen -->
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Activos" [valor]="o.resumen.activos" icono="bi-hdd-rack" color="primary" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Tickets abiertos" [valor]="o.resumen.tickets_abiertos" icono="bi-ticket-perforated" color="info" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Incidentes activos" [valor]="o.resumen.incidentes_activos" icono="bi-exclamation-triangle" color="danger" />
+    </div>
+    <div class="col-6 col-lg-3">
+      <app-stat-card titulo="Usuarios" [valor]="o.resumen.usuarios" icono="bi-people" color="secondary" />
+    </div>
+  </div>
+
+  <!-- Datos -->
+  <div class="row g-3">
+    @for (b of bloques; track b.titulo) {
+      <div class="col-lg-4">
+        <section class="card shadow-sm border-0 h-100">
+          <div class="card-header bg-white fw-semibold">
+            <i class="bi {{ b.icono }} me-2 text-muted"></i>{{ b.titulo }}
+          </div>
+          <dl class="card-body mb-0">
+            @for (c of b.campos; track c.clave) {
+              <div class="dato">
+                <dt class="text-muted small fw-normal">{{ c.etiqueta }}</dt>
+                <dd class="mb-0" [attr.data-campo]="c.clave">
+                  @if (valor(o, c.clave); as v) {
+                    @switch (c.tipo) {
+                      @case ('correo') {
+                        <a [href]="'mailto:' + v">{{ v }}</a>
+                      }
+                      @case ('fecha') {
+                        <span class="numerico">{{ v | date: 'dd/MM/yyyy' : 'UTC' }}</span>
+                      }
+                      @case ('plan') {
+                        <app-status-badge [valor]="v" />
+                      }
+                      @default {
+                        {{ v }}
+                      }
+                    }
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </dd>
+              </div>
+            }
+          </dl>
+        </section>
+      </div>
+    }
+  </div>
+}
