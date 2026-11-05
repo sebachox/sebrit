@@ -1,3 +1,169 @@
+// =============================================================
+// SEBRIT: temas claro / oscuro (data-bs-theme en <html>)
+// Estilo de consola de monitoreo: superficies por capas y estados
+// con colores brillantes. Los estados tienen fondo + texto propios
+// (*-fg) para mantener contraste ≥ 4.5:1 en badges y tiles.
+// =============================================================
+
+:root,
+[data-bs-theme='light'] {
+  --sb-fondo: #f3f5f8;
+  --sb-superficie: #ffffff;
+  --sb-superficie-2: #f7f8fa;
+  --sb-borde: #e1e5ea;
+  --sb-sidebar: #1b2129;
+  --sb-sidebar-borde: #2c3540;
+  --sb-nodo: #2a323c;
+
+  --sb-critico: #e5173f;   --sb-critico-fg: #ffffff;
+  --sb-alto: #ff8a1f;      --sb-alto-fg: #1f1000;
+  --sb-medio: #ffc53d;     --sb-medio-fg: #1f1700;
+  --sb-ok: #12b76a;        --sb-ok-fg: #032113;
+  --sb-info: #0bb4e8;      --sb-info-fg: #01212b;
+  --sb-neutro: #5f6b78;    --sb-neutro-fg: #ffffff;
+  --sb-primario: #1f6feb;  --sb-primario-fg: #ffffff;
+}
+
+[data-bs-theme='dark'] {
+  --sb-fondo: #0e1319;
+  --sb-superficie: #161d25;
+  --sb-superficie-2: #1c242e;
+  --sb-borde: #2a3441;
+  --sb-sidebar: #090c10;
+  --sb-sidebar-borde: #1e2630;
+  --sb-nodo: #1c242e;
+
+  --sb-critico: #ff4d6a;   --sb-critico-fg: #1d0007;
+  --sb-alto: #ff9f43;      --sb-alto-fg: #1d0e00;
+  --sb-medio: #ffd451;     --sb-medio-fg: #1d1600;
+  --sb-ok: #3ee69c;        --sb-ok-fg: #00210f;
+  --sb-info: #4fd1ff;      --sb-info-fg: #001b25;
+  --sb-neutro: #8b98a5;    --sb-neutro-fg: #0b0f14;
+  --sb-primario: #4c9dff;  --sb-primario-fg: #001226;
+
+  // Bootstrap: texto, bordes y primario brillante sobre fondo oscuro.
+  --bs-body-bg: var(--sb-fondo);
+  --bs-body-color: #e6edf3;
+  --bs-body-color-rgb: 230, 237, 243;
+  --bs-secondary-color: #9fb0c0;
+  --bs-tertiary-bg: var(--sb-superficie-2);
+  --bs-border-color: var(--sb-borde);
+  --bs-border-color-translucent: rgba(255, 255, 255, 0.08);
+  --bs-primary: #4c9dff;
+  --bs-primary-rgb: 76, 157, 255;
+  --bs-link-color: #6cb0ff;
+  --bs-link-color-rgb: 108, 176, 255;
+  --bs-link-hover-color: #9ccaff;
+  --bs-link-hover-color-rgb: 156, 202, 255;
+  --bs-heading-color: #f2f6fa;
+
+  .btn-primary {
+    --bs-btn-color: var(--sb-primario-fg);
+    --bs-btn-bg: var(--sb-primario);
+    --bs-btn-border-color: var(--sb-primario);
+    --bs-btn-hover-color: var(--sb-primario-fg);
+    --bs-btn-hover-bg: #6cb0ff;
+    --bs-btn-hover-border-color: #6cb0ff;
+    --bs-btn-active-color: var(--sb-primario-fg);
+    --bs-btn-active-bg: #8cc1ff;
+    --bs-btn-active-border-color: #8cc1ff;
+    --bs-btn-disabled-color: var(--sb-primario-fg);
+    --bs-btn-disabled-bg: var(--sb-primario);
+    --bs-btn-disabled-border-color: var(--sb-primario);
+  }
+
+  .btn-outline-primary {
+    --bs-btn-color: var(--sb-primario);
+    --bs-btn-border-color: var(--sb-primario);
+    --bs-btn-hover-color: var(--sb-primario-fg);
+    --bs-btn-hover-bg: var(--sb-primario);
+    --bs-btn-hover-border-color: var(--sb-primario);
+    --bs-btn-active-color: var(--sb-primario-fg);
+    --bs-btn-active-bg: var(--sb-primario);
+    --bs-btn-disabled-color: var(--sb-primario);
+    --bs-btn-disabled-border-color: var(--sb-primario);
+  }
+
+  .btn-outline-danger {
+    --bs-btn-color: var(--sb-critico);
+    --bs-btn-border-color: var(--sb-critico);
+    --bs-btn-hover-color: var(--sb-critico-fg);
+    --bs-btn-hover-bg: var(--sb-critico);
+    --bs-btn-hover-border-color: var(--sb-critico);
+    --bs-btn-disabled-color: var(--sb-critico);
+    --bs-btn-disabled-border-color: var(--sb-critico);
+  }
+
+  .btn-danger {
+    --bs-btn-color: var(--sb-critico-fg);
+    --bs-btn-bg: var(--sb-critico);
+    --bs-btn-border-color: var(--sb-critico);
+    --bs-btn-hover-color: var(--sb-critico-fg);
+    --bs-btn-hover-bg: #ff7088;
+    --bs-btn-hover-border-color: #ff7088;
+    --bs-btn-disabled-color: var(--sb-critico-fg);
+    --bs-btn-disabled-bg: var(--sb-critico);
+  }
+
+  .btn-outline-success {
+    --bs-btn-color: var(--sb-ok);
+    --bs-btn-border-color: var(--sb-ok);
+    --bs-btn-hover-color: var(--sb-ok-fg);
+    --bs-btn-hover-bg: var(--sb-ok);
+    --bs-btn-hover-border-color: var(--sb-ok);
+    --bs-btn-disabled-color: var(--sb-ok);
+    --bs-btn-disabled-border-color: var(--sb-ok);
+  }
+
+  .text-danger {
+    color: var(--sb-critico) !important;
+  }
+}
+
+// ---------- Superficies ----------
 body {
-  background-color: #f5f6fa;
+  background-color: var(--sb-fondo);
+}
+
+.card {
+  --bs-card-bg: var(--sb-superficie);
+  --bs-card-cap-bg: var(--sb-superficie);
+  --bs-card-border-color: var(--sb-borde);
+}
+
+.table {
+  --bs-table-bg: var(--sb-superficie);
+}
+
+.table > thead th {
+  background-color: var(--sb-superficie-2);
+  color: var(--bs-secondary-color);
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+// ---------- Estados (badges, tiles, puntos) ----------
+$estados: critico, alto, medio, ok, info, neutro, primario;
+
+@each $e in $estados {
+  .estado-#{$e} {
+    background-color: var(--sb-#{$e}) !important;
+    color: var(--sb-#{$e}-fg) !important;
+  }
+}
+
+.badge.estado {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+// Números de monitoreo alineados
+.numerico {
+  font-variant-numeric: tabular-nums;
+}
+
+// Superficies del navegador
+::selection {
+  background: rgba(var(--bs-primary-rgb), 0.3);
 }

@@ -32,10 +32,10 @@
 
   <!-- Tabla de incidentes -->
   <div class="card shadow-sm mb-4">
-    <div class="card-header bg-white fw-semibold">Incidentes activos</div>
+    <div class="card-header fw-semibold">Incidentes activos</div>
     <div class="table-responsive">
       <table class="table table-hover align-middle mb-0">
-        <thead class="table-light">
+        <thead>
           <tr>
             <th>Código</th>
             <th>Título</th>
@@ -74,11 +74,11 @@
       <div class="card shadow-sm h-100">
         <div class="card-body">
           <h6 class="text-muted"><i class="bi bi-hdd-rack me-1"></i>Servidores</h6>
-          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.servidores.total }}</div>
+          <div class="fs-3 fw-bold mb-2 numerico">{{ d.infraestructura.servidores.total }}</div>
           <div class="d-flex flex-wrap gap-2">
-            <span class="badge text-bg-success">{{ d.infraestructura.servidores.operativos }} operativos</span>
-            <span class="badge text-bg-warning">{{ d.infraestructura.servidores.advertencia }} advertencia</span>
-            <span class="badge text-bg-danger">{{ d.infraestructura.servidores.criticos }} críticos</span>
+            <span class="badge estado estado-ok">{{ d.infraestructura.servidores.operativos }} operativos</span>
+            <span class="badge estado estado-alto">{{ d.infraestructura.servidores.advertencia }} advertencia</span>
+            <span class="badge estado estado-critico">{{ d.infraestructura.servidores.criticos }} críticos</span>
           </div>
         </div>
       </div>
@@ -88,11 +88,11 @@
       <div class="card shadow-sm h-100">
         <div class="card-body">
           <h6 class="text-muted"><i class="bi bi-diagram-3 me-1"></i>Redes</h6>
-          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.redes.total }}</div>
+          <div class="fs-3 fw-bold mb-2 numerico">{{ d.infraestructura.redes.total }}</div>
           <div class="d-flex flex-wrap gap-2">
-            <span class="badge text-bg-success">{{ d.infraestructura.redes.operativos }} operativos</span>
-            <span class="badge text-bg-warning">{{ d.infraestructura.redes.advertencia }} advertencia</span>
-            <span class="badge text-bg-danger">{{ d.infraestructura.redes.criticos }} críticos</span>
+            <span class="badge estado estado-ok">{{ d.infraestructura.redes.operativos }} operativos</span>
+            <span class="badge estado estado-alto">{{ d.infraestructura.redes.advertencia }} advertencia</span>
+            <span class="badge estado estado-critico">{{ d.infraestructura.redes.criticos }} críticos</span>
           </div>
         </div>
       </div>
@@ -102,11 +102,11 @@
       <div class="card shadow-sm h-100">
         <div class="card-body">
           <h6 class="text-muted"><i class="bi bi-cloud-arrow-up me-1"></i>Backups</h6>
-          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.backups.total }}</div>
+          <div class="fs-3 fw-bold mb-2 numerico">{{ d.infraestructura.backups.total }}</div>
           <div class="d-flex flex-wrap gap-2">
-            <span class="badge text-bg-success">{{ d.infraestructura.backups.exitosos }} exitosos</span>
-            <span class="badge text-bg-danger">{{ d.infraestructura.backups.fallidos }} fallidos</span>
-            <span class="badge text-bg-secondary">{{ d.infraestructura.backups.pendientes }} pendientes</span>
+            <span class="badge estado estado-ok">{{ d.infraestructura.backups.exitosos }} exitosos</span>
+            <span class="badge estado estado-critico">{{ d.infraestructura.backups.fallidos }} fallidos</span>
+            <span class="badge estado estado-neutro">{{ d.infraestructura.backups.pendientes }} pendientes</span>
           </div>
         </div>
       </div>
@@ -116,11 +116,11 @@
       <div class="card shadow-sm h-100">
         <div class="card-body">
           <h6 class="text-muted"><i class="bi bi-exclamation-octagon me-1"></i>Incidentes críticos</h6>
-          <div class="fs-3 fw-bold mb-2">{{ d.infraestructura.incidentes_criticos.total }}</div>
+          <div class="fs-3 fw-bold mb-2 numerico">{{ d.infraestructura.incidentes_criticos.total }}</div>
           <div class="d-flex flex-wrap gap-2">
-            <span class="badge text-bg-danger">{{ d.infraestructura.incidentes_criticos.abiertos }} abiertos</span>
-            <span class="badge text-bg-warning">{{ d.infraestructura.incidentes_criticos.en_progreso }} en progreso</span>
-            <span class="badge text-bg-dark">{{ d.infraestructura.incidentes_criticos.sin_tecnico }} sin técnico</span>
+            <span class="badge estado estado-critico">{{ d.infraestructura.incidentes_criticos.abiertos }} abiertos</span>
+            <span class="badge estado estado-medio">{{ d.infraestructura.incidentes_criticos.en_progreso }} en progreso</span>
+            <span class="badge estado estado-neutro">{{ d.infraestructura.incidentes_criticos.sin_tecnico }} sin técnico</span>
           </div>
         </div>
       </div>

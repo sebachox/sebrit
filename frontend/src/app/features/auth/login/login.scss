@@ -9,6 +9,7 @@
 
 // ---------- Panel de marca ----------
 .marca {
+  background: var(--sb-sidebar);
   flex: 1 1 55%;
   min-width: 0;
 }
@@ -67,7 +68,7 @@
   width: 3.25rem;
   height: 3.25rem;
   border-radius: 50%;
-  background: #2b3035;
+  background: var(--sb-nodo);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: rgba(255, 255, 255, 0.85);
   font-size: 1.25rem;
@@ -90,7 +91,7 @@
   width: 0.75rem;
   height: 0.75rem;
   border-radius: 50%;
-  box-shadow: 0 0 0 3px var(--bs-dark);
+  box-shadow: 0 0 0 3px var(--sb-sidebar);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -110,4 +111,17 @@
 
 .card {
   border-radius: 1rem;
+}
+
+// Botón de mostrar contraseña con los colores del tema (como el input-group-text).
+.btn-ojo {
+  background: var(--bs-tertiary-bg);
+  border: var(--bs-border-width) solid var(--bs-border-color);
+  color: var(--bs-body-color);
+
+  &:hover,
+  &:focus-visible {
+    background: var(--bs-secondary-bg);
+    color: var(--bs-body-color);
+  }
 }
