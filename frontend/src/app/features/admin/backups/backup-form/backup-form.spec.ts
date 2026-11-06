@@ -61,6 +61,29 @@ describe('BackupForm', () => {
     expect(emitidos.length).toBe(1);
   });
 
+  it('el tamaño escrito en el campo (número del navegador) se envía como número', () => {
+    crear({ activoId: 7 });
+    component.form.patchValue({ tipo: 'completo' });
+    const input = el().querySelector<HTMLInputElement>('#bk-tamano')!;
+    input.value = '20';
+    input.dispatchEvent(new Event('input'));
+    enviar();
+    const req = http.expectOne(BASE);
+    expect(req.request.body.tamano_gb).toBe(20);
+    req.flush(backup);
+  });
+
+  it('si se borra el tamaño se envía null', () => {
+    crear({ backup });
+    const input = el().querySelector<HTMLInputElement>('#bk-tamano')!;
+    input.value = '';
+    input.dispatchEvent(new Event('input'));
+    enviar();
+    const req = http.expectOne(`${BASE}5/`);
+    expect(req.request.body.tamano_gb).toBeNull();
+    req.flush(backup);
+  });
+
   it('no envía una fecha futura', () => {
     crear({ activoId: 7 });
     const futuro = new Date(Date.now() + 2 * 60 * 60 * 1000);

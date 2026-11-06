@@ -54,7 +54,8 @@ export class BackupForm implements OnInit {
     estado: ['exitoso', Validators.required],
     tipo: ['', Validators.required],
     fecha: ['', [Validators.required, noFutura]],
-    tamano_gb: ['', noNegativo],
+    // input[type=number]: Angular entrega number o null (no string).
+    tamano_gb: ['' as string | number | null, noNegativo],
     notas: [''],
   });
 
@@ -147,7 +148,7 @@ export class BackupForm implements OnInit {
 
   private aEntrada(): BackupEntrada {
     const v = this.form.getRawValue();
-    const tamano = v.tamano_gb.trim();
+    const tamano = String(v.tamano_gb ?? '').trim();
     return {
       estado: v.estado as BackupEntrada['estado'],
       tipo: v.tipo as BackupEntrada['tipo'],

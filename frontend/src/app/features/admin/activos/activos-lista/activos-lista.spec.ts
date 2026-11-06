@@ -43,10 +43,19 @@ describe('ActivosLista', () => {
     fixture = TestBed.createComponent(ActivosLista);
     http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
+    // Todos los clientes (también inactivos): la ficha de un cliente inactivo enlaza aquí.
     const orgs = http.expectOne((r) => r.url === ORGS);
-    expect(orgs.request.params.get('activa')).toBe('true');
+    expect(orgs.request.params.has('activa')).toBeFalse();
     expect(orgs.request.params.get('page_size')).toBe('100');
-    orgs.flush({ count: 1, next: null, previous: null, results: [{ id: 4, nombre: 'Metropolis 21' }] });
+    orgs.flush({
+      count: 2,
+      next: null,
+      previous: null,
+      results: [
+        { id: 4, nombre: 'Metropolis 21', activa: true },
+        { id: 9, nombre: 'Inactiva Ltda.', activa: false },
+      ],
+    });
   }
 
   const responder = (cuerpo: object, opciones?: { status: number; statusText: string }) => {
@@ -76,6 +85,15 @@ describe('ActivosLista', () => {
     req.flush(pagina([activo()]));
     fixture.detectChanges();
     expect((el().querySelector('#cliente') as HTMLSelectElement).value).toBe('4');
+  });
+
+  it('con ?organizacion de un cliente inactivo, el selector lo muestra', () => {
+    crear({ organizacion: '9' });
+    http.expectOne((r) => r.url === ACTIVOS).flush(pagina([]));
+    fixture.detectChanges();
+    const select = el().querySelector('#cliente') as HTMLSelectElement;
+    expect(select.value).toBe('9');
+    expect(select.selectedOptions[0].textContent).toContain('(inactivo)');
   });
 
   it('vacío sin filtros vs. búsqueda sin resultados', () => {

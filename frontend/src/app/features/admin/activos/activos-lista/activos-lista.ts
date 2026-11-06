@@ -60,8 +60,12 @@ export class ActivosLista implements OnInit, OnDestroy {
   private peticion?: Subscription;
 
   ngOnInit() {
-    this.organizaciones.listar({ activa: true, pageSize: 100 }).subscribe({
-      next: (p) => this.clientes.set(p.results.map((o) => ({ id: o.id, nombre: o.nombre }))),
+    // Todos los clientes, también inactivos: la ficha de un cliente inactivo enlaza aquí.
+    this.organizaciones.listar({ pageSize: 100 }).subscribe({
+      next: (p) =>
+        this.clientes.set(
+          p.results.map((o) => ({ id: o.id, nombre: o.activa ? o.nombre : `${o.nombre} (inactivo)` })),
+        ),
       error: () => this.clientes.set([]),
     });
     this.cargar();
