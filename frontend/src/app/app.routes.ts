@@ -62,6 +62,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/activos/activos-lista/activos-lista').then((m) => m.ActivosLista),
       },
+      {
+        path: 'admin/activos/:id',
+        canActivate: [permisoGuard('activos', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/activos/activo-ficha/activo-ficha').then((m) => m.ActivoFicha),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },
