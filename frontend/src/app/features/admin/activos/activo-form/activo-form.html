@@ -1,0 +1,140 @@
+<a
+  [routerLink]="id ? ['/admin/activos', id] : '/admin/activos'"
+  class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3"
+>
+  <i class="bi bi-arrow-left"></i>{{ id ? 'Volver a la ficha' : 'Activos' }}
+</a>
+
+<h4 class="mb-3">{{ id ? 'Editar activo' : 'Nuevo activo' }}</h4>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando activo...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="alert alert-warning">
+    Activo no encontrado. <a routerLink="/admin/activos" class="alert-link">Volver a activos</a>
+  </div>
+} @else if (estado() === 'error_carga') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el activo.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar(id!)">Reintentar</button>
+  </div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="guardar()" novalidate class="card shadow-sm border-0">
+    <div class="card-body p-4">
+      @if (errorGeneral(); as e) {
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+          <i class="bi bi-exclamation-circle"></i><span>{{ e }}</span>
+        </div>
+      }
+
+      <fieldset class="mb-4">
+        <legend class="h6 fw-semibold mb-3">General</legend>
+        <div class="row g-3">
+          <div class="col-md-6">
+            <label for="organizacion" class="form-label">Cliente <span class="text-danger" aria-hidden="true">*</span></label>
+            @if (id) {
+              <p class="form-control-plaintext mb-0" id="organizacion">{{ cliente()?.nombre }}</p>
+              <div class="form-text">El cliente de un activo no se puede cambiar.</div>
+            } @else {
+              <select id="organizacion" class="form-select" formControlName="organizacion" [class.is-invalid]="invalido('organizacion')">
+                <option value="" disabled>Elige el cliente</option>
+                @for (c of clientes(); track c.id) {
+                  <option [value]="c.id">{{ c.nombre }}</option>
+                }
+              </select>
+              <div class="invalid-feedback">{{ mensaje('organizacion') }}</div>
+            }
+          </div>
+          <div class="col-md-3 col-6">
+            <label for="tipo" class="form-label">Tipo <span class="text-danger" aria-hidden="true">*</span></label>
+            <select id="tipo" class="form-select" formControlName="tipo" [class.is-invalid]="invalido('tipo')">
+              <option value="" disabled>Elige el tipo</option>
+              @for (t of tipos; track t.valor) {
+                <option [value]="t.valor">{{ t.texto }}</option>
+              }
+            </select>
+            <div class="invalid-feedback">{{ mensaje('tipo') }}</div>
+          </div>
+          <div class="col-md-3 col-6">
+            <label for="estado" class="form-label">Estado</label>
+            <select id="estado" class="form-select" formControlName="estado">
+              @for (e of estados; track e.valor) {
+                <option [value]="e.valor">{{ e.texto }}</option>
+              }
+            </select>
+          </div>
+          <div class="col-md-6">
+            <label for="nombre" class="form-label">Nombre <span class="text-danger" aria-hidden="true">*</span></label>
+            <input id="nombre" class="form-control" formControlName="nombre" placeholder="SRV-DB-01" [class.is-invalid]="invalido('nombre')" />
+            <div class="invalid-feedback">{{ mensaje('nombre') }}</div>
+          </div>
+          <div class="col-md-6">
+            <label for="hostname" class="form-label">Hostname</label>
+            <input id="hostname" class="form-control" formControlName="hostname" placeholder="db01.empresa.local" [class.is-invalid]="invalido('hostname')" />
+            <div class="invalid-feedback">{{ mensaje('hostname') }}</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset class="mb-4">
+        <legend class="h6 fw-semibold mb-3">Ficha técnica</legend>
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label for="ip" class="form-label">IP</label>
+            <input id="ip" class="form-control numerico" formControlName="ip" placeholder="192.168.1.10" inputmode="decimal" [class.is-invalid]="invalido('ip')" />
+            <div class="invalid-feedback">{{ mensaje('ip') }}</div>
+          </div>
+          <div class="col-md-8">
+            <label for="sistema_operativo" class="form-label">Sistema operativo / firmware</label>
+            <input id="sistema_operativo" class="form-control" formControlName="sistema_operativo" placeholder="Ubuntu Server 24.04 LTS" [class.is-invalid]="invalido('sistema_operativo')" />
+            <div class="invalid-feedback">{{ mensaje('sistema_operativo') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="fabricante" class="form-label">Fabricante</label>
+            <input id="fabricante" class="form-control" formControlName="fabricante" [class.is-invalid]="invalido('fabricante')" />
+            <div class="invalid-feedback">{{ mensaje('fabricante') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="modelo" class="form-label">Modelo</label>
+            <input id="modelo" class="form-control" formControlName="modelo" [class.is-invalid]="invalido('modelo')" />
+            <div class="invalid-feedback">{{ mensaje('modelo') }}</div>
+          </div>
+          <div class="col-md-4">
+            <label for="numero_serie" class="form-label">Número de serie</label>
+            <input id="numero_serie" class="form-control numerico" formControlName="numero_serie" [class.is-invalid]="invalido('numero_serie')" />
+            <div class="invalid-feedback">{{ mensaje('numero_serie') }}</div>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend class="h6 fw-semibold mb-3">Ubicación y notas</legend>
+        <div class="row g-3">
+          <div class="col-12">
+            <label for="ubicacion" class="form-label">Ubicación</label>
+            <input id="ubicacion" class="form-control" formControlName="ubicacion" placeholder="Rack 2, sala de servidores" [class.is-invalid]="invalido('ubicacion')" />
+            <div class="invalid-feedback">{{ mensaje('ubicacion') }}</div>
+          </div>
+          <div class="col-12">
+            <label for="notas" class="form-label">Notas</label>
+            <textarea id="notas" rows="3" class="form-control" formControlName="notas"></textarea>
+          </div>
+        </div>
+      </fieldset>
+    </div>
+
+    <div class="card-footer d-flex justify-content-end gap-2 p-3">
+      <a class="btn btn-outline-secondary" [routerLink]="id ? ['/admin/activos', id] : '/admin/activos'">Cancelar</a>
+      <button type="submit" class="btn btn-primary" [disabled]="enviando()">
+        @if (enviando()) {
+          <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando...
+        } @else {
+          <i class="bi bi-check-lg me-1"></i>Guardar
+        }
+      </button>
+    </div>
+  </form>
+}

@@ -63,6 +63,18 @@ export const routes: Routes = [
           import('./features/admin/activos/activos-lista/activos-lista').then((m) => m.ActivosLista),
       },
       {
+        path: 'admin/activos/nuevo',
+        canActivate: [permisoGuard('activos', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/activos/activo-form/activo-form').then((m) => m.ActivoForm),
+      },
+      {
+        path: 'admin/activos/:id/editar',
+        canActivate: [permisoGuard('activos', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/activos/activo-form/activo-form').then((m) => m.ActivoForm),
+      },
+      {
         path: 'admin/activos/:id',
         canActivate: [permisoGuard('activos', 'ver')],
         loadComponent: () =>
