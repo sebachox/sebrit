@@ -106,7 +106,7 @@ class OrganizacionDetalleSerializer(VacioComoNullMixin, serializers.ModelSeriali
 
     def get_resumen(self, obj):
         return {
-            "activos": Activo.objects.filter(organizacion=obj).count(),
+            "activos": Activo.objects.filter(organizacion=obj, de_baja=False).count(),
             "tickets_abiertos": Ticket.objects.filter(
                 organizacion=obj, estado__in=ESTADOS_ACTIVOS
             ).count(),
