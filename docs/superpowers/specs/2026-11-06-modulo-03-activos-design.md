@@ -6,7 +6,7 @@ Fecha: 2026-11-06 · Estado: aprobado en conversación, pendiente de revisión e
 
 Permitir que el personal de SEBRIT lleve el inventario técnico de cada cliente (servidores y equipos de red) y el historial de backups: listar y filtrar, ver la ficha, crear y editar activos, cambiar su estado, darlos de baja y registrar backups manualmente.
 
-**Criterio de éxito:** desde Angular, el admin hace todo lo anterior; el técnico ve activos y backups, cambia el estado de un activo y registra backups, y lo demás le aparece bloqueado. Los permisos se validan en el backend con pruebas 401/403/200 por rol y método.
+**Criterio de éxito:** desde Angular, el admin y el técnico hacen todo lo anterior (los técnicos son quienes levantan el inventario en cada cliente al contratarse el servicio). El rol cliente no tiene acceso. Los permisos se validan en el backend con pruebas 401/403/200 por rol y método.
 
 ### Fuera de alcance
 
@@ -65,20 +65,19 @@ Dos recursos planos, cada uno con un `ModelViewSet` registrado en el router exis
 
 ### Permisos
 
-Sin token: 401 en todo. Cliente: 403 en todo.
+Admin y técnico tienen los mismos permisos (clase `EsAdminOTecnico`). Sin token: 401 en todo. Cliente: 403 en todo.
 
-| Método | Ruta | Admin | Técnico |
-|---|---|---|---|
-| GET | `/api/activos/`, `/api/activos/{id}/` | 200 | 200 |
-| POST | `/api/activos/` | 201 | 403 |
-| PATCH | `/api/activos/{id}/` | 200 | 403 |
-| PATCH | `/api/activos/{id}/estado/` | 200 | 200 |
-| PUT, DELETE | `/api/activos/{id}/` | 405 | 403 |
-| GET | `/api/backups/`, `/api/backups/{id}/` | 200 | 200 |
-| POST | `/api/backups/` | 201 | 201 |
-| PATCH | `/api/backups/{id}/` | 200 | 403 |
-| DELETE | `/api/backups/{id}/` | 204 | 403 |
-| PUT | `/api/backups/{id}/` | 405 | 403 |
+| Método | Ruta | Admin y técnico |
+|---|---|---|
+| GET | `/api/activos/`, `/api/activos/{id}/` | 200 |
+| POST | `/api/activos/` | 201 |
+| PATCH | `/api/activos/{id}/` (ficha, estado, dar de baja/reactivar) | 200 |
+| PUT, DELETE | `/api/activos/{id}/` | 405 |
+| GET | `/api/backups/`, `/api/backups/{id}/` | 200 |
+| POST | `/api/backups/` | 201 |
+| PATCH | `/api/backups/{id}/` | 200 |
+| DELETE | `/api/backups/{id}/` | 204 |
+| PUT | `/api/backups/{id}/` | 405 |
 
 Un `id` inexistente da 404.
 
@@ -100,9 +99,7 @@ Cada fila: `id`, `nombre`, `tipo`, `estado`, `organizacion: {id, nombre}`, `ip`,
 
 **Detalle** — todos los campos de la sección 2 con `organizacion: {id, nombre}`, más `ultimo_backup` y `resumen_backups: {total, exitosos, fallidos, pendientes}`.
 
-**Crear** — `POST` con `organizacion` (id) y los campos editables. **Editar** — `PATCH /{id}/` con los campos editables y `de_baja`; enviar `organizacion` con un valor distinto da 400.
-
-**Cambiar estado** — `PATCH /api/activos/{id}/estado/` con `{"estado": "<valor>"}`; responde el detalle. 400 si el activo está dado de baja o el valor no es de la enumeración.
+**Crear** — `POST` con `organizacion` (id) y los campos editables. **Editar** — `PATCH /{id}/` con los campos editables (incluido `estado`) y `de_baja`; enviar `organizacion` con un valor distinto da 400. El cambio rápido de estado es `PATCH /{id}/` con `{"estado": "<valor>"}`. En un activo dado de baja solo se acepta `{"de_baja": false}` (reactivar), opcionalmente junto con otros campos; cualquier otro cambio da 400.
 
 ### Backups
 
@@ -133,14 +130,14 @@ Secciones "Activos" y "Backups" en `docs/api-contract.md`, ejemplos `docs/exampl
 
 ### Permisos
 
-`Accion` pasa a `'ver' | 'operar' | 'editar'`. Mapa en `core/auth/permisos.ts`:
+Mapa en `core/auth/permisos.ts` (las acciones siguen siendo `ver` y `editar`):
 
-| Módulo | Ver | Operar | Editar |
-|---|---|---|---|
-| `activos` | admin, tecnico | admin, tecnico | admin |
-| `backups` | admin, tecnico | admin, tecnico | admin |
+| Módulo | Ver | Editar |
+|---|---|---|
+| `activos` | admin, tecnico | admin, tecnico |
+| `backups` | admin, tecnico | admin, tecnico |
 
-(`dashboard` y `clientes` no usan `operar`; para ellos `operar` queda vacío.) Lo bloqueado se muestra con candado y "Solo administradores".
+El rol cliente no entra al panel, así que en este módulo no hay acciones bloqueadas para admin ni técnico.
 
 Sidebar: "Activos" (`bi-hdd-rack`) y "Backups" (`bi-cloud-arrow-up`) debajo de Clientes.
 
@@ -154,13 +151,13 @@ Sidebar: "Activos" (`bi-hdd-rack`) y "Backups" (`bi-cloud-arrow-up`) debajo de C
 | Lista de backups | `/admin/backups` | ver `backups` |
 | Editar backup | `/admin/backups/:id/editar` | editar `backups` |
 
-**Lista de activos:** búsqueda (300 ms), selector de cliente (clientes activos, hasta 100), tipo, estado y casilla "Mostrar dados de baja"; acepta `?organizacion=<id>` y la refleja en el selector. Tabla: Nombre, Cliente, Tipo, IP, Estado, Último backup (badge + fecha, o "Sin backups"), Ubicación. "Nuevo activo" bloqueado para el técnico. Estados de carga, error, vacío y sin resultados.
+**Lista de activos:** búsqueda (300 ms), selector de cliente (clientes activos, hasta 100), tipo, estado y casilla "Mostrar dados de baja"; acepta `?organizacion=<id>` y la refleja en el selector. Tabla: Nombre, Cliente, Tipo, IP, Estado, Último backup (badge + fecha, o "Sin backups"), Ubicación. Botón "Nuevo activo". Estados de carga, error, vacío y sin resultados.
 
-**Ficha de activo:** nombre, tipo, badge de estado, enlace al cliente. Botones "Operativo / Advertencia / Crítico" para cambiar estado (operar). "Editar" y "Dar de baja"/"Reactivar" (editar; baja con confirmación en la página). Bloques Identificación y Ubicación y notas (`null` → "—"). Sección Backups: resumen, historial paginado del activo y "Registrar backup" (operar) que abre `BackupForm` en la página. Con el activo dado de baja: aviso visible y cambio de estado y registro deshabilitados con el motivo.
+**Ficha de activo:** nombre, tipo, badge de estado, enlace al cliente. Botones "Operativo / Advertencia / Crítico" para cambiar estado. "Editar" y "Dar de baja"/"Reactivar" (baja con confirmación en la página). Bloques Identificación y Ubicación y notas (`null` → "—"). Sección Backups: resumen, historial paginado del activo y "Registrar backup", que abre `BackupForm` en la página. Con el activo dado de baja: aviso visible y cambio de estado y registro deshabilitados con el motivo.
 
 **Formulario de activo:** cliente (solo al crear), tipo, nombre y ficha técnica; validación local (requeridos, IP) y errores 400 bajo cada campo; al guardar vuelve a la ficha con mensaje de éxito.
 
-**Lista de backups:** filtros cliente, estado, tipo, desde y hasta. Tabla: Fecha, Activo (enlace), Cliente, Tipo, Estado, Tamaño, Registrado por. Por fila (editar): "Editar" y "Borrar" con confirmación en la fila.
+**Lista de backups:** filtros cliente, estado, tipo, desde y hasta. Tabla: Fecha, Activo (enlace), Cliente, Tipo, Estado, Tamaño, Registrado por. Por fila: "Editar" y "Borrar" (con confirmación en la fila; borrar no es reversible).
 
 **`BackupForm`:** activo (fijo cuando se abre desde la ficha), estado, tipo, fecha (por defecto ahora; no futura), tamaño (≥ 0), notas. Se usa al registrar desde la ficha y en `/admin/backups/:id/editar`.
 
@@ -187,8 +184,8 @@ Sidebar: "Activos" (`bi-hdd-rack`) y "Backups" (`bi-cloud-arrow-up`) debajo de C
 
 ### Backend
 
-- Permisos de la tabla de la sección 3 por rol y método, incluidos `/estado/` para el técnico y los 405.
-- Validación: nombre único por cliente (y permitido en otro cliente), IP, cambio de organización, activo dado de baja en `/estado/` y en `POST /backups/`, fecha futura, tamaño negativo, tipo inválido.
+- Permisos de la tabla de la sección 3 por rol y método (admin y técnico iguales, cliente 403, sin token 401) y los 405.
+- Validación: nombre único por cliente (y permitido en otro cliente), IP, cambio de organización, activo dado de baja (cambio de estado o de ficha da 400; reactivar sí se permite) y en `POST /backups/`, fecha futura, tamaño negativo, tipo inválido.
 - Derivados: `organizacion` del backup sale del activo; `registrado_por` es el usuario; `fecha_baja` se llena y se vacía; `ultimo_backup` y `resumen_backups` correctos.
 - Lista: excluye dados de baja por defecto; filtros, búsqueda, orden por estado; rango de fechas en backups.
 - `assertNumQueries` en la lista de activos (constante con 1 y con 10 activos).
@@ -197,7 +194,7 @@ Sidebar: "Activos" (`bi-hdd-rack`) y "Backups" (`bi-cloud-arrow-up`) debajo de C
 
 ### Frontend
 
-- Mapa de permisos con `operar`; técnico con "Cambiar estado" y "Registrar backup" habilitados y "Nuevo activo", "Editar", "Dar de baja", "Editar/Borrar backup" bloqueados.
+- Mapa de permisos: admin y técnico pueden ver y editar activos y backups; cliente no. Para el técnico, "Nuevo activo", "Editar", "Dar de baja", "Registrar backup" y "Editar/Borrar backup" están habilitados.
 - Servicios: parámetros de filtros.
 - Listas: estados y `?organizacion=`.
 - Ficha: cambiar estado actualiza el badge; activo dado de baja deshabilita acciones.
@@ -210,5 +207,5 @@ Suites completas y build; capturas de las pantallas en tema oscuro y claro, escr
 ## 7. Documentación y entrega
 
 - `docs/api-contract.md`, `docs/examples/activo.json`, `docs/examples/backup.json`.
-- `CLAUDE.md`: módulo 03, modelos, endpoints, mapa de permisos con `operar`, regla del dashboard.
+- `CLAUDE.md`: módulo 03, modelos, endpoints, mapa de permisos (técnico edita activos y backups), regla del dashboard.
 - Commits en `sebas` (verificando la rama antes de cada uno); PR a `develop` al terminar el módulo.
