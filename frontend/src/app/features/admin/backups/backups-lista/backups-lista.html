@@ -1,0 +1,148 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h4 class="mb-0">
+    Backups
+    @if (datos(); as d) {
+      <span class="text-muted fw-normal fs-6 ms-1 numerico">{{ d.count }}</span>
+    }
+  </h4>
+  <small class="text-muted">Para registrar un backup, entra a la ficha del activo.</small>
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body border-bottom">
+    <div class="row g-2">
+      <div class="col-12 col-md-6 col-xl-3">
+        <label for="cliente" class="visually-hidden">Cliente</label>
+        <select id="cliente" class="form-select" (change)="cambiarCliente($any($event.target).value)">
+          <option value="">Todos los clientes</option>
+          @for (c of clientes(); track c.id) {
+            <option [value]="c.id">{{ c.nombre }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-xl-2">
+        <label for="estado" class="visually-hidden">Estado</label>
+        <select id="estado" class="form-select" (change)="cambiarEstado($any($event.target).value)">
+          <option value="">Todos los estados</option>
+          @for (e of estados; track e.valor) {
+            <option [value]="e.valor">{{ e.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-xl-2">
+        <label for="tipo" class="visually-hidden">Tipo</label>
+        <select id="tipo" class="form-select" (change)="cambiarTipo($any($event.target).value)">
+          <option value="">Todos los tipos</option>
+          @for (t of tipos; track t.valor) {
+            <option [value]="t.valor">{{ t.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-xl-2">
+        <div class="input-group">
+          <label for="desde" class="input-group-text small">Desde</label>
+          <input id="desde" type="date" class="form-control" (change)="cambiarDesde($any($event.target).value)" />
+        </div>
+      </div>
+      <div class="col-6 col-xl-3">
+        <div class="input-group">
+          <label for="hasta" class="input-group-text small">Hasta</label>
+          <input id="hasta" type="date" class="form-control" (change)="cambiarHasta($any($event.target).value)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (errorAccion(); as e) {
+    <div class="alert alert-danger m-3 mb-0" role="alert">{{ e }}</div>
+  }
+
+  @if (estado() === 'cargando') {
+    <div class="text-center py-5" role="status">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2 mb-0 text-muted">Cargando backups...</p>
+    </div>
+  } @else if (estado() === 'error') {
+    <div class="card-body">
+      <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+        <span>No se pudo cargar la lista de backups.</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+      </div>
+    </div>
+  } @else if (datos(); as d) {
+    @if (d.results.length === 0) {
+      <div class="text-center py-5 px-3">
+        <i class="bi bi-cloud-arrow-up fs-1 text-muted"></i>
+        <p class="mt-2 mb-0">
+          {{ hayFiltros() ? 'No hay backups con estos filtros.' : 'Aún no hay backups registrados.' }}
+        </p>
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Activo</th>
+              <th>Cliente</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th class="text-end">Tamaño</th>
+              <th>Registrado por</th>
+              @if (puedeEditar()) {
+                <th class="text-end"><span class="visually-hidden">Acciones</span></th>
+              }
+            </tr>
+          </thead>
+          <tbody>
+            @for (b of d.results; track b.id) {
+              <tr>
+                <td class="numerico text-nowrap">{{ b.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td>
+                  @if (b.activo; as a) {
+                    <a class="fw-semibold text-decoration-none" [routerLink]="['/admin/activos', a.id]">{{ a.nombre }}</a>
+                  } @else {
+                    <span class="text-muted">—</span>
+                  }
+                </td>
+                <td>{{ b.organizacion.nombre }}</td>
+                <td>@if (b.tipo) { <app-status-badge [valor]="b.tipo" /> } @else { — }</td>
+                <td><app-status-badge [valor]="b.estado" /></td>
+                <td class="numerico text-end">{{ b.tamano_gb != null ? b.tamano_gb + ' GB' : '—' }}</td>
+                <td>{{ b.registrado_por?.nombre ?? '—' }}</td>
+                @if (puedeEditar()) {
+                  <td class="text-end text-nowrap">
+                    @if (confirmandoBorrar() === b.id) {
+                      <span class="small me-2">¿Borrar? No se puede deshacer.</span>
+                      <button type="button" class="btn btn-sm btn-danger me-1" [disabled]="borrando()" (click)="borrar(b.id)">Sí, borrar</button>
+                      <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="borrando()" (click)="confirmandoBorrar.set(null)">Cancelar</button>
+                    } @else {
+                      <a class="btn btn-sm btn-outline-primary me-1" [routerLink]="['/admin/backups', b.id, 'editar']" aria-label="Editar backup">
+                        <i class="bi bi-pencil"></i>
+                      </a>
+                      <button type="button" class="btn btn-sm btn-outline-danger" (click)="confirmandoBorrar.set(b.id)" aria-label="Borrar backup">
+                        <i class="bi bi-trash"></i><span class="visually-hidden">Borrar</span>
+                      </button>
+                    }
+                  </td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPaginas() > 1) {
+        <div class="card-body border-top d-flex justify-content-end align-items-center gap-2">
+          <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)" aria-label="Página anterior">
+            <i class="bi bi-chevron-left"></i>
+          </button>
+          <span class="small numerico">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+          <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() >= totalPaginas()" (click)="irAPagina(pagina() + 1)" aria-label="Página siguiente">
+            <i class="bi bi-chevron-right"></i>
+          </button>
+        </div>
+      }
+    }
+  }
+</div>
