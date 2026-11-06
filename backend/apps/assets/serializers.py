@@ -1,12 +1,14 @@
 import ipaddress
+from datetime import timedelta
 
 from django.db.models import Count, Q
+from django.utils import timezone
 from rest_framework import serializers
 
 from apps.organizations.models import Organizacion
 from apps.organizations.serializers import VacioComoNullMixin
 
-from .models import Activo
+from .models import Activo, Backup
 
 MSG_DE_BAJA = "El activo está dado de baja."
 
@@ -119,3 +121,60 @@ class ActivoDetalleSerializer(ConOrganizacionMixin, VacioComoNullMixin, serializ
             if "nombre" in attrs:
                 attrs["nombre"] = nombre
         return attrs
+
+
+TOLERANCIA_FUTURO = timedelta(minutes=5)
+
+
+def referencia_usuario(u):
+    return {"id": u.id, "nombre": u.get_full_name() or u.username} if u else None
+
+
+class BackupSerializer(VacioComoNullMixin, serializers.ModelSerializer):
+    texto_opcional = ["notas", "tipo"]
+
+    activo = serializers.PrimaryKeyRelatedField(queryset=Activo.objects.all())
+    tipo = serializers.ChoiceField(choices=Backup.Tipo.choices)
+    tamano_gb = serializers.DecimalField(
+        max_digits=10, decimal_places=2, required=False, allow_null=True, coerce_to_string=False
+    )
+
+    class Meta:
+        model = Backup
+        fields = [
+            "id", "activo", "organizacion", "fecha", "estado", "tipo",
+            "tamano_gb", "notas", "registrado_por", "creado_en",
+        ]
+        read_only_fields = ["organizacion", "registrado_por", "creado_en"]
+
+    def validate_activo(self, activo):
+        if activo.de_baja:
+            raise serializers.ValidationError(MSG_DE_BAJA)
+        return activo
+
+    def validate_fecha(self, fecha):
+        # Tolerancia para diferencias de reloj entre el navegador y el servidor.
+        if fecha > timezone.now() + TOLERANCIA_FUTURO:
+            raise serializers.ValidationError("La fecha del backup no puede ser futura.")
+        return fecha
+
+    def validate_tamano_gb(self, valor):
+        if valor is not None and valor < 0:
+            raise serializers.ValidationError("El tamaño no puede ser negativo.")
+        return valor
+
+    def create(self, datos):
+        datos["organizacion"] = datos["activo"].organizacion
+        return super().create(datos)
+
+    def update(self, instancia, datos):
+        if "activo" in datos:
+            datos["organizacion"] = datos["activo"].organizacion
+        return super().update(instancia, datos)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["activo"] = referencia(instance.activo)
+        data["organizacion"] = referencia(instance.organizacion)
+        data["registrado_por"] = referencia_usuario(instance.registrado_por)
+        return data
