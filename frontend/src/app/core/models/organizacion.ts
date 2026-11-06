@@ -54,4 +54,5 @@ export interface FiltrosOrganizaciones {
   activa?: boolean | null;
   plan?: Plan | null;
   page?: number;
+  pageSize?: number;
 }
