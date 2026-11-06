@@ -26,4 +26,14 @@ describe('puede', () => {
     expect(puede(null, 'dashboard', 'ver')).toBeFalse();
     expect(puede(undefined, 'clientes', 'ver')).toBeFalse();
   });
+
+  it('admin y técnico ven y editan activos y backups; el cliente no', () => {
+    for (const m of ['activos', 'backups'] as const) {
+      for (const rol of ['admin', 'tecnico'] as const) {
+        expect(puede(rol, m, 'ver')).toBeTrue();
+        expect(puede(rol, m, 'editar')).toBeTrue();
+      }
+      expect(puede('cliente', m, 'ver')).toBeFalse();
+    }
+  });
 });
