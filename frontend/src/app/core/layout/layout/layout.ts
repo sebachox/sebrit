@@ -3,10 +3,11 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Modulo } from '../../auth/permisos';
 import { ETIQUETA_ROL } from '../../models/auth';
 import { AuthService } from '../../services/auth.service';
+import { SelectorTema } from '../../../shared/components/selector-tema/selector-tema';
 
 @Component({
   selector: 'app-layout',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, SelectorTema],
   templateUrl: './layout.html',
   styleUrl: './layout.scss',
 })

@@ -1,6 +1,6 @@
 <div class="login d-flex min-vh-100">
   <!-- Panel de marca: mismo mundo visual del sidebar -->
-  <aside class="marca bg-dark text-white d-none d-md-flex flex-column p-4 p-lg-5">
+  <aside class="marca text-white d-none d-md-flex flex-column p-4 p-lg-5">
     <span class="fs-4 fw-bold">SEBRIT</span>
 
     <div class="my-auto py-4">
@@ -32,7 +32,7 @@
         @for (n of nodos; track n.icono) {
           <div class="nodo" [style.left.%]="n.x" [style.top.%]="n.y">
             <i class="bi {{ n.icono }}"></i>
-            <span class="estado bg-{{ n.estado }}"></span>
+            <span class="estado estado-{{ n.estado }}"></span>
           </div>
         }
       </div>
@@ -49,7 +49,8 @@
   </aside>
 
   <!-- Formulario -->
-  <main class="acceso d-flex align-items-center justify-content-center p-3 p-sm-4">
+  <main class="acceso position-relative d-flex align-items-center justify-content-center p-3 p-sm-4">
+    <app-selector-tema class="position-absolute top-0 end-0 m-3" />
     <div class="w-100 formulario">
       <div class="text-center mb-4 d-md-none">
         <span class="fs-3 fw-bold">SEBRIT</span>
@@ -98,7 +99,7 @@
                 />
                 <button
                   type="button"
-                  class="btn btn-light border"
+                  class="btn btn-ojo"
                   (click)="verClave.set(!verClave())"
                   [attr.aria-label]="verClave() ? 'Ocultar contraseña' : 'Mostrar contraseña'"
                 >

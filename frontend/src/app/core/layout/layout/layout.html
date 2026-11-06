@@ -1,7 +1,7 @@
 <div class="d-flex">
   <!-- Sidebar -->
-  <aside class="sidebar bg-dark text-white" [class.abierto]="menuAbierto()">
-    <div class="p-3 border-bottom border-secondary">
+  <aside class="sidebar text-white" [class.abierto]="menuAbierto()">
+    <div class="marca p-3">
       <span class="fs-4 fw-bold">SEBRIT</span>
     </div>
     <ul class="nav nav-pills flex-column p-2 gap-1">
@@ -37,7 +37,7 @@
 
   <!-- Contenido -->
   <div class="contenido flex-grow-1 min-vh-100">
-    <nav class="navbar bg-white border-bottom px-3">
+    <nav class="navbar barra px-3">
       <button class="btn btn-outline-secondary d-md-none" (click)="alternarMenu()">
         <i class="bi bi-list"></i>
       </button>
@@ -46,10 +46,11 @@
         <i class="bi bi-person-circle fs-4"></i>
         <span class="d-none d-sm-inline">{{ auth.usuario()?.nombre }}</span>
         @if (rol(); as r) {
-          <span class="badge rounded-pill text-bg-light border d-none d-sm-inline">{{ r }}</span>
+          <span class="badge rounded-pill border text-body-secondary bg-body-tertiary d-none d-sm-inline">{{ r }}</span>
         }
+        <app-selector-tema class="ms-2" />
         <button
-          class="btn btn-sm btn-outline-secondary ms-2"
+          class="btn btn-sm btn-outline-secondary"
           (click)="auth.logout()"
           title="Cerrar sesión"
         >

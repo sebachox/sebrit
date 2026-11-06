@@ -272,9 +272,14 @@ Convenciones: claves `snake_case`; claves siempre presentes; `null` cuando no ha
 - Manejar siempre los `null` (`tecnico_asignado` → "Sin asignar", `ultima_accion` → "—") y los estados cargando, error (con "Reintentar") y lista vacía.
 - Revisar si ya existe un componente equivalente antes de crear uno nuevo.
 
-### Estilo visual
+### Estilo visual y temas
 
-Mismo mundo en todas las pantallas: panel/sidebar `bg-dark` con la marca "SEBRIT" en negrita, fondo de página `#f5f6fa`, tarjetas `card shadow-sm border-0` (radio `1rem` en login y pantallas de error), azul primario de Bootstrap y colores de estado de los badges (`success`, `warning`, `danger`). Iconos solo de Bootstrap Icons. No agregar fuentes ni colores fuera de Bootstrap sin acordarlo.
+Estilo de consola de monitoreo con **dos temas**: oscuro (por defecto) y claro. `TemaService` (`core/services/tema.service.ts`) guarda la elección en `localStorage` (`sebrit.tema`) y la aplica con `data-bs-theme` en `<html>` (modo de color nativo de Bootstrap 5.3); `index.html` la aplica antes de arrancar Angular. El selector (`shared/components/selector-tema`) está en el navbar y en el login.
+
+- **Nunca** usar colores fijos (`bg-white`, `bg-dark`, `table-light`, `text-bg-*`, hex en componentes): usar las variables de `styles.scss`.
+- Superficies: `--sb-fondo` (página), `--sb-superficie` (tarjetas, tablas, navbar), `--sb-superficie-2` (encabezados de tabla), `--sb-borde`, `--sb-sidebar` (sidebar y panel del login).
+- Estados: clases `.estado-<tono>` (fondo + texto con contraste ≥ 4.5:1 en ambos temas). Tonos: `critico` (rojo), `alto` (naranja), `medio` (amarillo), `ok` (verde), `info` (cian), `neutro` (gris), `primario` (azul). `StatusBadge` mapea cada valor del contrato a un tono; `StatCard` acepta `primary`, `info`, `warning`, `danger`, `secondary`, `success`.
+- Iconos solo de Bootstrap Icons. Nuevos colores o tonos se agregan en `styles.scss` para los dos temas y se verifica su contraste.
 
 ### Pantallas del Sprint 1
 
