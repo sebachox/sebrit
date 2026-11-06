@@ -1,5 +1,6 @@
 import ipaddress
 
+from django.db.models import Count, Q
 from rest_framework import serializers
 
 from apps.organizations.models import Organizacion
@@ -18,12 +19,26 @@ def referencia(obj):
     return {"id": obj.id, "nombre": obj.nombre} if obj else None
 
 
+def ultimo_backup(activo):
+    """Usa las anotaciones de la vista (ub_*) si existen; si no, consulta."""
+    if hasattr(activo, "ub_id"):
+        if activo.ub_id is None:
+            return None
+        return {"id": activo.ub_id, "fecha": activo.ub_fecha, "estado": activo.ub_estado}
+    b = activo.backup_set.order_by("-fecha", "-id").first()
+    return {"id": b.id, "fecha": b.fecha, "estado": b.estado} if b else None
+
+
 class ConOrganizacionMixin:
-    """`organizacion` se recibe como id y se devuelve como {id, nombre}."""
+    """`organizacion` se recibe como id y se devuelve como {id, nombre}; agrega `ultimo_backup`."""
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["organizacion"] = referencia(instance.organizacion)
+        ub = ultimo_backup(instance)
+        if ub:
+            ub["fecha"] = serializers.DateTimeField().to_representation(ub["fecha"])
+        data["ultimo_backup"] = ub
         return data
 
 
@@ -53,6 +68,16 @@ class ActivoDetalleSerializer(ConOrganizacionMixin, VacioComoNullMixin, serializ
             "ubicacion", "notas", "de_baja", "fecha_baja", "creado_en", "actualizado_en",
         ]
         read_only_fields = ["fecha_baja", "creado_en", "actualizado_en"]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        data["resumen_backups"] = instance.backup_set.aggregate(
+            total=Count("id"),
+            exitosos=Count("id", filter=Q(estado="exitoso")),
+            fallidos=Count("id", filter=Q(estado="fallido")),
+            pendientes=Count("id", filter=Q(estado="pendiente")),
+        )
+        return data
 
     def validate_ip(self, valor):
         valor = (valor or "").strip()

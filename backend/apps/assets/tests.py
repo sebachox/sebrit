@@ -170,3 +170,81 @@ class ReglasActivoTests(BaseActivos):
         for campo in ["hostname", "ip", "notas", "ubicacion"]:
             self.assertIsNone(d[campo], campo)
         self.assertEqual(d["organizacion"], {"id": self.org.pk, "nombre": "Org"})
+
+
+class ListaActivosTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(Usuario.objects.create_user("tec1", rol="tecnico"))
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+        self.otra = Organizacion.objects.create(nombre="Otra", nit="900000002")
+        self.a = Activo.objects.create(
+            organizacion=self.org, tipo="servidor", nombre="alfa", estado="operativo",
+            hostname="db-prod", ip="10.0.0.1", numero_serie="SN-123", fabricante="Dell", modelo="R740",
+        )
+        self.b = Activo.objects.create(organizacion=self.org, tipo="red", nombre="Beta", estado="critico")
+        self.c = Activo.objects.create(organizacion=self.otra, tipo="servidor", nombre="gamma", estado="advertencia")
+        self.baja = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="Viejo", de_baja=True)
+
+    def nombres(self, query=""):
+        return [x["nombre"] for x in self.client.get(f"{URL_ACTIVOS}{query}").data["results"]]
+
+    def test_excluye_dados_de_baja_por_defecto(self):
+        self.assertEqual(self.nombres(), ["alfa", "Beta", "gamma"])
+
+    def test_de_baja_true_muestra_solo_esos(self):
+        self.assertEqual(self.nombres("?de_baja=true"), ["Viejo"])
+
+    def test_filtros_organizacion_tipo_estado(self):
+        self.assertEqual(self.nombres(f"?organizacion={self.otra.pk}"), ["gamma"])
+        self.assertEqual(self.nombres("?tipo=red"), ["Beta"])
+        self.assertEqual(self.nombres("?estado=critico"), ["Beta"])
+
+    def test_busqueda_en_nombre_hostname_ip_serie_fabricante_modelo(self):
+        for q in ["ALFA", "db-pro", "10.0.0.1", "sn-12", "dell", "r740"]:
+            self.assertEqual(self.nombres(f"?q={q}"), ["alfa"], q)
+
+    def test_filtros_invalidos_se_ignoran(self):
+        for q in ["?organizacion=abc", "?estado=raro", "?tipo=x", "?q=%20%20"]:
+            self.assertEqual(self.client.get(f"{URL_ACTIVOS}{q}").data["count"], 3, q)
+
+    def test_orden_por_estado_criticos_primero(self):
+        self.assertEqual(self.nombres("?ordering=estado"), ["Beta", "gamma", "alfa"])
+
+    def test_ultimo_backup_es_el_mas_reciente(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        ahora = timezone.now()
+        Backup.objects.create(organizacion=self.org, activo=self.a, estado="exitoso", tipo="completo",
+                              fecha=ahora - timedelta(days=2))
+        reciente = Backup.objects.create(organizacion=self.org, activo=self.a, estado="fallido",
+                                         tipo="incremental", fecha=ahora - timedelta(hours=1))
+        fila = next(x for x in self.client.get(URL_ACTIVOS).data["results"] if x["nombre"] == "alfa")
+        self.assertEqual(fila["ultimo_backup"]["id"], reciente.pk)
+        self.assertEqual(fila["ultimo_backup"]["estado"], "fallido")
+
+    def test_sin_backups_es_null(self):
+        fila = next(x for x in self.client.get(URL_ACTIVOS).data["results"] if x["nombre"] == "Beta")
+        self.assertIsNone(fila["ultimo_backup"])
+
+    def test_resumen_backups_en_el_detalle(self):
+        for estado in ["exitoso", "exitoso", "fallido"]:
+            Backup.objects.create(organizacion=self.org, activo=self.a, estado=estado, tipo="completo")
+        d = self.client.get(url_activo(self.a)).data
+        self.assertEqual(d["resumen_backups"], {"total": 3, "exitosos": 2, "fallidos": 1, "pendientes": 0})
+        self.assertEqual(d["ultimo_backup"]["estado"] in ("exitoso", "fallido"), True)
+
+    def test_lista_sin_n_mas_1(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        def consultas():
+            with CaptureQueriesContext(connection) as ctx:
+                self.client.get(URL_ACTIVOS)
+            return len(ctx)
+
+        antes = consultas()
+        for n in range(10):
+            act = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre=f"N{n}")
+            Backup.objects.create(organizacion=self.org, activo=act, estado="exitoso", tipo="completo")
+        self.assertEqual(consultas(), antes)
