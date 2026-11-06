@@ -23,3 +23,22 @@ dd {
   pointer-events: auto;
   cursor: not-allowed;
 }
+
+// La tarjeta de activos es un enlace a la lista filtrada por este cliente.
+.enlace-tarjeta {
+  display: block;
+  height: 100%;
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--bs-border-radius);
+
+  &:hover ::ng-deep .card,
+  &:focus-visible ::ng-deep .card {
+    border-color: var(--bs-primary) !important;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--bs-primary);
+    outline-offset: 2px;
+  }
+}

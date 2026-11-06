@@ -125,4 +125,12 @@ describe('ClienteFicha', () => {
       'Cliente guardado correctamente.',
     );
   });
+
+  it('la tarjeta Activos enlaza a la lista de activos del cliente', () => {
+    crear();
+    cargar();
+    const enlace = el().querySelector<HTMLAnchorElement>('a[href="/admin/activos?organizacion=7"]');
+    expect(enlace).not.toBeNull();
+    expect(enlace?.textContent).toContain('Activos');
+  });
 });
