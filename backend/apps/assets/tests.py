@@ -49,3 +49,124 @@ class SeedBackupsTests(TestCase):
         self.assertTrue(Backup.objects.exists())
         self.assertFalse(Backup.objects.filter(activo__isnull=True).exists())
         self.assertFalse(Backup.objects.filter(tipo="").exists())
+
+
+URL_ACTIVOS = "/api/activos/"
+
+
+def url_activo(a):
+    return f"{URL_ACTIVOS}{a.pk}/"
+
+
+class BaseActivos(APITestCase):
+    def setUp(self):
+        self.admin = Usuario.objects.create_user("admin1", rol="admin")
+        self.tecnico = Usuario.objects.create_user("tec1", rol="tecnico")
+        self.cliente = Usuario.objects.create_user("cli1", rol="cliente")
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+        self.otra = Organizacion.objects.create(nombre="Otra", nit="900000002")
+        self.activo = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="SRV-01")
+
+    def nuevo(self, **extra):
+        datos = {"organizacion": self.org.pk, "tipo": "servidor", "nombre": "SRV-02", "estado": "operativo"}
+        datos.update(extra)
+        return self.client.post(URL_ACTIVOS, datos, format="json")
+
+
+class PermisosActivosTests(BaseActivos):
+    def test_sin_token_da_401(self):
+        self.assertEqual(self.client.get(URL_ACTIVOS).status_code, 401)
+        self.assertEqual(self.nuevo().status_code, 401)
+
+    def test_cliente_da_403(self):
+        self.client.force_authenticate(self.cliente)
+        self.assertEqual(self.client.get(URL_ACTIVOS).status_code, 403)
+        self.assertEqual(self.client.get(url_activo(self.activo)).status_code, 403)
+        self.assertEqual(self.nuevo().status_code, 403)
+        self.assertEqual(
+            self.client.patch(url_activo(self.activo), {"estado": "critico"}, format="json").status_code, 403
+        )
+
+    def test_tecnico_crea_y_edita(self):
+        self.client.force_authenticate(self.tecnico)
+        self.assertEqual(self.nuevo().status_code, 201)
+        r = self.client.patch(url_activo(self.activo), {"estado": "critico", "ip": "10.0.0.5"}, format="json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["estado"], "critico")
+
+    def test_admin_crea_y_edita(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.nuevo().status_code, 201)
+        self.assertEqual(
+            self.client.patch(url_activo(self.activo), {"de_baja": True}, format="json").status_code, 200
+        )
+
+    def test_put_y_delete_dan_405(self):
+        for u in (self.admin, self.tecnico):
+            self.client.force_authenticate(u)
+            self.assertEqual(self.client.put(url_activo(self.activo), {}, format="json").status_code, 405)
+            self.assertEqual(self.client.delete(url_activo(self.activo)).status_code, 405)
+
+    def test_inexistente_da_404(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.get(f"{URL_ACTIVOS}99999/").status_code, 404)
+
+
+class ReglasActivoTests(BaseActivos):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.tecnico)
+
+    def test_nombre_unico_por_cliente(self):
+        r = self.nuevo(nombre="srv-01")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["nombre"], ["Ya existe un activo con este nombre en este cliente."])
+        self.assertEqual(self.nuevo(nombre="SRV-01", organizacion=self.otra.pk).status_code, 201)
+
+    def test_editar_con_su_propio_nombre_es_valido(self):
+        r = self.client.patch(url_activo(self.activo), {"nombre": "SRV-01"}, format="json")
+        self.assertEqual(r.status_code, 200)
+
+    def test_ip_invalida(self):
+        r = self.nuevo(ip="999.1.1.1")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["ip"], ["Escribe una dirección IP válida, por ejemplo 192.168.1.10."])
+
+    def test_no_se_cambia_la_organizacion(self):
+        r = self.client.patch(url_activo(self.activo), {"organizacion": self.otra.pk}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["organizacion"], ["No se puede cambiar el cliente de un activo."])
+        r = self.client.patch(url_activo(self.activo), {"organizacion": self.org.pk}, format="json")
+        self.assertEqual(r.status_code, 200)
+
+    def test_activo_de_baja_no_cambia_estado(self):
+        self.activo.de_baja = True
+        self.activo.save()
+        r = self.client.patch(url_activo(self.activo), {"estado": "critico"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["estado"], ["El activo está dado de baja."])
+
+    def test_activo_de_baja_no_cambia_ficha(self):
+        self.activo.de_baja = True
+        self.activo.save()
+        r = self.client.patch(url_activo(self.activo), {"notas": "x"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["non_field_errors"], ["El activo está dado de baja."])
+
+    def test_reactivar_y_cambiar_estado_juntos(self):
+        self.activo.de_baja = True
+        self.activo.save()
+        r = self.client.patch(
+            url_activo(self.activo), {"de_baja": False, "estado": "advertencia"}, format="json"
+        )
+        self.assertEqual(r.status_code, 200)
+        self.activo.refresh_from_db()
+        self.assertFalse(self.activo.de_baja)
+        self.assertIsNone(self.activo.fecha_baja)
+        self.assertEqual(self.activo.estado, "advertencia")
+
+    def test_opcionales_vacios_salen_como_null(self):
+        d = self.client.get(url_activo(self.activo)).data
+        for campo in ["hostname", "ip", "notas", "ubicacion"]:
+            self.assertIsNone(d[campo], campo)
+        self.assertEqual(d["organizacion"], {"id": self.org.pk, "nombre": "Org"})

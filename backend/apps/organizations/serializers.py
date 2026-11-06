@@ -22,12 +22,25 @@ MSG_NIT_OBLIGATORIO = "El NIT es obligatorio."
 
 
 class VacioComoNullMixin:
+    """Textos opcionales: "" en la base, null en la API (y null de entrada se guarda "")."""
+
+    texto_opcional = TEXTO_OPCIONAL
+
     def to_representation(self, instance):
         data = super().to_representation(instance)
-        for campo in TEXTO_OPCIONAL:
+        for campo in self.texto_opcional:
             if data.get(campo) == "":
                 data[campo] = None
         return data
+
+    def to_internal_value(self, data):
+        if hasattr(data, "dict"):
+            data = data.dict()
+        if isinstance(data, dict):
+            data = {
+                k: ("" if k in self.texto_opcional and v is None else v) for k, v in data.items()
+            }
+        return super().to_internal_value(data)
 
 
 class OrganizacionListaSerializer(VacioComoNullMixin, serializers.ModelSerializer):
@@ -62,14 +75,6 @@ class OrganizacionDetalleSerializer(VacioComoNullMixin, serializers.ModelSeriali
             "creado_en", "actualizado_en", "resumen",
         ]
         read_only_fields = ["creado_en", "actualizado_en"]
-
-    def to_internal_value(self, data):
-        if hasattr(data, "dict"):
-            data = data.dict()
-        data = {
-            k: ("" if k in TEXTO_OPCIONAL and v is None else v) for k, v in data.items()
-        }
-        return super().to_internal_value(data)
 
     def _otras(self):
         qs = Organizacion.objects.all()
