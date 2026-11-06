@@ -125,7 +125,7 @@
       </fieldset>
     </div>
 
-    <div class="card-footer bg-white d-flex justify-content-end gap-2 p-3">
+    <div class="card-footer d-flex justify-content-end gap-2 p-3">
       <a class="btn btn-outline-secondary" [routerLink]="id ? ['/admin/clientes', id] : '/admin/clientes'">Cancelar</a>
       <button type="submit" class="btn btn-primary" [disabled]="enviando()">
         @if (enviando()) {

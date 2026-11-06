@@ -1,11 +1,20 @@
 <!doctype html>
-<html lang="en">
+<html lang="es" data-bs-theme="dark">
 <head>
   <meta charset="utf-8">
-  <title>Frontend</title>
+  <title>SEBRIT</title>
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark light">
   <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <script>
+    // Aplica el tema guardado antes de pintar (ver TemaService).
+    try {
+      if (localStorage.getItem('sebrit.tema') === 'claro') {
+        document.documentElement.setAttribute('data-bs-theme', 'light');
+      }
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <app-root></app-root>

@@ -3,10 +3,11 @@ import { Component, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
+import { SelectorTema } from '../../../shared/components/selector-tema/selector-tema';
 
 @Component({
   selector: 'app-login',
-  imports: [ReactiveFormsModule],
+  imports: [ReactiveFormsModule, SelectorTema],
   templateUrl: './login.html',
   styleUrl: './login.scss',
 })
@@ -22,11 +23,11 @@ export class Login {
 
   /** Nodos del diagrama decorativo (posición en % del contenedor). */
   readonly nodos = [
-    { icono: 'bi-diagram-3', estado: 'success', x: 14, y: 20 },
-    { icono: 'bi-cloud-arrow-up', estado: 'success', x: 86, y: 18 },
-    { icono: 'bi-router', estado: 'warning', x: 90, y: 74 },
-    { icono: 'bi-pc-display', estado: 'success', x: 50, y: 92 },
-    { icono: 'bi-shield-check', estado: 'success', x: 10, y: 78 },
+    { icono: 'bi-diagram-3', estado: 'ok', x: 14, y: 20 },
+    { icono: 'bi-cloud-arrow-up', estado: 'ok', x: 86, y: 18 },
+    { icono: 'bi-router', estado: 'alto', x: 90, y: 74 },
+    { icono: 'bi-pc-display', estado: 'ok', x: 50, y: 92 },
+    { icono: 'bi-shield-check', estado: 'ok', x: 10, y: 78 },
   ];
 
   enviando = signal(false);
