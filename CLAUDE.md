@@ -1,6 +1,6 @@
 # SEBRIT: contexto del proyecto para Claude Code
 
-Última actualización: 2026-11-05. Este archivo resume lo que ya está construido y lo que se va a desarrollar. Léelo completo antes de proponer o hacer cambios.
+Última actualización: 2026-11-06. Este archivo resume lo que ya está construido y lo que se va a desarrollar. Léelo completo antes de proponer o hacer cambios.
 
 ## 1. Qué es SEBRIT
 
@@ -14,7 +14,7 @@ Principio clave: **la autorización se hace en el backend**. Ocultar opciones en
 |---|---|---|
 | 01 | Dashboard (administrativo primero) | Sprint 1, hecho |
 | 02 | Clientes y organizaciones | Hecho (CRUD sin borrado, panel compartido admin/técnico) |
-| 03 | Infraestructura y activos | Solo modelo base |
+| 03 | Infraestructura y activos | Hecho (inventario de activos y registro manual de backups; admin y técnico) |
 | 04 | Tickets y soporte | Solo modelo base |
 | 05 | Incidentes | Solo modelo base |
 | 06 | Mantenimientos | Solo modelo base |
@@ -89,7 +89,7 @@ sebrit/
 │   └── apps/
 │       ├── accounts/        # Usuario personalizado (rol, organizacion), login JWT, /me
 │       ├── organizations/   # Organizacion, API /api/organizaciones/ (viewset, permisos, serializers)
-│       ├── assets/          # Activo, Backup
+│       ├── assets/          # Activo, Backup, API /api/activos/ y /api/backups/
 │       ├── tickets/         # Ticket
 │       ├── incidents/       # Incidente, AccionIncidente
 │       ├── maintenance/     # Mantenimiento
@@ -101,10 +101,10 @@ sebrit/
 │   └── src/app/
 │       ├── core/            # auth/permisos.ts, config/api.ts, models, services, interceptors, guards, layout
 │       ├── shared/components/   # stat-card, status-badge
-│       └── features/        # admin/dashboard, admin/clientes, auth/login, errors/sin-permiso
+│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, auth/login, errors/sin-permiso
 ├── docs/
 │   ├── api-contract.md      # fuente de verdad del contrato de la API
-│   ├── examples/            # dashboard-admin.json, organizacion.json
+│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json
 │   └── superpowers/         # specs/ y plans/ de cada módulo
 ├── docker-compose.yml
 ├── .env.example
@@ -184,14 +184,14 @@ Conexión: host `localhost`, puerto `5433`, base y usuario de `POSTGRES_DB` / `P
 |---|---|
 | `Usuario` (accounts) | Extiende `AbstractUser`. `rol` (`admin`, `tecnico`, `cliente`), `organizacion` (FK opcional). Todo superusuario recibe `rol = admin` en `save()` |
 | `Organizacion` | `nombre` (único), `nit` (único; nulo solo en registros anteriores al módulo 02), `sector`, `telefono`, `correo`, `direccion`, `ciudad`, `contacto_*` (nombre, cargo, correo, teléfono), `plan` (`basico`, `estandar`, `premium`), `fecha_inicio_contrato`, `fecha_fin_contrato`, `activa`, `creado_en`, `actualizado_en` |
-| `Activo` (assets) | `organizacion`, `tipo` (`servidor`, `red`), `nombre`, `estado` (`operativo`, `advertencia`, `critico`) |
-| `Backup` (assets) | `organizacion`, `activo` (opcional), `estado` (`exitoso`, `fallido`, `pendiente`), `fecha` |
+| `Activo` (assets) | `organizacion` (fija al crear), `tipo` (`servidor`, `red`), `nombre` (único por cliente, sin mayúsculas), `estado` (`operativo`, `advertencia`, `critico`), `hostname`, `ip`, `sistema_operativo`, `fabricante`, `modelo`, `numero_serie`, `ubicacion`, `notas`, `de_baja`, `fecha_baja` (automática), `creado_en`, `actualizado_en` |
+| `Backup` (assets) | `activo` (`PROTECT`; obligatorio en la API), `organizacion` (se toma del activo), `estado` (`exitoso`, `fallido`, `pendiente`), `tipo` (`completo`, `incremental`, `diferencial`), `fecha` (no futura), `tamano_gb`, `notas`, `registrado_por` (automático), `creado_en` |
 | `Ticket` | `organizacion`, `titulo`, `estado`, `creado_en` |
 | `Incidente` | `codigo` (único, ej. `INC-0001`), `titulo`, `organizacion`, `severidad`, `estado`, `tecnico` (FK a Usuario, **puede ser null**), `creado_en` |
 | `AccionIncidente` | `incidente`, `descripcion`, `fecha` (la más reciente es la `ultima_accion`) |
 | `Mantenimiento` | `organizacion`, `titulo`, `fecha_programada`, `estado` (`programado`, `en_curso`, `completado`) |
 
-Las FK `organizacion` de `Activo`, `Backup`, `Ticket`, `Incidente` y `Mantenimiento` usan `on_delete=PROTECT`: un cliente con datos no se puede borrar (se desactiva).
+Las FK `organizacion` de `Activo`, `Backup`, `Ticket`, `Incidente` y `Mantenimiento` usan `on_delete=PROTECT`: un cliente con datos no se puede borrar (se desactiva). Los activos tampoco se borran: se dan de baja (`de_baja`); un activo dado de baja solo admite reactivarse y no recibe backups nuevos.
 
 Los estados usan `TextChoices` con los valores del contrato. Los nombres de dominio (modelos, campos, claves JSON) van **en español, sin tildes**; el código del framework en inglés.
 
@@ -208,8 +208,10 @@ El admin de Django (`accounts/admin.py`) permite elegir rol y organización al c
 | GET | `/api/organizaciones/` | admin y técnico. Paginada (20, máx. 100); `q`, `activa`, `plan`, `ordering` |
 | GET | `/api/organizaciones/{id}/` | admin y técnico. Incluye `resumen` |
 | POST, PATCH | `/api/organizaciones/`, `/{id}/` | Solo admin. PUT y DELETE dan 405 |
+| GET, POST, PATCH | `/api/activos/`, `/{id}/` | Admin y técnico. Lista: `q`, `organizacion`, `tipo`, `estado`, `de_baja` (por defecto se excluyen), `ordering` (`estado` = críticos primero); cada fila trae `ultimo_backup`. PUT y DELETE 405 |
+| GET, POST, PATCH, DELETE | `/api/backups/`, `/{id}/` | Admin y técnico. Lista: `organizacion`, `activo`, `estado`, `tipo`, `desde`, `hasta` (hora local). PUT 405 |
 
-El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
+El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. `EsAdminOTecnico` (en `apps/assets/permissions.py`) da acceso completo a ambos; la usan activos y backups (los técnicos levantan el inventario). Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
 
 ### Reglas de cálculo del dashboard
 
@@ -219,19 +221,20 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 - `mantenimientos_hoy`: `fecha_programada__date` igual a hoy en America/Bogota.
 - `incidentes_criticos`: incidentes activos con severidad `critica`.
 - `incidentes`: máximo 10 activos, del más reciente al más antiguo.
-- Infraestructura sale del `estado` de cada `Activo` y de los `Backup`; no hay monitoreo real todavía.
+- Infraestructura sale del `estado` de cada `Activo` y de los `Backup`; no hay monitoreo real todavía. **Los activos dados de baja no cuentan** (ni en el dashboard ni en `resumen.activos` de la ficha de cliente).
 
 ### Pruebas
 
 - `apps/dashboard/tests.py` (6): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico.
 - `apps/accounts/tests.py` (5): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200.
 - `apps/organizations/tests.py` (33): modelo y `PROTECT`, seed, permisos por rol y método, validaciones, `resumen`, nulos, búsqueda, filtros, orden y paginación.
+- `apps/assets/tests.py` (47): modelo, baja, conteos sin dados de baja, seed, permisos de activos y backups, validaciones (nombre por cliente, IP, cliente fijo, baja, fecha futura, tamaño), datos derivados, filtros, orden, `ultimo_backup` sin N+1 y fechas en hora local.
 
 Todo endpoint nuevo debe traer pruebas de permisos (401 / 403 / 200).
 
 ## 8. Contrato de la API
 
-Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
+Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
 
 ```
 GET /api/dashboard/admin/
@@ -292,6 +295,10 @@ Estilo de consola de monitoreo con **dos temas**: oscuro (por defecto) y claro. 
 | Clientes: lista con búsqueda, filtros y paginación | `/admin/clientes` | `GET /api/organizaciones/` |
 | Clientes: ficha con resumen y desactivar/reactivar | `/admin/clientes/:id` | `GET`/`PATCH /api/organizaciones/{id}/` |
 | Clientes: formulario crear/editar (solo admin) | `/admin/clientes/nuevo`, `/admin/clientes/:id/editar` | `POST`/`PATCH` |
+| Activos: lista (acepta `?organizacion=`; la tarjeta Activos de la ficha de cliente enlaza aquí) | `/admin/activos` | `GET /api/activos/` |
+| Activos: ficha con cambio de estado, baja/reactivar e historial de backups (registrar backup en la misma página) | `/admin/activos/:id` | `GET`/`PATCH /api/activos/{id}/`, `/api/backups/?activo=` |
+| Activos: formulario crear/editar | `/admin/activos/nuevo`, `/admin/activos/:id/editar` | `POST`/`PATCH` |
+| Backups: lista con filtros, editar y borrar | `/admin/backups`, `/admin/backups/:id/editar` | `/api/backups/` |
 
 ### Panel compartido y permisos en el frontend
 
@@ -301,6 +308,8 @@ Admin y técnico usan el mismo layout. Lo que un rol no puede usar **se muestra 
 |---|---|---|
 | `dashboard` | admin, técnico | — |
 | `clientes` | admin, técnico | admin |
+| `activos` | admin, técnico | admin, técnico |
+| `backups` | admin, técnico | admin, técnico |
 
 Al agregar un módulo: una fila en `PERMISOS`, un enlace en `Layout.enlaces` y `permisoGuard(modulo, accion)` en sus rutas. El mapa solo refleja lo que el backend ya permite.
 
@@ -339,7 +348,7 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 ## 11. Qué sigue después del Sprint 1
 
 1. Dashboard del técnico y del cliente (mismos endpoints con datos filtrados por rol y organización).
-2. ~~CRUD de clientes~~ (hecho, módulo 02); sigue activos (módulo 03), luego tickets e incidentes (creación, asignación, estados, comentarios, historial), luego mantenimientos.
+2. ~~CRUD de clientes~~ (módulo 02) y ~~activos y backups~~ (módulo 03) hechos; siguen tickets (módulo 04) e incidentes (creación, asignación, estados, comentarios, historial), luego mantenimientos.
 3. Aislamiento por organización en el backend (un cliente nunca ve datos de otra empresa), con pruebas con dos organizaciones.
 4. Reportes y SLA cuando se definan las reglas de negocio.
 5. Monitoreo y alertas con integraciones externas.
