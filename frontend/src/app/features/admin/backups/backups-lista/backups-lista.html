@@ -11,7 +11,7 @@
 <div class="card shadow-sm border-0">
   <div class="card-body border-bottom">
     <div class="row g-2">
-      <div class="col-12 col-md-6 col-xl-3">
+      <div class="col-12 col-md-6 col-xl-2">
         <label for="cliente" class="visually-hidden">Cliente</label>
         <select id="cliente" class="form-select" (change)="cambiarCliente($any($event.target).value)">
           <option value="">Todos los clientes</option>
@@ -38,7 +38,7 @@
           }
         </select>
       </div>
-      <div class="col-6 col-xl-2">
+      <div class="col-6 col-xl-3">
         <div class="input-group">
           <label for="desde" class="input-group-text small">Desde</label>
           <input id="desde" type="date" class="form-control" (change)="cambiarDesde($any($event.target).value)" />
