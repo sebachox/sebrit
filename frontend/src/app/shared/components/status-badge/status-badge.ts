@@ -27,6 +27,13 @@ const ESTILOS: Record<string, { texto: string; clase: string }> = {
   basico: { texto: 'Básico', clase: 'neutro' },
   estandar: { texto: 'Estándar', clase: 'info' },
   premium: { texto: 'Premium', clase: 'primario' },
+  // tipo de activo
+  servidor: { texto: 'Servidor', clase: 'primario' },
+  red: { texto: 'Red', clase: 'info' },
+  // tipo de backup
+  completo: { texto: 'Completo', clase: 'ok' },
+  incremental: { texto: 'Incremental', clase: 'info' },
+  diferencial: { texto: 'Diferencial', clase: 'neutro' },
 };
 
 @Component({

@@ -1,0 +1,17 @@
+form {
+  max-width: 960px;
+}
+
+fieldset + fieldset {
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--bs-border-color-translucent);
+}
+
+.volver {
+  color: var(--bs-secondary-color);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--bs-primary);
+  }
+}

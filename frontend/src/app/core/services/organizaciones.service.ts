@@ -23,6 +23,7 @@ export class OrganizacionesService {
     if (f.activa != null) params = params.set('activa', String(f.activa));
     if (f.plan) params = params.set('plan', f.plan);
     if (f.page && f.page > 1) params = params.set('page', f.page);
+    if (f.pageSize) params = params.set('page_size', f.pageSize);
     return this.http.get<Paginado<OrganizacionResumida>>(BASE, { params });
   }
 

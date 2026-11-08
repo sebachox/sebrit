@@ -1,0 +1,60 @@
+.volver {
+  color: var(--bs-secondary-color);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--bs-primary);
+  }
+}
+
+.datos {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 0.75rem 1.5rem;
+}
+
+dd {
+  overflow-wrap: anywhere;
+}
+
+.notas {
+  white-space: pre-line;
+}
+
+.registro {
+  background: var(--sb-superficie-2);
+}
+
+// Selector de estado: el estado actual va con su color de estado lleno;
+// los demás con borde del mismo tono.
+.btn-estado {
+  border: 1px solid var(--bs-border-color);
+  color: var(--bs-body-color);
+  background: transparent;
+
+  &:disabled {
+    opacity: 0.55;
+  }
+}
+
+$tonos: (
+  operativo: ok,
+  advertencia: alto,
+  critico: critico,
+);
+
+@each $estado, $tono in $tonos {
+  .estado-btn-#{$estado} {
+    &:not(:disabled):hover {
+      border-color: var(--sb-#{$tono});
+      color: var(--bs-body-color);
+    }
+
+    &.activo {
+      background: var(--sb-#{$tono});
+      border-color: var(--sb-#{$tono});
+      color: var(--sb-#{$tono}-fg);
+      font-weight: 600;
+    }
+  }
+}

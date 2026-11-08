@@ -14,7 +14,7 @@ ACTIVOS = ["abierto", "en_progreso"]
 
 
 def conteo_activos(tipo):
-    return Activo.objects.filter(tipo=tipo).aggregate(
+    return Activo.objects.filter(tipo=tipo, de_baja=False).aggregate(
         total=Count("id"),
         operativos=Count("id", filter=Q(estado="operativo")),
         advertencia=Count("id", filter=Q(estado="advertencia")),

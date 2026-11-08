@@ -56,6 +56,42 @@ export const routes: Routes = [
             (m) => m.ClienteFicha,
           ),
       },
+      {
+        path: 'admin/activos',
+        canActivate: [permisoGuard('activos', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/activos/activos-lista/activos-lista').then((m) => m.ActivosLista),
+      },
+      {
+        path: 'admin/activos/nuevo',
+        canActivate: [permisoGuard('activos', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/activos/activo-form/activo-form').then((m) => m.ActivoForm),
+      },
+      {
+        path: 'admin/activos/:id/editar',
+        canActivate: [permisoGuard('activos', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/activos/activo-form/activo-form').then((m) => m.ActivoForm),
+      },
+      {
+        path: 'admin/activos/:id',
+        canActivate: [permisoGuard('activos', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/activos/activo-ficha/activo-ficha').then((m) => m.ActivoFicha),
+      },
+      {
+        path: 'admin/backups',
+        canActivate: [permisoGuard('backups', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/backups/backups-lista/backups-lista').then((m) => m.BackupsLista),
+      },
+      {
+        path: 'admin/backups/:id/editar',
+        canActivate: [permisoGuard('backups', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/backups/backup-editar/backup-editar').then((m) => m.BackupEditar),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },

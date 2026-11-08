@@ -1,0 +1,215 @@
+<a routerLink="/admin/activos" class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3">
+  <i class="bi bi-arrow-left"></i>Activos
+</a>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando activo...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-hdd-rack fs-1 text-muted"></i>
+      <h4 class="mt-2">Activo no encontrado</h4>
+      <p class="text-muted">Puede que el enlace esté mal escrito.</p>
+      <a routerLink="/admin/activos" class="btn btn-outline-primary">Volver a activos</a>
+    </div>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el activo.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (activo(); as a) {
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div class="encabezado">
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <h4 class="mb-0">{{ a.nombre }}</h4>
+        <app-status-badge [valor]="a.tipo" />
+        @if (a.de_baja) {
+          <span class="badge estado estado-neutro">De baja</span>
+        } @else {
+          <app-status-badge [valor]="a.estado" />
+        }
+      </div>
+      <div class="small text-muted mt-1">
+        Cliente: <a [routerLink]="['/admin/clientes', a.organizacion.id]">{{ a.organizacion.nombre }}</a>
+      </div>
+    </div>
+
+    @if (puedeEditar()) {
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-outline-primary" [disabled]="a.de_baja" (click)="editar()">
+          <i class="bi bi-pencil me-1"></i>Editar
+        </button>
+        @if (a.de_baja) {
+          <button type="button" class="btn btn-outline-success" [disabled]="cambiando()" (click)="reactivar()">
+            <i class="bi bi-arrow-counterclockwise me-1"></i>Reactivar
+          </button>
+        } @else {
+          <button type="button" class="btn btn-outline-danger" [disabled]="confirmandoBaja()" (click)="pedirBaja()">
+            <i class="bi bi-archive me-1"></i>Dar de baja
+          </button>
+        }
+      </div>
+    }
+  </div>
+
+  @if (guardado()) {
+    <div class="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-check-circle"></i><span>Activo guardado correctamente.</span>
+      <button type="button" class="btn-close" aria-label="Cerrar" (click)="guardado.set(false)"></button>
+    </div>
+  }
+
+  @if (a.de_baja) {
+    <div class="alert alert-secondary d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-archive"></i>
+      <span>
+        Este activo está dado de baja desde el {{ a.fecha_baja | date: 'dd/MM/yyyy' }}. Su historial se
+        conserva; para cambiar su estado o registrar backups, reactívalo.
+      </span>
+    </div>
+  }
+
+  @if (confirmandoBaja()) {
+    <div class="alert alert-warning" role="alertdialog" aria-labelledby="baja-titulo">
+      <p id="baja-titulo" class="fw-semibold mb-1">¿Dar de baja {{ a.nombre }}?</p>
+      <p class="mb-3">Dejará de contar en el inventario y el dashboard. Su historial de backups se conserva y puedes reactivarlo.</p>
+      <div class="d-flex gap-2">
+        <button type="button" class="btn btn-danger" [disabled]="cambiando()" (click)="confirmarBaja()">Sí, dar de baja</button>
+        <button type="button" class="btn btn-outline-secondary" [disabled]="cambiando()" (click)="confirmandoBaja.set(false)">Cancelar</button>
+      </div>
+    </div>
+  }
+
+  @if (errorAccion(); as e) {
+    <div class="alert alert-danger" role="alert">{{ e }}</div>
+  }
+
+  <!-- Estado -->
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body d-flex flex-wrap align-items-center gap-3">
+      <span class="fw-semibold">Estado</span>
+      <div class="btn-group" role="group" aria-label="Cambiar estado del activo">
+        @for (e of estados; track e.valor) {
+          <button
+            type="button"
+            class="btn btn-sm btn-estado estado-btn-{{ e.valor }}"
+            [class.activo]="a.estado === e.valor"
+            [attr.aria-pressed]="a.estado === e.valor"
+            [disabled]="a.de_baja || cambiando() || !puedeEditar()"
+            (click)="cambiarEstado(e.valor)"
+          >
+            {{ e.texto }}
+          </button>
+        }
+      </div>
+    </div>
+  </div>
+
+  <!-- Datos -->
+  <div class="row g-3 mb-4">
+    <div class="col-lg-7">
+      <section class="card shadow-sm border-0 h-100">
+        <div class="card-header fw-semibold"><i class="bi bi-cpu me-2 text-muted"></i>Identificación</div>
+        <dl class="card-body mb-0 datos">
+          @for (c of identificacion; track c.clave) {
+            <div>
+              <dt class="text-muted small fw-normal">{{ c.etiqueta }}</dt>
+              <dd class="mb-0" [class.numerico]="c.numerico" [attr.data-campo]="c.clave">
+                @if (valor(a, c.clave); as v) { {{ v }} } @else { <span class="text-muted">—</span> }
+              </dd>
+            </div>
+          }
+        </dl>
+      </section>
+    </div>
+    <div class="col-lg-5">
+      <section class="card shadow-sm border-0 h-100">
+        <div class="card-header fw-semibold"><i class="bi bi-geo-alt me-2 text-muted"></i>Ubicación y notas</div>
+        <dl class="card-body mb-0">
+          <dt class="text-muted small fw-normal">Ubicación</dt>
+          <dd [attr.data-campo]="'ubicacion'">
+            @if (a.ubicacion) { {{ a.ubicacion }} } @else { <span class="text-muted">—</span> }
+          </dd>
+          <dt class="text-muted small fw-normal">Notas</dt>
+          <dd class="mb-0 notas" [attr.data-campo]="'notas'">
+            @if (a.notas) { {{ a.notas }} } @else { <span class="text-muted">—</span> }
+          </dd>
+        </dl>
+      </section>
+    </div>
+  </div>
+
+  <!-- Backups -->
+  <section class="card shadow-sm border-0">
+    <div class="card-header d-flex flex-wrap align-items-center justify-content-between gap-2">
+      <span class="fw-semibold"><i class="bi bi-cloud-arrow-up me-2 text-muted"></i>Backups</span>
+      <div class="d-flex flex-wrap align-items-center gap-2 small">
+        <span class="text-muted numerico">{{ a.resumen_backups.total }} en total</span>
+        <span class="badge estado estado-ok">{{ a.resumen_backups.exitosos }} exitosos</span>
+        <span class="badge estado estado-critico">{{ a.resumen_backups.fallidos }} fallidos</span>
+        <span class="badge estado estado-neutro">{{ a.resumen_backups.pendientes }} pendientes</span>
+        @if (puedeEditar() && !registrando()) {
+          <button type="button" class="btn btn-sm btn-primary ms-2" [disabled]="a.de_baja" (click)="abrirRegistro()">
+            <i class="bi bi-plus-lg me-1"></i>Registrar backup
+          </button>
+        }
+      </div>
+    </div>
+
+    @if (registrando()) {
+      <div class="card-body border-bottom registro">
+        <h6 class="mb-3">Registrar backup</h6>
+        <app-backup-form [activoId]="a.id" (guardado)="backupRegistrado()" (cancelado)="registrando.set(false)" />
+      </div>
+    }
+
+    @if (historial(); as h) {
+      @if (h.results.length === 0) {
+        <div class="card-body text-center text-muted py-4">Este activo aún no tiene backups registrados.</div>
+      } @else {
+        <div class="table-responsive">
+          <table class="table table-hover align-middle mb-0">
+            <thead>
+              <tr>
+                <th>Fecha</th>
+                <th>Tipo</th>
+                <th>Estado</th>
+                <th class="text-end">Tamaño</th>
+                <th>Registrado por</th>
+                <th>Notas</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (b of h.results; track b.id) {
+                <tr>
+                  <td class="numerico text-nowrap">{{ b.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
+                  <td>@if (b.tipo) { <app-status-badge [valor]="b.tipo" /> } @else { — }</td>
+                  <td><app-status-badge [valor]="b.estado" /></td>
+                  <td class="numerico text-end">{{ b.tamano_gb != null ? b.tamano_gb + ' GB' : '—' }}</td>
+                  <td>{{ b.registrado_por?.nombre ?? '—' }}</td>
+                  <td class="text-muted small">{{ b.notas ?? '' }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (totalPaginasHistorial() > 1) {
+          <div class="card-body border-top d-flex justify-content-end align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="paginaHistorial() === 1" (click)="irAPaginaHistorial(paginaHistorial() - 1)" aria-label="Página anterior">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <span class="small numerico">Página {{ paginaHistorial() }} de {{ totalPaginasHistorial() }}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="paginaHistorial() >= totalPaginasHistorial()" (click)="irAPaginaHistorial(paginaHistorial() + 1)" aria-label="Página siguiente">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </div>
+        }
+      }
+    }
+  </section>
+}
