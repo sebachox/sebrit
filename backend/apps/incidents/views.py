@@ -1,15 +1,32 @@
-from django.db.models import Count
+from django.db.models import Case, Count, IntegerField, Q, Value, When
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.assets.permissions import EsAdminOTecnico
+from apps.assets.views import fecha_param
 from apps.organizations.pagination import PaginacionEstandar
 
 from . import servicios
 from .models import Incidente
 from .serializers import AccionSerializer, IncidenteDetalleSerializer, IncidenteListaSerializer
+
+ESTADOS_ACTIVOS = [Incidente.Estado.ABIERTO, Incidente.Estado.EN_PROGRESO]
+
+GRAVEDAD = Case(
+    When(severidad="critica", then=Value(0)),
+    When(severidad="alta", then=Value(1)),
+    When(severidad="media", then=Value(2)),
+    default=Value(3),
+    output_field=IntegerField(),
+)
+
+ORDENES = {
+    "severidad": [GRAVEDAD.asc(), "creado_en"],
+    "fecha_deteccion": ["creado_en"],
+    "-fecha_deteccion": ["-creado_en"],
+}
 
 
 def cuerpo(request):
@@ -41,10 +58,51 @@ class IncidenteViewSet(
         qs = Incidente.objects.select_related("organizacion", "tecnico", "reportado_por")
         if self.action != "list":
             return qs
+
+        p = self.request.query_params
+        q = p.get("q", "").strip()
+        if q:
+            qs = qs.filter(Q(codigo__icontains=q) | Q(titulo__icontains=q))
+
+        organizacion = p.get("organizacion", "")
+        if organizacion.isdecimal():
+            qs = qs.filter(organizacion_id=int(organizacion))
+
+        activo = p.get("activo", "")
+        if activo.isdecimal():
+            # Subconsulta: un filtro sobre la relación recortaría total_activos.
+            vinculados = Incidente.activos.through.objects.filter(activo_id=int(activo))
+            qs = qs.filter(pk__in=vinculados.values("incidente_id"))
+
+        for campo, opciones in (
+            ("estado", Incidente.Estado.values),
+            ("severidad", Incidente.Severidad.values),
+            ("impacto", Incidente.Impacto.values),
+        ):
+            if p.get(campo) in opciones:
+                qs = qs.filter(**{campo: p[campo]})
+
+        if p.get("abiertos") == "true":
+            qs = qs.filter(estado__in=ESTADOS_ACTIVOS)
+
+        tecnico = p.get("tecnico", "")
+        if tecnico == "sin_asignar":
+            qs = qs.filter(tecnico__isnull=True)
+        elif tecnico.isdecimal():
+            qs = qs.filter(tecnico_id=int(tecnico))
+
+        # __date usa TIME_ZONE (America/Bogota): los límites son inclusivos en hora local.
+        desde, hasta = fecha_param(p.get("desde")), fecha_param(p.get("hasta"))
+        if desde:
+            qs = qs.filter(fecha_origen__date__gte=desde)
+        if hasta:
+            qs = qs.filter(fecha_origen__date__lte=hasta)
+
+        orden = ORDENES.get(p.get("ordering", ""), ORDENES["severidad"])
         return qs.annotate(
             total_activos=Count("activos", distinct=True),
             total_tickets=Count("tickets", distinct=True),
-        ).order_by("id")
+        ).order_by(*orden, "id")
 
     def _detalle(self, incidente):
         return Response(IncidenteDetalleSerializer(incidente, context=self.get_serializer_context()).data)

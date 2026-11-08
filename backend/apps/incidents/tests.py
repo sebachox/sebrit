@@ -1,4 +1,4 @@
-from datetime import timedelta
+from datetime import datetime, timedelta
 from io import StringIO
 from unittest import mock
 
@@ -923,3 +923,128 @@ class EscalarTests(BaseIncidentes):
             Ticket.objects.create(organizacion=self.org, titulo=f"T{n}", incidente=otro)
         with self.assertNumQueries(len(una)):
             self.client.get("/api/tickets/")
+
+
+class ListaIncidentesTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+
+    def ids(self, consulta=""):
+        r = self.client.get(f"{URL}{consulta}")
+        self.assertEqual(r.status_code, 200, r.data)
+        return [f["id"] for f in r.data["results"]]
+
+    def test_forma_de_la_fila(self):
+        i = self.incidente(tecnico=self.tecnico)
+        i.activos.set([self.servidor, self.red])
+        Ticket.objects.create(organizacion=self.org, titulo="T", incidente=i)
+        fila = self.client.get(URL).data["results"][0]
+        self.assertEqual(
+            set(fila),
+            {"id", "codigo", "titulo", "organizacion", "severidad", "severidad_manual", "impacto", "estado",
+             "tecnico", "fecha_origen", "fecha_deteccion", "fecha_fin", "duracion_minutos",
+             "total_activos", "total_tickets"},
+        )
+        self.assertEqual((fila["total_activos"], fila["total_tickets"]), (2, 1))
+        self.assertEqual(fila["organizacion"], {"id": self.org.pk, "nombre": "Org"})
+
+    def test_filtro_q(self):
+        a = self.incidente(titulo="Caída del ERP")
+        b = self.incidente(titulo="Correo lento")
+        b.refresh_from_db()
+        self.assertEqual(self.ids("?q=erp"), [a.pk])
+        self.assertEqual(self.ids(f"?q={b.codigo}"), [b.pk])
+
+    def test_filtro_organizacion(self):
+        a = self.incidente(organizacion=self.otra)
+        self.incidente()
+        self.assertEqual(self.ids(f"?organizacion={self.otra.pk}"), [a.pk])
+
+    def test_filtro_activo(self):
+        a = self.incidente()
+        a.activos.set([self.servidor])
+        self.incidente()
+        self.assertEqual(self.ids(f"?activo={self.servidor.pk}"), [a.pk])
+
+    def test_filtro_activo_no_recorta_total_activos(self):
+        a = self.incidente()
+        a.activos.set([self.servidor, self.red, Activo.objects.create(organizacion=self.org, tipo="red", nombre="R2")])
+        fila = self.client.get(f"{URL}?activo={self.servidor.pk}").data["results"][0]
+        self.assertEqual(fila["total_activos"], 3)
+
+    def test_filtros_de_valor(self):
+        for campo, valor, otro in (
+            ("estado", "resuelto", "abierto"),
+            ("severidad", "alta", "baja"),
+            ("impacto", "total", "parcial"),
+        ):
+            Incidente.objects.all().delete()
+            a = self.incidente(**{campo: valor})
+            self.incidente(**{campo: otro})
+            self.assertEqual(self.ids(f"?{campo}={valor}"), [a.pk])
+
+    def test_filtro_abiertos(self):
+        a = self.incidente(estado="abierto")
+        b = self.incidente(estado="en_progreso", tecnico=self.tecnico)
+        self.incidente(estado="resuelto")
+        self.incidente(estado="cerrado")
+        self.assertCountEqual(self.ids("?abiertos=true"), [a.pk, b.pk])
+
+    def test_filtro_tecnico(self):
+        a = self.incidente(tecnico=self.tecnico)
+        b = self.incidente()
+        self.assertEqual(self.ids(f"?tecnico={self.tecnico.pk}"), [a.pk])
+        self.assertEqual(self.ids("?tecnico=sin_asignar"), [b.pk])
+
+    def test_desde_y_hasta_inclusivos_en_hora_local(self):
+        # 23:30 del 5 en Bogotá ya es el 6 en UTC.
+        bogota = timezone.get_fixed_timezone(-300)
+        noche = self.incidente(fecha_origen=datetime(2026, 11, 5, 23, 30, tzinfo=bogota))
+        antes = self.incidente(fecha_origen=datetime(2026, 11, 4, 23, 30, tzinfo=bogota))
+        despues = self.incidente(fecha_origen=datetime(2026, 11, 6, 0, 30, tzinfo=bogota))
+        self.assertEqual(self.ids("?desde=2026-11-05&hasta=2026-11-05"), [noche.pk])
+        self.assertCountEqual(self.ids("?desde=2026-11-05"), [noche.pk, despues.pk])
+        self.assertCountEqual(self.ids("?hasta=2026-11-05"), [noche.pk, antes.pk])
+
+    def test_valores_invalidos_se_ignoran(self):
+        a = self.incidente()
+        for consulta in (
+            "?desde=2026-13-45", "?hasta=x", "?organizacion=²", "?tecnico=²", "?activo=abc",
+            "?severidad=x", "?estado=x", "?impacto=x", "?ordering=x",
+        ):
+            self.assertEqual(self.ids(consulta), [a.pk], consulta)
+
+    def test_orden_por_defecto(self):
+        hace = timezone.now() - timedelta(days=1)
+        baja = self.incidente(severidad="baja")
+        critica_nueva = self.incidente(severidad="critica")
+        critica_vieja = self.incidente(severidad="critica", creado_en=hace)
+        media = self.incidente(severidad="media")
+        alta = self.incidente(severidad="alta")
+        self.assertEqual(self.ids(), [critica_vieja.pk, critica_nueva.pk, alta.pk, media.pk, baja.pk])
+
+    def test_orden_por_deteccion(self):
+        ahora = timezone.now()
+        vieja = self.incidente(creado_en=ahora - timedelta(days=2))
+        nueva = self.incidente(creado_en=ahora - timedelta(days=1))
+        self.assertEqual(self.ids("?ordering=fecha_deteccion"), [vieja.pk, nueva.pk])
+        self.assertEqual(self.ids("?ordering=-fecha_deteccion"), [nueva.pk, vieja.pk])
+
+    def test_paginacion(self):
+        for _ in range(25):
+            self.incidente()
+        r = self.client.get(URL)
+        self.assertEqual((r.data["count"], len(r.data["results"])), (25, 20))
+        self.assertEqual(len(self.client.get(f"{URL}?page_size=100").data["results"]), 25)
+
+    def test_lista_sin_n_mas_1(self):
+        i = self.incidente(tecnico=self.tecnico)
+        i.activos.set([self.servidor])
+        with CaptureQueriesContext(connection) as una:
+            self.client.get(URL)
+        for _ in range(4):
+            otro = self.incidente(tecnico=self.otro_tecnico)
+            otro.activos.set([self.servidor, self.red])
+        with self.assertNumQueries(len(una)):
+            self.client.get(URL)
