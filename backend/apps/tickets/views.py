@@ -49,7 +49,7 @@ class TicketViewSet(viewsets.ModelViewSet):
             return qs
 
         p = self.request.query_params
-        q = p.get("q", "").strip()
+        q = p.get("q", "").replace("\x00", "").strip()
         if q:
             qs = qs.filter(Q(codigo__icontains=q) | Q(titulo__icontains=q))
 
@@ -81,21 +81,23 @@ class TicketViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def estado(self, request, pk=None):
+        datos = cuerpo(request)
         ticket = servicios.cambiar_estado(
-            self.get_object(), request.data.get("estado"), request.data.get("solucion"), request.user
+            self.get_object(), datos.get("estado"), datos.get("solucion"), request.user
         )
         return self._detalle(ticket)
 
     @action(detail=True, methods=["post"])
     def prioridad(self, request, pk=None):
+        datos = cuerpo(request)
         ticket = servicios.corregir_prioridad(
-            self.get_object(), request.data.get("prioridad"), request.data.get("motivo"), request.user
+            self.get_object(), datos.get("prioridad"), datos.get("motivo"), request.user
         )
         return self._detalle(ticket)
 
     @action(detail=True, methods=["post"])
     def comentarios(self, request, pk=None):
-        evento = servicios.comentar(self.get_object(), request.data.get("texto"), request.user)
+        evento = servicios.comentar(self.get_object(), cuerpo(request).get("texto"), request.user)
         return Response(EventoSerializer(evento).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])

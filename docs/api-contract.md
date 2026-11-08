@@ -369,6 +369,7 @@ Un ticket `cerrado` solo admite reabrirse.
 | `activo` | `El activo no pertenece a este cliente.` |
 | `activo` | `El activo está dado de baja.` |
 | `non_field_errors` | `El ticket está cerrado. Reábrelo para modificarlo.` |
+| `non_field_errors` | `El cuerpo de la petición no es válido.` |
 
 # Incidentes
 

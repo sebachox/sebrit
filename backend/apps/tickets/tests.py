@@ -321,6 +321,46 @@ class CrearEditarTicketTests(BaseTickets):
             self.assertIsNone(d[campo], campo)
 
 
+class EntradasAnomalasTests(BaseTickets):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.tecnico)
+
+    def post(self, sufijo, datos):
+        return self.client.post(f"{url_ticket(self.ticket)}{sufijo}", datos, format="json")
+
+    def assertError(self, r, campo, mensaje):
+        self.assertEqual(r.status_code, 400, r.data)
+        self.assertEqual([str(m) for m in r.data[campo]], [mensaje])
+
+    def test_cuerpo_no_objeto_da_400(self):
+        for sufijo in ("estado/", "prioridad/", "comentarios/"):
+            for cuerpo in ([1, 2], "x", 5):
+                self.assertError(
+                    self.post(sufijo, cuerpo), "non_field_errors", "El cuerpo de la petición no es válido."
+                )
+
+    def test_textos_con_nul_dan_400(self):
+        Ticket.objects.filter(pk=self.ticket.pk).update(estado="en_progreso", tecnico=self.tecnico)
+        self.assertError(
+            self.post("estado/", {"estado": "resuelto", "solucion": "a\x00b"}),
+            "solucion",
+            "Describe la solución para resolver el ticket.",
+        )
+        self.assertError(
+            self.post("prioridad/", {"prioridad": "alta", "motivo": "a\x00b"}),
+            "motivo",
+            "Explica por qué cambias la prioridad.",
+        )
+        self.assertError(self.post("comentarios/", {"texto": "a\x00b"}), "texto", "Escribe el comentario.")
+
+    def test_busqueda_con_nul_no_falla(self):
+        for consulta in ("?q=%00", "?q=base%00"):
+            r = self.client.get(f"{URL}{consulta}")
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual([f["id"] for f in r.data["results"]], [self.ticket.pk])
+
+
 class BaseAcciones(BaseTickets):
     def setUp(self):
         super().setUp()
