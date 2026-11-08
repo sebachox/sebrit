@@ -9,9 +9,7 @@ from apps.organizations.serializers import VacioComoNullMixin
 
 from .models import EventoTicket, Ticket
 from .prioridad import calcular_prioridad
-from .servicios import nombre_usuario, recalcular_prioridad, registrar_evento
-
-MSG_CERRADO = "El ticket está cerrado. Reábrelo para modificarlo."
+from .servicios import MSG_CERRADO, nombre_usuario, recalcular_prioridad, registrar_evento
 
 
 class EventoSerializer(VacioComoNullMixin, serializers.ModelSerializer):

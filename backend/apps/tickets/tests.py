@@ -296,3 +296,149 @@ class CrearEditarTicketTests(BaseTickets):
         d = self.client.get(url_ticket(self.ticket)).data
         for campo in ("solucion", "tecnico", "activo", "reportado_por", "resuelto_en", "cerrado_en"):
             self.assertIsNone(d[campo], campo)
+
+
+class BaseAcciones(BaseTickets):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.tecnico)
+        self.ticket.tecnico = self.tecnico
+        self.ticket.save()
+
+    def poner(self, estado):
+        self.ticket.estado = estado
+        self.ticket.save()
+
+    def accion(self, nombre, **datos):
+        return self.client.post(f"{url_ticket(self.ticket)}{nombre}/", datos, format="json")
+
+
+class FlujoEstadosTests(BaseAcciones):
+    def test_transiciones_validas(self):
+        casos = [
+            ("abierto", "en_progreso"), ("en_progreso", "abierto"), ("en_progreso", "resuelto"),
+            ("resuelto", "cerrado"), ("resuelto", "abierto"), ("cerrado", "abierto"),
+        ]
+        for origen, destino in casos:
+            self.poner(origen)
+            r = self.accion("estado", estado=destino, solucion="Listo")
+            self.assertEqual(r.status_code, 200, (origen, destino, r.data))
+            self.assertEqual(r.data["estado"], destino)
+            ev = self.eventos("estado").order_by("-id").first()
+            self.assertEqual((ev.valor_anterior, ev.valor_nuevo), (origen, destino))
+            self.assertEqual(ev.autor, self.tecnico)
+
+    def test_transiciones_invalidas(self):
+        casos = [
+            ("abierto", "resuelto", "No se puede pasar de «Abierto» a «Resuelto»."),
+            ("abierto", "cerrado", "No se puede pasar de «Abierto» a «Cerrado»."),
+            ("en_progreso", "cerrado", "No se puede pasar de «En progreso» a «Cerrado»."),
+            ("cerrado", "en_progreso", "No se puede pasar de «Cerrado» a «En progreso»."),
+        ]
+        for origen, destino, mensaje in casos:
+            self.poner(origen)
+            r = self.accion("estado", estado=destino, solucion="x")
+            self.assertEqual(r.status_code, 400, (origen, destino))
+            self.assertEqual(r.data["estado"], [mensaje])
+
+    def test_estado_fuera_de_la_enumeracion(self):
+        self.assertEqual(self.accion("estado", estado="raro").status_code, 400)
+
+    def test_empezar_sin_tecnico(self):
+        self.ticket.tecnico = None
+        self.ticket.save()
+        r = self.accion("estado", estado="en_progreso")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["tecnico"], ["Asigna un técnico antes de pasar a En progreso."])
+
+    def test_resolver_sin_solucion(self):
+        self.poner("en_progreso")
+        for datos in ({}, {"solucion": ""}, {"solucion": "   "}):
+            r = self.accion("estado", estado="resuelto", **datos)
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.data["solucion"], ["Describe la solución para resolver el ticket."])
+
+    def test_resolver_guarda_solucion_y_resuelto_en(self):
+        self.poner("en_progreso")
+        r = self.accion("estado", estado="resuelto", solucion="  Se cambió el disco  ")
+        self.assertEqual(r.data["solucion"], "Se cambió el disco")
+        self.assertIsNotNone(r.data["resuelto_en"])
+        self.assertEqual(self.eventos("estado").get().texto, "Se cambió el disco")
+
+    def test_cerrar_guarda_cerrado_en(self):
+        self.poner("resuelto")
+        self.assertIsNotNone(self.accion("estado", estado="cerrado").data["cerrado_en"])
+
+    def test_reabrir_vacia_campos_y_conserva_solucion_en_evento(self):
+        self.poner("en_progreso")
+        self.accion("estado", estado="resuelto", solucion="Arreglado")
+        self.accion("estado", estado="cerrado")
+        r = self.accion("estado", estado="abierto")
+        self.assertEqual(r.status_code, 200)
+        self.assertIsNone(r.data["solucion"])
+        self.assertIsNone(r.data["resuelto_en"])
+        self.assertIsNone(r.data["cerrado_en"])
+        self.assertTrue(self.eventos("estado").filter(texto="Arreglado").exists())
+
+    def test_permisos(self):
+        self.client.force_authenticate(self.cliente)
+        self.assertEqual(self.accion("estado", estado="en_progreso").status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.accion("estado", estado="en_progreso").status_code, 401)
+
+
+class CorregirPrioridadTests(BaseAcciones):
+    def test_corregir_marca_manual_y_deja_evento(self):
+        r = self.accion("prioridad", prioridad="critica", motivo="Cliente clave sin servicio")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["prioridad"], "critica")
+        self.assertTrue(r.data["prioridad_manual"])
+        ev = self.eventos("prioridad").get()
+        self.assertEqual(
+            (ev.valor_anterior, ev.valor_nuevo, ev.texto), ("baja", "critica", "Cliente clave sin servicio")
+        )
+
+    def test_corregir_sin_motivo(self):
+        for datos in ({}, {"motivo": ""}, {"motivo": "   "}):
+            r = self.accion("prioridad", prioridad="alta", **datos)
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.data["motivo"], ["Explica por qué cambias la prioridad."])
+
+    def test_prioridad_invalida(self):
+        self.assertEqual(self.accion("prioridad", prioridad="urgente", motivo="x").status_code, 400)
+
+    def test_permisos(self):
+        self.client.force_authenticate(self.cliente)
+        self.assertEqual(self.accion("prioridad", prioridad="alta", motivo="x").status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.accion("prioridad", prioridad="alta", motivo="x").status_code, 401)
+
+
+class ComentariosTests(BaseAcciones):
+    def test_comentar_responde_201_y_crea_evento_con_autor(self):
+        r = self.accion("comentarios", texto="  Llamé al cliente  ")
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["tipo"], "comentario")
+        self.assertEqual(r.data["texto"], "Llamé al cliente")
+        self.assertEqual(r.data["autor"], {"id": self.tecnico.pk, "nombre": "Laura Gómez"})
+
+    def test_comentario_vacio(self):
+        for datos in ({}, {"texto": ""}, {"texto": "   "}):
+            r = self.accion("comentarios", **datos)
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.data["texto"], ["Escribe el comentario."])
+
+    def test_ticket_cerrado_no_comenta_ni_corrige(self):
+        self.poner("cerrado")
+        for r in (
+            self.accion("comentarios", texto="x"),
+            self.accion("prioridad", prioridad="alta", motivo="x"),
+        ):
+            self.assertEqual(r.status_code, 400)
+            self.assertEqual(r.data["non_field_errors"], ["El ticket está cerrado. Reábrelo para modificarlo."])
+
+    def test_permisos(self):
+        self.client.force_authenticate(self.cliente)
+        self.assertEqual(self.accion("comentarios", texto="x").status_code, 403)
+        self.client.force_authenticate(None)
+        self.assertEqual(self.accion("comentarios", texto="x").status_code, 401)
