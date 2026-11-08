@@ -1,0 +1,33 @@
+{
+  "id": 7,
+  "organizacion": {
+    "id": 1,
+    "nombre": "Empresa Ejemplo S.A.S."
+  },
+  "tipo": "servidor",
+  "nombre": "SRV-DB-01",
+  "estado": "operativo",
+  "hostname": "db01.empresa.local",
+  "ip": "10.0.10.15",
+  "sistema_operativo": "Ubuntu Server 24.04 LTS",
+  "fabricante": "Dell",
+  "modelo": "PowerEdge R740",
+  "numero_serie": "7XK2Q93",
+  "ubicacion": "Rack 2, sala de servidores",
+  "notas": null,
+  "de_baja": false,
+  "fecha_baja": null,
+  "creado_en": "2026-11-06T13:02:50.682139-05:00",
+  "actualizado_en": "2026-11-06T13:02:50.682312-05:00",
+  "ultimo_backup": {
+    "id": 42,
+    "fecha": "2026-11-06T13:02:50.690561-05:00",
+    "estado": "exitoso"
+  },
+  "resumen_backups": {
+    "total": 13,
+    "exitosos": 12,
+    "fallidos": 1,
+    "pendientes": 0
+  }
+}

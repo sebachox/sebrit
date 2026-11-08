@@ -97,6 +97,8 @@ Ejemplo completo: [`docs/examples/dashboard-admin.json`](examples/dashboard-admi
 
 Un incidente o ticket está **activo** si su estado es `abierto` o `en_progreso`.
 
+Los activos dados de baja (`de_baja = true`) no cuentan en `infraestructura.servidores` ni en `infraestructura.redes`.
+
 ## Convenciones
 
 - Nombres en `snake_case`, sin tildes en claves ni valores de enumeración.
@@ -176,7 +178,7 @@ Respuesta:
 
 | Campo | Regla |
 |---|---|
-| `activos` | Todos los activos de la organización |
+| `activos` | Activos de la organización que no están dados de baja |
 | `tickets_abiertos` | Tickets en `abierto` o `en_progreso` |
 | `incidentes_activos` | Incidentes en `abierto` o `en_progreso` |
 | `usuarios` | Usuarios asignados a la organización |
@@ -198,3 +200,75 @@ Errores por campo:
 | `nit` | `Ya existe una organización con este NIT.` |
 | `nombre` | `Ya existe una organización con este nombre.` |
 | `fecha_fin_contrato` | `La fecha de fin no puede ser anterior a la de inicio.` |
+
+---
+
+# Activos
+
+Recurso `/api/activos/`. No hay borrado: un activo se da de baja con `PATCH {"de_baja": true}` y se reactiva con `{"de_baja": false}`.
+
+## Permisos (activos y backups)
+
+Admin y técnico tienen los mismos permisos. Sin token: 401. Cliente: 403.
+
+| Método | Ruta | Admin y técnico |
+|---|---|---|
+| GET | `/api/activos/`, `/api/activos/{id}/` | 200 |
+| POST | `/api/activos/` | 201 |
+| PATCH | `/api/activos/{id}/` | 200 |
+| PUT, DELETE | `/api/activos/{id}/` | 405 |
+| GET | `/api/backups/`, `/api/backups/{id}/` | 200 |
+| POST | `/api/backups/` | 201 |
+| PATCH | `/api/backups/{id}/` | 200 |
+| DELETE | `/api/backups/{id}/` | 204 |
+| PUT | `/api/backups/{id}/` | 405 |
+
+## Lista: `GET /api/activos/`
+
+| Parámetro | Valores | Por defecto |
+|---|---|---|
+| `q` | Busca, sin distinguir mayúsculas, en `nombre`, `hostname`, `ip`, `numero_serie`, `fabricante`, `modelo` | — |
+| `organizacion` | id (no numérico se ignora) | Sin filtro |
+| `tipo` | `servidor`, `red` (otro valor se ignora) | Sin filtro |
+| `estado` | `operativo`, `advertencia`, `critico` (otro valor se ignora) | Sin filtro |
+| `de_baja` | `true` muestra solo los dados de baja | Se excluyen los dados de baja |
+| `ordering` | `nombre`, `-nombre`, `estado` (critico → advertencia → operativo), `creado_en`, `-creado_en` | `nombre` |
+| `page`, `page_size` | Como organizaciones | 20, máximo 100 |
+
+Cada fila: `id`, `nombre`, `tipo`, `estado`, `organizacion: {id, nombre}`, `ip`, `hostname`, `ubicacion`, `de_baja`, `ultimo_backup: {id, fecha, estado} | null` (el de `fecha` más reciente).
+
+## Detalle, creación y edición
+
+Ejemplo: [`docs/examples/activo.json`](examples/activo.json). Además de los campos de la lista: `sistema_operativo`, `fabricante`, `modelo`, `numero_serie`, `notas`, `fecha_baja` (solo lectura), `creado_en`, `actualizado_en` y `resumen_backups: {total, exitosos, fallidos, pendientes}`.
+
+- `POST` recibe `organizacion` (id), `tipo`, `nombre`, `estado` y los opcionales.
+- `PATCH` acepta los mismos campos; `organizacion` no puede cambiar. El cambio rápido de estado es `PATCH {"estado": "critico"}`.
+- Un activo dado de baja solo admite reactivarse (`{"de_baja": false}`, opcionalmente con otros cambios); cualquier otro cambio da 400.
+
+# Backups
+
+Recurso `/api/backups/`. Ejemplo: [`docs/examples/backup.json`](examples/backup.json).
+
+## Lista: `GET /api/backups/`
+
+Filtros: `organizacion`, `activo` (ids), `estado` (`exitoso`, `fallido`, `pendiente`), `tipo` (`completo`, `incremental`, `diferencial`), `desde` y `hasta` (`YYYY-MM-DD`, inclusivos, en hora de America/Bogota). Orden: más recientes primero. Paginación 20/100.
+
+Cada backup: `id`, `activo: {id, nombre} | null`, `organizacion: {id, nombre}`, `fecha`, `estado`, `tipo | null`, `tamano_gb` (número o `null`), `notas | null`, `registrado_por: {id, nombre} | null`, `creado_en`.
+
+## Registrar y editar
+
+- `POST` recibe `activo` (id), `estado`, `tipo` y opcionales `fecha` (por defecto ahora), `tamano_gb`, `notas`. `organizacion` se toma del activo y `registrado_por` es el usuario de la sesión.
+- `PATCH` acepta los mismos campos; si cambia `activo`, `organizacion` se actualiza.
+- `DELETE` responde 204.
+- `activo` y `tipo` pueden ser `null` solo en backups anteriores al módulo 03.
+
+## Errores de validación (400): activos y backups
+
+| Campo | Mensaje |
+|---|---|
+| `nombre` | `Ya existe un activo con este nombre en este cliente.` |
+| `ip` | `Escribe una dirección IP válida, por ejemplo 192.168.1.10.` |
+| `organizacion` | `No se puede cambiar el cliente de un activo.` |
+| `estado`, `activo` o `non_field_errors` | `El activo está dado de baja.` |
+| `fecha` | `La fecha del backup no puede ser futura.` (se toleran 5 minutos de diferencia de reloj) |
+| `tamano_gb` | `El tamaño no puede ser negativo.` |

@@ -1,0 +1,12 @@
+.fila {
+  cursor: pointer;
+}
+
+// Un activo dado de baja se ve atenuado, pero legible.
+.de-baja td {
+  color: var(--bs-secondary-color);
+}
+
+th {
+  white-space: nowrap;
+}

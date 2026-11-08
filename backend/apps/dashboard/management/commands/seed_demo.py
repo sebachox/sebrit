@@ -43,8 +43,14 @@ class Command(BaseCommand):
                 organizacion=org1 if n % 2 else org2,
                 tipo="red", nombre=f"NET-{n:02d}", estado=estado,
             )
-        for estado in ["exitoso"] * 18 + ["fallido", "pendiente"]:
-            Backup.objects.create(organizacion=org1, estado=estado)
+        servidores_org1 = list(Activo.objects.filter(organizacion=org1, tipo="servidor"))
+        for n, estado in enumerate(["exitoso"] * 18 + ["fallido", "pendiente"]):
+            Backup.objects.create(
+                organizacion=org1,
+                activo=servidores_org1[n % len(servidores_org1)],
+                estado=estado,
+                tipo="completo" if n == 0 else "incremental",
+            )
 
         # Tickets
         for n in range(28):

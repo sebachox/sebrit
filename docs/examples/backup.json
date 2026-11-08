@@ -1,0 +1,21 @@
+{
+  "id": 42,
+  "activo": {
+    "id": 7,
+    "nombre": "SRV-DB-01"
+  },
+  "organizacion": {
+    "id": 1,
+    "nombre": "Empresa Ejemplo S.A.S."
+  },
+  "fecha": "2026-11-06T13:02:50.690561-05:00",
+  "estado": "exitoso",
+  "tipo": "completo",
+  "tamano_gb": 312.75,
+  "notas": "Backup semanal a NAS",
+  "registrado_por": {
+    "id": 5,
+    "nombre": "Laura Gómez"
+  },
+  "creado_en": "2026-11-06T13:02:50.690567-05:00"
+}

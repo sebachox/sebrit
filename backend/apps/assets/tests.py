@@ -1,3 +1,408 @@
-from django.test import TestCase
+from io import StringIO
 
-# Create your tests here.
+from django.core.management import call_command
+from django.db.models import ProtectedError
+from django.test import TestCase
+from rest_framework.test import APITestCase
+
+from apps.accounts.models import Usuario
+from apps.assets.models import Activo, Backup
+from apps.organizations.models import Organizacion
+
+
+class ModeloActivoTests(APITestCase):
+    def setUp(self):
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+        self.client.force_authenticate(Usuario.objects.create_user("admin1", rol="admin"))
+
+    def test_fecha_baja_se_llena_y_se_vacia(self):
+        a = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="S1")
+        a.de_baja = True
+        a.save()
+        self.assertIsNotNone(a.fecha_baja)
+        a.de_baja = False
+        a.save()
+        self.assertIsNone(a.fecha_baja)
+
+    def test_borrar_activo_con_backups_esta_protegido(self):
+        a = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="S1")
+        Backup.objects.create(organizacion=self.org, activo=a, estado="exitoso", tipo="completo")
+        with self.assertRaises(ProtectedError):
+            a.delete()
+
+    def test_dashboard_excluye_dados_de_baja(self):
+        Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="S1")
+        Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="S2", de_baja=True)
+        d = self.client.get("/api/dashboard/admin/").data
+        self.assertEqual(d["infraestructura"]["servidores"]["total"], 1)
+
+    def test_resumen_de_organizacion_excluye_dados_de_baja(self):
+        Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="S1")
+        Activo.objects.create(organizacion=self.org, tipo="red", nombre="R1", de_baja=True)
+        d = self.client.get(f"/api/organizaciones/{self.org.pk}/").data
+        self.assertEqual(d["resumen"]["activos"], 1)
+
+
+class SeedBackupsTests(TestCase):
+    def test_seed_crea_backups_con_activo_y_tipo(self):
+        call_command("seed_demo", stdout=StringIO())
+        self.assertTrue(Backup.objects.exists())
+        self.assertFalse(Backup.objects.filter(activo__isnull=True).exists())
+        self.assertFalse(Backup.objects.filter(tipo="").exists())
+
+
+URL_ACTIVOS = "/api/activos/"
+
+
+def url_activo(a):
+    return f"{URL_ACTIVOS}{a.pk}/"
+
+
+class BaseActivos(APITestCase):
+    def setUp(self):
+        self.admin = Usuario.objects.create_user("admin1", rol="admin")
+        self.tecnico = Usuario.objects.create_user("tec1", rol="tecnico")
+        self.cliente = Usuario.objects.create_user("cli1", rol="cliente")
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+        self.otra = Organizacion.objects.create(nombre="Otra", nit="900000002")
+        self.activo = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="SRV-01")
+
+    def nuevo(self, **extra):
+        datos = {"organizacion": self.org.pk, "tipo": "servidor", "nombre": "SRV-02", "estado": "operativo"}
+        datos.update(extra)
+        return self.client.post(URL_ACTIVOS, datos, format="json")
+
+
+class PermisosActivosTests(BaseActivos):
+    def test_sin_token_da_401(self):
+        self.assertEqual(self.client.get(URL_ACTIVOS).status_code, 401)
+        self.assertEqual(self.nuevo().status_code, 401)
+
+    def test_cliente_da_403(self):
+        self.client.force_authenticate(self.cliente)
+        self.assertEqual(self.client.get(URL_ACTIVOS).status_code, 403)
+        self.assertEqual(self.client.get(url_activo(self.activo)).status_code, 403)
+        self.assertEqual(self.nuevo().status_code, 403)
+        self.assertEqual(
+            self.client.patch(url_activo(self.activo), {"estado": "critico"}, format="json").status_code, 403
+        )
+
+    def test_tecnico_crea_y_edita(self):
+        self.client.force_authenticate(self.tecnico)
+        self.assertEqual(self.nuevo().status_code, 201)
+        r = self.client.patch(url_activo(self.activo), {"estado": "critico", "ip": "10.0.0.5"}, format="json")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["estado"], "critico")
+
+    def test_admin_crea_y_edita(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.nuevo().status_code, 201)
+        self.assertEqual(
+            self.client.patch(url_activo(self.activo), {"de_baja": True}, format="json").status_code, 200
+        )
+
+    def test_put_y_delete_dan_405(self):
+        for u in (self.admin, self.tecnico):
+            self.client.force_authenticate(u)
+            self.assertEqual(self.client.put(url_activo(self.activo), {}, format="json").status_code, 405)
+            self.assertEqual(self.client.delete(url_activo(self.activo)).status_code, 405)
+
+    def test_inexistente_da_404(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.get(f"{URL_ACTIVOS}99999/").status_code, 404)
+
+
+class ReglasActivoTests(BaseActivos):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.tecnico)
+
+    def test_nombre_unico_por_cliente(self):
+        r = self.nuevo(nombre="srv-01")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["nombre"], ["Ya existe un activo con este nombre en este cliente."])
+        self.assertEqual(self.nuevo(nombre="SRV-01", organizacion=self.otra.pk).status_code, 201)
+
+    def test_editar_con_su_propio_nombre_es_valido(self):
+        r = self.client.patch(url_activo(self.activo), {"nombre": "SRV-01"}, format="json")
+        self.assertEqual(r.status_code, 200)
+
+    def test_ip_invalida(self):
+        r = self.nuevo(ip="999.1.1.1")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["ip"], ["Escribe una dirección IP válida, por ejemplo 192.168.1.10."])
+
+    def test_no_se_cambia_la_organizacion(self):
+        r = self.client.patch(url_activo(self.activo), {"organizacion": self.otra.pk}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["organizacion"], ["No se puede cambiar el cliente de un activo."])
+        r = self.client.patch(url_activo(self.activo), {"organizacion": self.org.pk}, format="json")
+        self.assertEqual(r.status_code, 200)
+
+    def test_activo_de_baja_no_cambia_estado(self):
+        self.activo.de_baja = True
+        self.activo.save()
+        r = self.client.patch(url_activo(self.activo), {"estado": "critico"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["estado"], ["El activo está dado de baja."])
+
+    def test_activo_de_baja_no_cambia_ficha(self):
+        self.activo.de_baja = True
+        self.activo.save()
+        r = self.client.patch(url_activo(self.activo), {"notas": "x"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["non_field_errors"], ["El activo está dado de baja."])
+
+    def test_reactivar_y_cambiar_estado_juntos(self):
+        self.activo.de_baja = True
+        self.activo.save()
+        r = self.client.patch(
+            url_activo(self.activo), {"de_baja": False, "estado": "advertencia"}, format="json"
+        )
+        self.assertEqual(r.status_code, 200)
+        self.activo.refresh_from_db()
+        self.assertFalse(self.activo.de_baja)
+        self.assertIsNone(self.activo.fecha_baja)
+        self.assertEqual(self.activo.estado, "advertencia")
+
+    def test_opcionales_vacios_salen_como_null(self):
+        d = self.client.get(url_activo(self.activo)).data
+        for campo in ["hostname", "ip", "notas", "ubicacion"]:
+            self.assertIsNone(d[campo], campo)
+        self.assertEqual(d["organizacion"], {"id": self.org.pk, "nombre": "Org"})
+
+
+class ListaActivosTests(APITestCase):
+    def setUp(self):
+        self.client.force_authenticate(Usuario.objects.create_user("tec1", rol="tecnico"))
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+        self.otra = Organizacion.objects.create(nombre="Otra", nit="900000002")
+        self.a = Activo.objects.create(
+            organizacion=self.org, tipo="servidor", nombre="alfa", estado="operativo",
+            hostname="db-prod", ip="10.0.0.1", numero_serie="SN-123", fabricante="Dell", modelo="R740",
+        )
+        self.b = Activo.objects.create(organizacion=self.org, tipo="red", nombre="Beta", estado="critico")
+        self.c = Activo.objects.create(organizacion=self.otra, tipo="servidor", nombre="gamma", estado="advertencia")
+        self.baja = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="Viejo", de_baja=True)
+
+    def nombres(self, query=""):
+        return [x["nombre"] for x in self.client.get(f"{URL_ACTIVOS}{query}").data["results"]]
+
+    def test_excluye_dados_de_baja_por_defecto(self):
+        self.assertEqual(self.nombres(), ["alfa", "Beta", "gamma"])
+
+    def test_de_baja_true_muestra_solo_esos(self):
+        self.assertEqual(self.nombres("?de_baja=true"), ["Viejo"])
+
+    def test_filtros_organizacion_tipo_estado(self):
+        self.assertEqual(self.nombres(f"?organizacion={self.otra.pk}"), ["gamma"])
+        self.assertEqual(self.nombres("?tipo=red"), ["Beta"])
+        self.assertEqual(self.nombres("?estado=critico"), ["Beta"])
+
+    def test_busqueda_en_nombre_hostname_ip_serie_fabricante_modelo(self):
+        for q in ["ALFA", "db-pro", "10.0.0.1", "sn-12", "dell", "r740"]:
+            self.assertEqual(self.nombres(f"?q={q}"), ["alfa"], q)
+
+    def test_filtros_invalidos_se_ignoran(self):
+        for q in ["?organizacion=abc", "?estado=raro", "?tipo=x", "?q=%20%20"]:
+            self.assertEqual(self.client.get(f"{URL_ACTIVOS}{q}").data["count"], 3, q)
+
+    def test_orden_por_estado_criticos_primero(self):
+        self.assertEqual(self.nombres("?ordering=estado"), ["Beta", "gamma", "alfa"])
+
+    def test_ultimo_backup_es_el_mas_reciente(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        ahora = timezone.now()
+        Backup.objects.create(organizacion=self.org, activo=self.a, estado="exitoso", tipo="completo",
+                              fecha=ahora - timedelta(days=2))
+        reciente = Backup.objects.create(organizacion=self.org, activo=self.a, estado="fallido",
+                                         tipo="incremental", fecha=ahora - timedelta(hours=1))
+        fila = next(x for x in self.client.get(URL_ACTIVOS).data["results"] if x["nombre"] == "alfa")
+        self.assertEqual(fila["ultimo_backup"]["id"], reciente.pk)
+        self.assertEqual(fila["ultimo_backup"]["estado"], "fallido")
+
+    def test_sin_backups_es_null(self):
+        fila = next(x for x in self.client.get(URL_ACTIVOS).data["results"] if x["nombre"] == "Beta")
+        self.assertIsNone(fila["ultimo_backup"])
+
+    def test_resumen_backups_en_el_detalle(self):
+        for estado in ["exitoso", "exitoso", "fallido"]:
+            Backup.objects.create(organizacion=self.org, activo=self.a, estado=estado, tipo="completo")
+        d = self.client.get(url_activo(self.a)).data
+        self.assertEqual(d["resumen_backups"], {"total": 3, "exitosos": 2, "fallidos": 1, "pendientes": 0})
+        self.assertEqual(d["ultimo_backup"]["estado"] in ("exitoso", "fallido"), True)
+
+    def test_lista_sin_n_mas_1(self):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        def consultas():
+            with CaptureQueriesContext(connection) as ctx:
+                self.client.get(URL_ACTIVOS)
+            return len(ctx)
+
+        antes = consultas()
+        for n in range(10):
+            act = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre=f"N{n}")
+            Backup.objects.create(organizacion=self.org, activo=act, estado="exitoso", tipo="completo")
+        self.assertEqual(consultas(), antes)
+
+
+URL_BACKUPS = "/api/backups/"
+
+
+class BaseBackups(APITestCase):
+    def setUp(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        self.admin = Usuario.objects.create_user("admin1", rol="admin")
+        self.tecnico = Usuario.objects.create_user("tec1", rol="tecnico", first_name="Laura", last_name="Gómez")
+        self.cliente = Usuario.objects.create_user("cli1", rol="cliente")
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+        self.otra = Organizacion.objects.create(nombre="Otra", nit="900000002")
+        self.activo = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="SRV-01")
+        self.activo_otra = Activo.objects.create(organizacion=self.otra, tipo="servidor", nombre="SRV-X")
+        self.backup = Backup.objects.create(
+            organizacion=self.org, activo=self.activo, estado="exitoso", tipo="completo",
+            fecha=timezone.now() - timedelta(days=1),
+        )
+
+    def registrar(self, **extra):
+        datos = {"activo": self.activo.pk, "estado": "exitoso", "tipo": "incremental"}
+        datos.update(extra)
+        return self.client.post(URL_BACKUPS, datos, format="json")
+
+    def url(self, b):
+        return f"{URL_BACKUPS}{b.pk}/"
+
+
+class PermisosBackupsTests(BaseBackups):
+    def test_sin_token_da_401(self):
+        self.assertEqual(self.client.get(URL_BACKUPS).status_code, 401)
+        self.assertEqual(self.registrar().status_code, 401)
+
+    def test_cliente_da_403(self):
+        self.client.force_authenticate(self.cliente)
+        self.assertEqual(self.client.get(URL_BACKUPS).status_code, 403)
+        self.assertEqual(self.registrar().status_code, 403)
+        self.assertEqual(self.client.delete(self.url(self.backup)).status_code, 403)
+
+    def test_tecnico_registra_edita_y_borra(self):
+        self.client.force_authenticate(self.tecnico)
+        self.assertEqual(self.client.get(URL_BACKUPS).status_code, 200)
+        self.assertEqual(self.registrar().status_code, 201)
+        self.assertEqual(
+            self.client.patch(self.url(self.backup), {"estado": "fallido"}, format="json").status_code, 200
+        )
+        self.assertEqual(self.client.delete(self.url(self.backup)).status_code, 204)
+        self.assertFalse(Backup.objects.filter(pk=self.backup.pk).exists())
+
+    def test_put_da_405(self):
+        self.client.force_authenticate(self.admin)
+        self.assertEqual(self.client.put(self.url(self.backup), {}, format="json").status_code, 405)
+
+
+class ReglasBackupTests(BaseBackups):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.tecnico)
+
+    def test_organizacion_y_registrado_por_se_derivan(self):
+        r = self.registrar(tamano_gb=12.5)
+        self.assertEqual(r.status_code, 201)
+        self.assertEqual(r.data["organizacion"], {"id": self.org.pk, "nombre": "Org"})
+        self.assertEqual(r.data["registrado_por"], {"id": self.tecnico.pk, "nombre": "Laura Gómez"})
+        self.assertEqual(r.data["activo"], {"id": self.activo.pk, "nombre": "SRV-01"})
+
+    def test_activo_y_tipo_obligatorios_al_registrar(self):
+        r = self.client.post(URL_BACKUPS, {"estado": "exitoso"}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertIn("activo", r.data)
+        self.assertIn("tipo", r.data)
+
+    def test_tipo_invalido(self):
+        self.assertEqual(self.registrar(tipo="espejo").status_code, 400)
+
+    def test_activo_de_baja_no_recibe_backups(self):
+        self.activo.de_baja = True
+        self.activo.save()
+        r = self.registrar()
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["activo"], ["El activo está dado de baja."])
+
+    def test_mover_backup_a_activo_de_baja_da_400(self):
+        self.activo_otra.de_baja = True
+        self.activo_otra.save()
+        r = self.client.patch(self.url(self.backup), {"activo": self.activo_otra.pk}, format="json")
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["activo"], ["El activo está dado de baja."])
+
+    def test_mover_backup_a_otro_cliente_actualiza_organizacion(self):
+        r = self.client.patch(self.url(self.backup), {"activo": self.activo_otra.pk}, format="json")
+        self.assertEqual(r.status_code, 200)
+        self.backup.refresh_from_db()
+        self.assertEqual(self.backup.organizacion, self.otra)
+
+    def test_fecha_futura(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        r = self.registrar(fecha=(timezone.now() + timedelta(hours=1)).isoformat())
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["fecha"], ["La fecha del backup no puede ser futura."])
+
+    def test_fecha_ahora_mas_dos_minutos_se_acepta(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        r = self.registrar(fecha=(timezone.now() + timedelta(minutes=2)).isoformat())
+        self.assertEqual(r.status_code, 201)
+
+    def test_tamano_negativo(self):
+        r = self.registrar(tamano_gb=-1)
+        self.assertEqual(r.status_code, 400)
+        self.assertEqual(r.data["tamano_gb"], ["El tamaño no puede ser negativo."])
+
+    def test_tamano_sale_como_numero(self):
+        r = self.registrar(tamano_gb="12.50")
+        self.assertEqual(r.data["tamano_gb"], 12.5)
+
+    def test_opcionales_vacios_salen_como_null(self):
+        d = self.client.get(self.url(self.backup)).data
+        self.assertIsNone(d["notas"])
+        self.assertIsNone(d["tamano_gb"])
+        self.assertIsNone(d["registrado_por"])
+
+
+class ListaBackupsTests(BaseBackups):
+    def setUp(self):
+        super().setUp()
+        self.client.force_authenticate(self.tecnico)
+
+    def ids(self, query=""):
+        return [x["id"] for x in self.client.get(f"{URL_BACKUPS}{query}").data["results"]]
+
+    def test_orden_por_defecto_mas_recientes_primero(self):
+        nuevo = self.registrar().data["id"]
+        self.assertEqual(self.ids(), [nuevo, self.backup.pk])
+
+    def test_filtros(self):
+        otro = Backup.objects.create(organizacion=self.otra, activo=self.activo_otra, estado="fallido", tipo="diferencial")
+        self.assertEqual(self.ids(f"?organizacion={self.otra.pk}"), [otro.pk])
+        self.assertEqual(self.ids(f"?activo={self.activo.pk}"), [self.backup.pk])
+        self.assertEqual(self.ids("?estado=fallido"), [otro.pk])
+        self.assertEqual(self.ids("?tipo=completo"), [self.backup.pk])
+
+    def test_hasta_es_inclusivo_en_hora_local(self):
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        b = Backup.objects.create(
+            organizacion=self.org, activo=self.activo, estado="exitoso", tipo="completo",
+            fecha=datetime(2026, 3, 10, 23, 30, tzinfo=ZoneInfo("America/Bogota")),
+        )
+        self.assertIn(b.pk, self.ids("?hasta=2026-03-10&desde=2026-03-10"))
+        self.assertNotIn(b.pk, self.ids("?desde=2026-03-11"))

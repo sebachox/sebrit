@@ -35,5 +35,7 @@ export class Layout {
   readonly enlaces: { ruta: string; icono: string; texto: string; modulo: Modulo }[] = [
     { ruta: '/admin/dashboard', icono: 'bi-speedometer2', texto: 'Dashboard', modulo: 'dashboard' },
     { ruta: '/admin/clientes', icono: 'bi-building', texto: 'Clientes', modulo: 'clientes' },
+    { ruta: '/admin/activos', icono: 'bi-hdd-rack', texto: 'Activos', modulo: 'activos' },
+    { ruta: '/admin/backups', icono: 'bi-cloud-arrow-up', texto: 'Backups', modulo: 'backups' },
   ];
 }

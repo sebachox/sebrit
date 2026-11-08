@@ -104,7 +104,9 @@
   <!-- Resumen -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-      <app-stat-card titulo="Activos" [valor]="o.resumen.activos" icono="bi-hdd-rack" color="primary" />
+      <a class="enlace-tarjeta" [routerLink]="['/admin/activos']" [queryParams]="{ organizacion: o.id }" title="Ver los activos de este cliente">
+        <app-stat-card titulo="Activos" [valor]="o.resumen.activos" icono="bi-hdd-rack" color="primary" />
+      </a>
     </div>
     <div class="col-6 col-lg-3">
       <app-stat-card titulo="Tickets abiertos" [valor]="o.resumen.tickets_abiertos" icono="bi-ticket-perforated" color="info" />
