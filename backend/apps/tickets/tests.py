@@ -1,9 +1,12 @@
+from datetime import timedelta
 from io import StringIO
 
 from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import Usuario
@@ -442,3 +445,79 @@ class ComentariosTests(BaseAcciones):
         self.assertEqual(self.accion("comentarios", texto="x").status_code, 403)
         self.client.force_authenticate(None)
         self.assertEqual(self.accion("comentarios", texto="x").status_code, 401)
+
+
+class ListaTicketsTests(APITestCase):
+    def setUp(self):
+        self.tec = Usuario.objects.create_user("tec1", rol="tecnico")
+        self.client.force_authenticate(self.tec)
+        self.org = Organizacion.objects.create(nombre="Org", nit="900000001")
+        self.otra = Organizacion.objects.create(nombre="Otra", nit="900000002")
+        self.activo = Activo.objects.create(organizacion=self.org, tipo="servidor", nombre="S1")
+        ahora = timezone.now()
+
+        def crear(titulo, prioridad, dias, **extra):
+            return Ticket.objects.create(
+                organizacion=extra.pop("organizacion", self.org), titulo=titulo, prioridad=prioridad,
+                creado_en=ahora - timedelta(days=dias), **extra,
+            )
+
+        self.critica = crear("Caída total", "critica", 1, categoria="red", tecnico=self.tec)
+        self.alta_vieja = crear("Alta vieja", "alta", 9, activo=self.activo)
+        self.alta_nueva = crear("Alta nueva", "alta", 2, organizacion=self.otra, estado="en_progreso")
+        self.baja = crear("Baja cerrada", "baja", 0, estado="cerrado", categoria="hardware")
+
+    def titulos(self, query=""):
+        return [t["titulo"] for t in self.client.get(f"{URL}{query}").data["results"]]
+
+    def test_orden_por_defecto_critica_primero_y_antiguos_primero(self):
+        self.assertEqual(self.titulos(), ["Caída total", "Alta vieja", "Alta nueva", "Baja cerrada"])
+
+    def test_orden_recientes(self):
+        self.assertEqual(self.titulos("?ordering=-creado_en")[0], "Baja cerrada")
+        self.assertEqual(self.titulos("?ordering=creado_en")[0], "Alta vieja")
+
+    def test_busqueda_por_codigo_y_titulo(self):
+        self.assertEqual(self.titulos("?q=caída"), ["Caída total"])
+        codigo = self.alta_vieja.codigo.lower()
+        self.assertEqual(self.titulos(f"?q={codigo}"), ["Alta vieja"])
+
+    def test_filtros(self):
+        self.assertEqual(self.titulos(f"?organizacion={self.otra.pk}"), ["Alta nueva"])
+        self.assertEqual(self.titulos(f"?activo={self.activo.pk}"), ["Alta vieja"])
+        self.assertEqual(self.titulos("?estado=cerrado"), ["Baja cerrada"])
+        self.assertEqual(self.titulos("?prioridad=critica"), ["Caída total"])
+        self.assertEqual(self.titulos("?categoria=hardware"), ["Baja cerrada"])
+
+    def test_abiertos_true(self):
+        self.assertEqual(self.titulos("?abiertos=true"), ["Caída total", "Alta vieja", "Alta nueva"])
+
+    def test_tecnico_id(self):
+        self.assertEqual(self.titulos(f"?tecnico={self.tec.pk}"), ["Caída total"])
+
+    def test_tecnico_sin_asignar(self):
+        self.assertEqual(self.titulos("?tecnico=sin_asignar"), ["Alta vieja", "Alta nueva", "Baja cerrada"])
+
+    def test_filtros_invalidos_se_ignoran(self):
+        for q in ("?estado=raro", "?tecnico=abc", "?tecnico=²", "?organizacion=²", "?activo=²", "?q=%20"):
+            r = self.client.get(f"{URL}{q}")
+            self.assertEqual(r.status_code, 200, q)
+            self.assertEqual(r.data["count"], 4, q)
+
+    def test_lista_trae_solo_campos_resumidos(self):
+        self.assertEqual(
+            set(self.client.get(URL).data["results"][0]),
+            {"id", "codigo", "titulo", "organizacion", "categoria", "prioridad", "prioridad_manual",
+             "estado", "tecnico", "activo", "creado_en"},
+        )
+
+    def test_lista_sin_n_mas_1(self):
+        def consultas():
+            with CaptureQueriesContext(connection) as ctx:
+                self.client.get(URL)
+            return len(ctx)
+
+        antes = consultas()
+        for n in range(10):
+            Ticket.objects.create(organizacion=self.org, titulo=f"N{n}", tecnico=self.tec, activo=self.activo)
+        self.assertEqual(consultas(), antes)

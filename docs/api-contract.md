@@ -272,3 +272,99 @@ Cada backup: `id`, `activo: {id, nombre} | null`, `organizacion: {id, nombre}`, 
 | `estado`, `activo` o `non_field_errors` | `El activo está dado de baja.` |
 | `fecha` | `La fecha del backup no puede ser futura.` (se toleran 5 minutos de diferencia de reloj) |
 | `tamano_gb` | `El tamaño no puede ser negativo.` |
+
+---
+
+# Tickets
+
+Recurso `/api/tickets/`. Admin y técnico tienen los mismos permisos. Sin token: 401. Cliente: 403. Los tickets no se borran.
+
+## Permisos
+
+| Método | Ruta | Admin y técnico |
+|---|---|---|
+| GET | `/api/tickets/`, `/api/tickets/{id}/` | 200 |
+| POST | `/api/tickets/` | 201 |
+| PATCH | `/api/tickets/{id}/` | 200 |
+| POST | `/api/tickets/{id}/estado/` | 200 |
+| POST | `/api/tickets/{id}/prioridad/` | 200 |
+| POST | `/api/tickets/{id}/comentarios/` | 201 |
+| PUT, DELETE | `/api/tickets/{id}/` | 405 |
+| GET | `/api/tecnicos/` | 200 |
+
+`GET /api/tecnicos/` devuelve `[{id, nombre}]` con los usuarios activos con rol `admin` o `tecnico`, sin paginar.
+
+## Lista: `GET /api/tickets/`
+
+| Parámetro | Valores | Por defecto |
+|---|---|---|
+| `q` | Busca, sin distinguir mayúsculas, en `codigo` y `titulo` | — |
+| `organizacion`, `activo` | id | Sin filtro |
+| `estado` | `abierto`, `en_progreso`, `resuelto`, `cerrado` | Sin filtro |
+| `abiertos` | `true`: solo `abierto` y `en_progreso` | Sin filtro |
+| `prioridad` | `baja`, `media`, `alta`, `critica` | Sin filtro |
+| `categoria` | `hardware`, `software`, `red`, `seguridad`, `accesos`, `otro` | Sin filtro |
+| `tecnico` | id o `sin_asignar` | Sin filtro |
+| `ordering` | `prioridad` (critica → baja; el más antiguo primero), `creado_en`, `-creado_en` | `prioridad` |
+| `page`, `page_size` | Como organizaciones | 20, máximo 100 |
+
+Los valores inválidos se ignoran.
+
+Cada fila: `id`, `codigo`, `titulo`, `organizacion: {id, nombre}`, `categoria`, `prioridad`, `prioridad_manual`, `estado`, `tecnico: {id, nombre} | null`, `activo: {id, nombre} | null`, `creado_en`.
+
+## Detalle, creación y edición
+
+Ejemplo: [`docs/examples/ticket.json`](examples/ticket.json). Además de los campos de la lista: `descripcion`, `alcance` (`un_usuario`, `varios_usuarios`, `toda_empresa`), `reportado_por: {id, nombre} | null`, `solucion | null`, `actualizado_en`, `resuelto_en | null`, `cerrado_en | null` y `eventos` en orden cronológico.
+
+Cada evento: `id`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prioridad`), `autor: {id, nombre} | null`, `texto | null`, `valor_anterior | null`, `valor_nuevo | null`, `fecha`.
+
+- `POST` recibe `organizacion` (id), `titulo`, `descripcion`, `categoria`, `alcance` y opcionales `activo` y `tecnico` (id o `null`).
+- `PATCH` acepta los mismos campos; `organizacion` no puede cambiar.
+- `codigo` (`TCK-0001`), `prioridad`, `estado`, `solucion`, `reportado_por` y las fechas no se envían.
+
+## Prioridad automática
+
+| Factor | Puntos |
+|---|---|
+| Alcance `un_usuario` / `varios_usuarios` / `toda_empresa` | 1 / 2 / 3 |
+| Categoría `red` o `seguridad` | +1 |
+| Activo de tipo `servidor` | +1 |
+| Activo en estado `critico` | +1 |
+
+Total: 1 → `baja`; 2 → `media`; 3–4 → `alta`; 5–6 → `critica`. Se calcula al crear y al editar `alcance`, `categoria` o `activo`, salvo que `prioridad_manual` sea `true`.
+
+`POST /{id}/prioridad/` con `{"prioridad": "alta", "motivo": "..."}` la corrige a mano y marca `prioridad_manual`.
+
+## Flujo de estados
+
+`POST /{id}/estado/` con `{"estado": "resuelto", "solucion": "..."}` (`solucion` solo al resolver).
+
+| Desde | Hacia | Requisito |
+|---|---|---|
+| `abierto` | `en_progreso` | Técnico asignado |
+| `en_progreso` | `abierto` | — |
+| `en_progreso` | `resuelto` | `solucion` |
+| `resuelto` | `cerrado` | — |
+| `resuelto`, `cerrado` | `abierto` | Reabrir: vacía `solucion`, `resuelto_en` y `cerrado_en` |
+
+Un ticket `cerrado` solo admite reabrirse.
+
+## Comentarios
+
+`POST /{id}/comentarios/` con `{"texto": "..."}` responde 201 con el evento creado.
+
+## Errores de validación (400)
+
+| Campo | Mensaje |
+|---|---|
+| `estado` | `No se puede pasar de «Abierto» a «Resuelto».` |
+| `tecnico` | `Asigna un técnico antes de pasar a En progreso.` |
+| `tecnico` | `Un ticket en progreso debe tener un técnico asignado.` |
+| `tecnico` | `El usuario debe ser un técnico o administrador activo.` |
+| `solucion` | `Describe la solución para resolver el ticket.` |
+| `motivo` | `Explica por qué cambias la prioridad.` |
+| `texto` | `Escribe el comentario.` |
+| `organizacion` | `No se puede cambiar el cliente de un ticket.` |
+| `activo` | `El activo no pertenece a este cliente.` |
+| `activo` | `El activo está dado de baja.` |
+| `non_field_errors` | `El ticket está cerrado. Reábrelo para modificarlo.` |
