@@ -122,6 +122,18 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/incidentes/incidentes-lista/incidentes-lista').then((m) => m.IncidentesLista),
       },
+      {
+        path: 'admin/incidentes/nuevo',
+        canActivate: [permisoGuard('incidentes', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/incidentes/incidente-form/incidente-form').then((m) => m.IncidenteForm),
+      },
+      {
+        path: 'admin/incidentes/:id/editar',
+        canActivate: [permisoGuard('incidentes', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/incidentes/incidente-form/incidente-form').then((m) => m.IncidenteForm),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },
