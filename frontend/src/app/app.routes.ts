@@ -99,6 +99,18 @@ export const routes: Routes = [
           import('./features/admin/tickets/tickets-lista/tickets-lista').then((m) => m.TicketsLista),
       },
       {
+        path: 'admin/tickets/nuevo',
+        canActivate: [permisoGuard('tickets', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/tickets/ticket-form/ticket-form').then((m) => m.TicketForm),
+      },
+      {
+        path: 'admin/tickets/:id/editar',
+        canActivate: [permisoGuard('tickets', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/tickets/ticket-form/ticket-form').then((m) => m.TicketForm),
+      },
+      {
         path: 'admin/tickets/:id',
         canActivate: [permisoGuard('tickets', 'ver')],
         loadComponent: () =>
