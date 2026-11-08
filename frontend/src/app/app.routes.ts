@@ -116,6 +116,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/tickets/ticket-ficha/ticket-ficha').then((m) => m.TicketFicha),
       },
+      {
+        path: 'admin/incidentes',
+        canActivate: [permisoGuard('incidentes', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/incidentes/incidentes-lista/incidentes-lista').then((m) => m.IncidentesLista),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },

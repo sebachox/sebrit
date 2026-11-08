@@ -1,0 +1,190 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h4 class="mb-0">
+    Incidentes
+    @if (datos(); as d) {
+      <span class="text-muted fw-normal fs-6 ms-1 numerico">{{ d.count }}</span>
+    }
+  </h4>
+  @if (puedeEditar()) {
+    <button type="button" class="btn btn-primary" (click)="nuevo()">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo incidente
+    </button>
+  }
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body border-bottom">
+    <div class="row g-2">
+      <div class="col-12 col-xl-4">
+        <label for="buscar" class="visually-hidden">Buscar incidentes</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input
+            id="buscar"
+            type="search"
+            class="form-control"
+            placeholder="Buscar por código o título"
+            autocomplete="off"
+            [value]="q()"
+            (input)="alEscribir($any($event.target).value)"
+            (keydown.enter)="aplicarBusqueda($any($event.target).value)"
+          />
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-xl-4">
+        <label for="cliente" class="visually-hidden">Cliente</label>
+        <select id="cliente" class="form-select" (change)="cambiarCliente($any($event.target).value)">
+          <option value="">Todos los clientes</option>
+          @for (c of clientes(); track c.id) {
+            <option [value]="c.id" [selected]="organizacion() === c.id">{{ c.nombre }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-xl-2">
+        <label for="estado" class="visually-hidden">Estado</label>
+        <select id="estado" class="form-select" (change)="cambiarEstado($any($event.target).value)">
+          <option value="abiertos">Activos</option>
+          <option value="todos">Todos</option>
+          @for (e of estados; track e.valor) {
+            <option [value]="e.valor">{{ e.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-xl-2">
+        <label for="orden" class="visually-hidden">Orden</label>
+        <select id="orden" class="form-select" (change)="cambiarOrden($any($event.target).value)">
+          <option value="">Más severos</option>
+          <option value="-fecha_deteccion">Más recientes</option>
+          <option value="fecha_deteccion">Más antiguos</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-4 col-xl-2">
+        <label for="severidad" class="visually-hidden">Severidad</label>
+        <select id="severidad" class="form-select" (change)="cambiarSeveridad($any($event.target).value)">
+          <option value="">Toda severidad</option>
+          @for (s of severidades; track s.valor) {
+            <option [value]="s.valor">{{ s.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-4 col-xl-2">
+        <label for="impacto" class="visually-hidden">Impacto</label>
+        <select id="impacto" class="form-select" (change)="cambiarImpacto($any($event.target).value)">
+          <option value="">Todo impacto</option>
+          @for (i of impactos; track i.valor) {
+            <option [value]="i.valor">{{ i.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-4 col-xl-2">
+        <label for="tecnico" class="visually-hidden">Técnico</label>
+        <select id="tecnico" class="form-select" (change)="cambiarTecnico($any($event.target).value)">
+          <option value="">Todos los técnicos</option>
+          <option value="sin_asignar">Sin asignar</option>
+          @for (t of tecnicos(); track t.id) {
+            <option [value]="t.id">{{ t.nombre }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="input-group">
+          <label for="desde" class="input-group-text">Desde</label>
+          <input id="desde" type="date" class="form-control" [value]="fechaDesde()" (change)="cambiarDesde($any($event.target).value)" />
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-xl-3">
+        <div class="input-group">
+          <label for="hasta" class="input-group-text">Hasta</label>
+          <input id="hasta" type="date" class="form-control" [value]="fechaHasta()" (change)="cambiarHasta($any($event.target).value)" />
+        </div>
+      </div>
+    </div>
+  </div>
+
+  @if (estado() === 'cargando') {
+    <div class="text-center py-5" role="status">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2 mb-0 text-muted">Cargando incidentes...</p>
+    </div>
+  } @else if (estado() === 'error') {
+    <div class="card-body">
+      <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+        <span>No se pudo cargar la lista de incidentes.</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+      </div>
+    </div>
+  } @else if (datos(); as d) {
+    @if (d.results.length === 0) {
+      <div class="text-center py-5 px-3">
+        <i class="bi bi-exclamation-octagon fs-1 text-muted"></i>
+        @if (q()) {
+          <p class="mt-2 mb-0">No hay incidentes que coincidan con «{{ q() }}».</p>
+        } @else if (hayFiltros()) {
+          <p class="mt-2 mb-0">No hay incidentes con estos filtros.</p>
+        } @else {
+          <p class="mt-2 mb-3">No hay incidentes activos.</p>
+          @if (puedeEditar()) {
+            <button type="button" class="btn btn-outline-primary" (click)="nuevo()">
+              <i class="bi bi-plus-lg me-1"></i>Registrar un incidente
+            </button>
+          }
+        }
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Título</th>
+              <th>Cliente</th>
+              <th>Severidad</th>
+              <th>Estado</th>
+              <th>Técnico</th>
+              <th>Inicio</th>
+              <th>Duración</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of d.results; track i.id) {
+              <tr class="fila" (click)="abrir(i.id)">
+                <td class="numerico text-nowrap">
+                  <a class="fw-semibold text-body text-decoration-none" [routerLink]="['/admin/incidentes', i.id]" (click)="$event.stopPropagation()">{{ i.codigo }}</a>
+                </td>
+                <td>{{ i.titulo }}</td>
+                <td>{{ i.organizacion.nombre }}</td>
+                <td class="text-nowrap">
+                  <app-status-badge [valor]="i.severidad" />
+                  @if (i.severidad_manual) {
+                    <i class="bi bi-pencil-fill ms-1 small text-muted" data-manual title="Corregida a mano" aria-label="Corregida a mano"></i>
+                  }
+                </td>
+                <td><app-status-badge [valor]="i.estado" /></td>
+                <td>
+                  @if (i.tecnico; as tec) { {{ tec.nombre }} } @else { <span class="text-muted">Sin asignar</span> }
+                </td>
+                <td class="numerico text-nowrap small text-muted">{{ i.fecha_origen | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td class="numerico text-nowrap small" data-duracion>{{ duracion(i) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPaginas() > 1) {
+        <div class="card-body border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <small class="text-muted numerico">Mostrando {{ desde() }}–{{ hasta() }} de {{ d.count }}</small>
+          <nav aria-label="Paginación de incidentes" class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)" aria-label="Página anterior">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <span class="small numerico">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() >= totalPaginas()" (click)="irAPagina(pagina() + 1)" aria-label="Página siguiente">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </nav>
+        </div>
+      }
+    }
+  }
+</div>
