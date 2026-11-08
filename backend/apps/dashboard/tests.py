@@ -1,8 +1,11 @@
+from datetime import timedelta
+
+from django.utils import timezone
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import Usuario
 from apps.assets.models import Activo
-from apps.incidents.models import Incidente
+from apps.incidents.models import AccionIncidente, Incidente
 from apps.organizations.models import Organizacion
 
 URL = "/api/dashboard/admin/"
@@ -63,4 +66,28 @@ class DashboardAdminTests(APITestCase):
             {"total": 1, "abiertos": 1, "en_progreso": 0, "sin_tecnico": 1},
         )
         self.assertIsNone(d["incidentes"][0]["tecnico_asignado"])
+        self.assertIsNone(d["incidentes"][0]["ultima_accion"])
+
+    def test_ultima_accion_ignora_automaticas(self):
+        org = Organizacion.objects.create(nombre="Org")
+        i = Incidente.objects.create(titulo="Prueba", organizacion=org, severidad="alta")
+        ahora = timezone.now()
+        AccionIncidente.objects.create(
+            incidente=i, tipo="accion", descripcion="Reinicio", fecha=ahora - timedelta(hours=1)
+        )
+        AccionIncidente.objects.create(incidente=i, tipo="estado", descripcion="Cambio", fecha=ahora)
+
+        self.client.force_authenticate(self.admin)
+        d = self.client.get(URL).data
+
+        self.assertEqual(d["incidentes"][0]["ultima_accion"]["descripcion"], "Reinicio")
+
+    def test_ultima_accion_nula_con_solo_automaticas(self):
+        org = Organizacion.objects.create(nombre="Org")
+        i = Incidente.objects.create(titulo="Prueba", organizacion=org, severidad="alta")
+        AccionIncidente.objects.create(incidente=i, tipo="creacion", descripcion="Creado")
+
+        self.client.force_authenticate(self.admin)
+        d = self.client.get(URL).data
+
         self.assertIsNone(d["incidentes"][0]["ultima_accion"])
