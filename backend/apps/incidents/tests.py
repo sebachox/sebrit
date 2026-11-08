@@ -1,5 +1,6 @@
 from datetime import timedelta
 from io import StringIO
+from unittest import mock
 
 from django.core.management import call_command
 from django.db import connection
@@ -462,3 +463,243 @@ class CrearEditarIncidenteTests(BaseIncidentes):
         self.assertIsNone(d["solucion"])
         self.assertIsNone(d["causa_raiz"])
         self.assertIsNone(d["duracion_minutos"])
+
+
+MSG_CERRADO = "El incidente está cerrado. Reábrelo para modificarlo."
+
+
+class FlujoIncidenteTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+
+    def estado(self, i, **datos):
+        return self.post(url_incidente(i, "estado/"), datos)
+
+    def test_permisos(self):
+        i = self.incidente(tecnico=self.tecnico)
+        for sufijo, datos, esperado in (
+            ("estado/", {"estado": "en_progreso"}, 200),
+            ("severidad/", {"severidad": "alta", "motivo": "m"}, 200),
+            ("acciones/", {"descripcion": "d"}, 201),
+        ):
+            self.client.force_authenticate(None)
+            self.assertEqual(self.post(url_incidente(i, sufijo), datos).status_code, 401)
+            self.entrar(self.cliente)
+            self.assertEqual(self.post(url_incidente(i, sufijo), datos).status_code, 403)
+            self.entrar(self.admin)
+            self.assertEqual(self.post(url_incidente(i, sufijo), datos).status_code, esperado)
+
+    def test_transiciones_validas(self):
+        casos = [
+            ("abierto", "en_progreso", {}),
+            ("en_progreso", "abierto", {}),
+            ("en_progreso", "resuelto", {"solucion": "s"}),
+            ("resuelto", "cerrado", {"causa_raiz": "c"}),
+            ("resuelto", "abierto", {}),
+            ("cerrado", "abierto", {}),
+        ]
+        for actual, nuevo, extra in casos:
+            i = self.incidente(estado=actual, tecnico=self.tecnico)
+            r = self.estado(i, estado=nuevo, **extra)
+            self.assertEqual(r.status_code, 200, (actual, nuevo, r.data))
+            self.assertEqual(r.data["estado"], nuevo)
+
+    def test_transiciones_invalidas(self):
+        casos = [
+            ("abierto", "resuelto", "Abierto", "Resuelto"),
+            ("abierto", "cerrado", "Abierto", "Cerrado"),
+            ("en_progreso", "cerrado", "En progreso", "Cerrado"),
+            ("cerrado", "resuelto", "Cerrado", "Resuelto"),
+        ]
+        for actual, nuevo, de, a in casos:
+            i = self.incidente(estado=actual, tecnico=self.tecnico)
+            r = self.estado(i, estado=nuevo, solucion="s", causa_raiz="c")
+            self.assertError(r, "estado", f"No se puede pasar de «{de}» a «{a}».")
+
+    def test_estado_invalido(self):
+        i = self.incidente()
+        for valor in ("x", None, ["abierto"]):
+            self.assertError(self.estado(i, estado=valor), "estado", "Elige un estado válido.")
+
+    def test_en_progreso_exige_tecnico(self):
+        i = self.incidente()
+        self.assertError(
+            self.estado(i, estado="en_progreso"), "tecnico", "Asigna un técnico antes de pasar a En progreso."
+        )
+
+    def test_resolver_exige_solucion(self):
+        i = self.incidente(estado="en_progreso", tecnico=self.tecnico)
+        for datos in ({}, {"solucion": "   "}, {"solucion": ["x"]}):
+            self.assertError(
+                self.estado(i, estado="resuelto", **datos),
+                "solucion",
+                "Describe cómo se restableció el servicio.",
+            )
+
+    def test_cerrar_exige_causa_raiz(self):
+        i = self.incidente(estado="resuelto", tecnico=self.tecnico)
+        for datos in ({}, {"causa_raiz": "  "}):
+            self.assertError(
+                self.estado(i, estado="cerrado", **datos),
+                "causa_raiz",
+                "Indica la causa raíz para cerrar el incidente.",
+            )
+
+    def test_resolver_guarda_fecha_fin_y_duracion(self):
+        i = self.incidente(estado="en_progreso", tecnico=self.tecnico)
+        r = self.estado(i, estado="resuelto", solucion="  Se reinició  ")
+        self.assertEqual(r.data["solucion"], "Se reinició")
+        self.assertIsNotNone(r.data["fecha_fin"])
+        self.assertEqual(r.data["duracion_minutos"], 60)
+
+    def test_cerrar_guarda_cerrado_en(self):
+        i = self.incidente(estado="resuelto", tecnico=self.tecnico)
+        r = self.estado(i, estado="cerrado", causa_raiz="Disco lleno")
+        self.assertEqual(r.data["causa_raiz"], "Disco lleno")
+        self.assertIsNotNone(r.data["cerrado_en"])
+
+    def test_reabrir_vacia_campos(self):
+        i = self.incidente(estado="en_progreso", tecnico=self.tecnico)
+        self.estado(i, estado="resuelto", solucion="Se reinició")
+        self.estado(i, estado="cerrado", causa_raiz="Disco lleno")
+        r = self.estado(i, estado="abierto")
+        for campo in ("solucion", "causa_raiz", "fecha_fin", "cerrado_en", "duracion_minutos"):
+            self.assertIsNone(r.data[campo], campo)
+        textos = [a["descripcion"] for a in r.data["acciones"]]
+        self.assertIn("Se reinició", textos)
+        self.assertIn("Disco lleno", textos)
+
+    def test_cada_cambio_deja_accion(self):
+        i = self.incidente(tecnico=self.tecnico)
+        self.estado(i, estado="en_progreso")
+        a = i.acciones.get(tipo="estado")
+        self.assertEqual((a.valor_anterior, a.valor_nuevo, a.autor), ("abierto", "en_progreso", self.tecnico))
+
+    def test_cuerpo_no_objeto_da_400(self):
+        i = self.incidente()
+        for sufijo in ("estado/", "severidad/", "acciones/"):
+            self.assertError(
+                self.post(url_incidente(i, sufijo), [1, 2]),
+                "non_field_errors",
+                "El cuerpo de la petición no es válido.",
+            )
+
+
+class CorreccionSeveridadTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+
+    def corregir(self, i, **datos):
+        return self.post(url_incidente(i, "severidad/"), datos)
+
+    def test_corregir_severidad(self):
+        i = self.incidente()
+        r = self.corregir(i, severidad="critica", motivo="  Afecta facturación  ")
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["severidad"], "critica")
+        self.assertTrue(r.data["severidad_manual"])
+        a = i.acciones.get(tipo="severidad")
+        self.assertEqual((a.descripcion, a.valor_anterior, a.valor_nuevo), ("Afecta facturación", "media", "critica"))
+
+    def test_motivo_obligatorio(self):
+        i = self.incidente()
+        for datos in ({}, {"motivo": "   "}):
+            self.assertError(
+                self.corregir(i, severidad="alta", **datos), "motivo", "Explica por qué cambias la severidad."
+            )
+
+    def test_severidad_invalida(self):
+        i = self.incidente()
+        self.assertError(self.corregir(i, severidad="x", motivo="m"), "severidad", "Elige una severidad válida.")
+
+    def test_cerrado_no_admite_correccion(self):
+        i = self.incidente(estado="cerrado")
+        self.assertError(self.corregir(i, severidad="alta", motivo="m"), "non_field_errors", MSG_CERRADO)
+
+
+class BitacoraTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+
+    def test_agregar_accion(self):
+        i = self.incidente()
+        r = self.post(url_incidente(i, "acciones/"), {"descripcion": "  Se revisó el disco  "})
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["tipo"], "accion")
+        self.assertEqual(r.data["descripcion"], "Se revisó el disco")
+        self.assertEqual(r.data["autor"]["id"], self.tecnico.pk)
+
+    def test_descripcion_obligatoria(self):
+        i = self.incidente()
+        for datos in ({}, {"descripcion": "   "}):
+            self.assertError(
+                self.post(url_incidente(i, "acciones/"), datos), "descripcion", "Describe la acción realizada."
+            )
+
+    def test_cerrado_no_admite_acciones(self):
+        i = self.incidente(estado="cerrado")
+        self.assertError(
+            self.post(url_incidente(i, "acciones/"), {"descripcion": "x"}), "non_field_errors", MSG_CERRADO
+        )
+
+
+class CascadaTicketsTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+        self.i = self.incidente(estado="en_progreso", tecnico=self.tecnico)
+
+    def ticket(self, **extra):
+        return Ticket.objects.create(organizacion=self.org, titulo="T", incidente=self.i, **extra)
+
+    def resolver(self):
+        return self.post(url_incidente(self.i, "estado/"), {"estado": "resuelto", "solucion": "Se reinició"})
+
+    def test_resolver_resuelve_tickets_activos(self):
+        t = self.ticket(estado="en_progreso", tecnico=self.tecnico)
+        self.assertEqual(self.resolver().status_code, 200)
+        t.refresh_from_db()
+        self.i.refresh_from_db()
+        self.assertEqual(t.estado, "resuelto")
+        self.assertEqual(t.solucion, "Se reinició")
+        self.assertIsNotNone(t.resuelto_en)
+        e = t.eventos.get(tipo="estado")
+        self.assertEqual(e.texto, f"Resuelto por el incidente {self.i.codigo}.")
+        self.assertEqual((e.valor_anterior, e.valor_nuevo, e.autor), ("en_progreso", "resuelto", self.tecnico))
+
+    def test_resolver_ticket_sin_tecnico(self):
+        t = self.ticket()
+        self.assertEqual(self.resolver().status_code, 200)
+        t.refresh_from_db()
+        self.assertEqual(t.estado, "resuelto")
+
+    def test_resolver_no_toca_tickets_cerrados_ni_resueltos(self):
+        cerrado = self.ticket(estado="cerrado", solucion="Antes")
+        resuelto = self.ticket(estado="resuelto", solucion="Antes")
+        self.resolver()
+        for t in (cerrado, resuelto):
+            estado = t.estado
+            t.refresh_from_db()
+            self.assertEqual((t.estado, t.solucion), (estado, "Antes"))
+            self.assertFalse(t.eventos.exists())
+
+    def test_reabrir_no_reabre_tickets(self):
+        t = self.ticket()
+        self.resolver()
+        self.post(url_incidente(self.i, "estado/"), {"estado": "abierto"})
+        t.refresh_from_db()
+        self.assertEqual(t.estado, "resuelto")
+
+    def test_cascada_atomica(self):
+        t = self.ticket()
+        with mock.patch("apps.incidents.servicios.registrar_evento", side_effect=RuntimeError):
+            with self.assertRaises(RuntimeError):
+                self.resolver()
+        self.i.refresh_from_db()
+        t.refresh_from_db()
+        self.assertEqual(self.i.estado, "en_progreso")
+        self.assertEqual(t.estado, "abierto")
+        self.assertFalse(self.i.acciones.exists())

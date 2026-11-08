@@ -1,12 +1,21 @@
 from django.db.models import Count
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
 from apps.assets.permissions import EsAdminOTecnico
 from apps.organizations.pagination import PaginacionEstandar
 
+from . import servicios
 from .models import Incidente
-from .serializers import IncidenteDetalleSerializer, IncidenteListaSerializer
+from .serializers import AccionSerializer, IncidenteDetalleSerializer, IncidenteListaSerializer
+
+
+def cuerpo(request):
+    if not isinstance(request.data, dict):
+        raise ValidationError({"non_field_errors": ["El cuerpo de la petición no es válido."]})
+    return request.data
 
 
 class IncidenteViewSet(
@@ -39,3 +48,24 @@ class IncidenteViewSet(
 
     def _detalle(self, incidente):
         return Response(IncidenteDetalleSerializer(incidente, context=self.get_serializer_context()).data)
+
+    @action(detail=True, methods=["post"])
+    def estado(self, request, pk=None):
+        datos = cuerpo(request)
+        incidente = servicios.cambiar_estado(
+            self.get_object(), datos.get("estado"), datos.get("solucion"), datos.get("causa_raiz"), request.user
+        )
+        return self._detalle(incidente)
+
+    @action(detail=True, methods=["post"])
+    def severidad(self, request, pk=None):
+        datos = cuerpo(request)
+        incidente = servicios.corregir_severidad(
+            self.get_object(), datos.get("severidad"), datos.get("motivo"), request.user
+        )
+        return self._detalle(incidente)
+
+    @action(detail=True, methods=["post"])
+    def acciones(self, request, pk=None):
+        accion = servicios.agregar_accion(self.get_object(), cuerpo(request).get("descripcion"), request.user)
+        return Response(AccionSerializer(accion).data, status=status.HTTP_201_CREATED)
