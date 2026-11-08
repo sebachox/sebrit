@@ -21,6 +21,7 @@ const ticket = (t: Partial<TicketResumido> = {}): TicketResumido => ({
   estado: 'abierto',
   tecnico: null,
   activo: null,
+  incidente: null,
   creado_en: '2026-11-08T10:00:00-05:00',
   ...t,
 });

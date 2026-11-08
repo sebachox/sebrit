@@ -27,8 +27,8 @@ describe('puede', () => {
     expect(puede(undefined, 'clientes', 'ver')).toBeFalse();
   });
 
-  it('admin y técnico ven y editan activos, backups y tickets; el cliente no', () => {
-    for (const m of ['activos', 'backups', 'tickets'] as const) {
+  it('admin y técnico ven y editan activos, backups, tickets e incidentes; el cliente no', () => {
+    for (const m of ['activos', 'backups', 'tickets', 'incidentes'] as const) {
       for (const rol of ['admin', 'tecnico'] as const) {
         expect(puede(rol, m, 'ver')).toBeTrue();
         expect(puede(rol, m, 'editar')).toBeTrue();

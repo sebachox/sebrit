@@ -54,6 +54,13 @@ class Ticket(models.Model):
         on_delete=models.SET_NULL,
         related_name="tickets_reportados",
     )
+    incidente = models.ForeignKey(
+        "incidents.Incidente",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="tickets",
+    )
     solucion = models.TextField(blank=True)
     creado_en = models.DateTimeField(default=timezone.now)
     actualizado_en = models.DateTimeField(auto_now=True)
@@ -77,6 +84,7 @@ class EventoTicket(models.Model):
         ESTADO = "estado"
         TECNICO = "tecnico"
         PRIORIDAD = "prioridad"
+        INCIDENTE = "incidente"
 
     ticket = models.ForeignKey(Ticket, on_delete=models.CASCADE, related_name="eventos")
     tipo = models.CharField(max_length=10, choices=Tipo.choices)

@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { API_URL } from '../../../../core/config/api';
 import { EventoTicket, Ticket } from '../../../../core/models/ticket';
 import { TicketFicha } from './ticket-ficha';
@@ -31,6 +31,7 @@ const ticket = (t: Partial<Ticket> = {}): Ticket => ({
   estado: 'abierto',
   tecnico: { id: 5, nombre: 'Laura Gómez' },
   activo: { id: 3, nombre: 'SRV-01' },
+  incidente: null,
   creado_en: '2026-11-08T10:00:00-05:00',
   descripcion: 'No responde',
   alcance: 'toda_empresa',
@@ -249,5 +250,123 @@ describe('TicketFicha', () => {
   it('con ?guardado=1 muestra el mensaje de éxito', () => {
     crear(ticket(), { guardado: '1' });
     expect(el().querySelector('.alert-success')?.textContent).toContain('Ticket guardado correctamente.');
+  });
+
+  describe('incidente', () => {
+    const INCIDENTES = `${API_URL}/incidentes/`;
+    const pulsar = (texto: string) => {
+      boton(texto)!.click();
+      fixture.detectChanges();
+    };
+    const elegir = (selector: string, valor: string) => {
+      const c = el().querySelector(selector) as HTMLSelectElement;
+      c.value = valor;
+      c.dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+
+    it('con incidente muestra el aviso con enlace y sin opciones', () => {
+      crear(ticket({ incidente: { id: 3, codigo: 'INC-0003' } }));
+      const enlace = el().querySelector('a[href="/admin/incidentes/3"]');
+      expect(enlace?.closest('[data-incidente]')?.textContent).toContain('Parte del incidente INC-0003');
+      expect(boton('Escalar a incidente')).toBeUndefined();
+      expect(boton('Asociar a incidente')).toBeUndefined();
+    });
+
+    it('sin incidente ofrece escalar y asociar', () => {
+      crear();
+      expect(boton('Escalar a incidente')).toBeDefined();
+      expect(boton('Asociar a incidente')).toBeDefined();
+    });
+
+    it('un ticket cerrado no ofrece ninguna', () => {
+      crear(ticket({ estado: 'cerrado' }));
+      expect(boton('Escalar a incidente')).toBeUndefined();
+      expect(boton('Asociar a incidente')).toBeUndefined();
+    });
+
+    it('escalar exige impacto y fecha', () => {
+      crear();
+      pulsar('Escalar a incidente');
+      pulsar('Crear incidente');
+      expect(el().textContent).toContain('Indica el impacto.');
+      expect(el().textContent).toContain('Indica cuándo empezó el incidente.');
+    });
+
+    it('escalar rechaza una fecha futura', () => {
+      crear();
+      pulsar('Escalar a incidente');
+      elegir('#escalar-impacto', 'total');
+      escribir('#escalar-fecha', '2999-01-01T00:00');
+      pulsar('Crear incidente');
+      expect(el().textContent).toContain('La fecha de origen no puede ser futura.');
+    });
+
+    it('escalar envía la fecha en ISO y lleva a la ficha nueva', () => {
+      crear();
+      const navegar = spyOn(TestBed.inject(Router), 'navigate');
+      pulsar('Escalar a incidente');
+      elegir('#escalar-impacto', 'total');
+      escribir('#escalar-fecha', '2026-01-15T08:30');
+      pulsar('Crear incidente');
+      const req = http.expectOne(`${URL}escalar/`);
+      expect(req.request.body).toEqual({ impacto: 'total', fecha_origen: new Date('2026-01-15T08:30').toISOString() });
+      req.flush({ id: 21 });
+      expect(navegar).toHaveBeenCalledWith(['/admin/incidentes', 21]);
+    });
+
+    it('un error al escalar se muestra', () => {
+      crear();
+      pulsar('Escalar a incidente');
+      elegir('#escalar-impacto', 'total');
+      escribir('#escalar-fecha', '2026-01-15T08:30');
+      pulsar('Crear incidente');
+      http
+        .expectOne(`${URL}escalar/`)
+        .flush({ ticket: ['El ticket ya está asociado a un incidente.'] }, { status: 400, statusText: 'Bad' });
+      fixture.detectChanges();
+      expect(el().querySelector('.alert-danger')?.textContent).toContain('El ticket ya está asociado a un incidente.');
+    });
+
+    it('asociar pide los incidentes activos del cliente y muestra el aviso sin spinner', () => {
+      crear();
+      pulsar('Asociar a incidente');
+      const lista = http.expectOne((r) => r.url === INCIDENTES);
+      expect(lista.request.params.get('organizacion')).toBe('4');
+      expect(lista.request.params.get('abiertos')).toBe('true');
+      lista.flush({ count: 1, next: null, previous: null, results: [{ id: 3, codigo: 'INC-0003', titulo: 'Caída' }] });
+      fixture.detectChanges();
+
+      elegir('#asociar-incidente', '3');
+      pulsar('Asociar');
+      const post = http.expectOne(`${INCIDENTES}3/tickets/`);
+      expect(post.request.body).toEqual({ ticket: 7 });
+      post.flush({ id: 3 });
+      fixture.detectChanges();
+
+      const recarga = http.expectOne(URL);
+      expect(el().querySelector('[role="status"].text-center')).toBeNull();
+      recarga.flush(ticket({ incidente: { id: 3, codigo: 'INC-0003' } }));
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Parte del incidente INC-0003');
+    });
+
+    it('el selector de incidentes indica la carga y la lista vacía', () => {
+      crear();
+      pulsar('Asociar a incidente');
+      expect(el().textContent).toContain('Cargando incidentes...');
+      expect(el().querySelector('#asociar-incidente')).toBeNull();
+      http.expectOne((r) => r.url === INCIDENTES).flush({ count: 0, next: null, previous: null, results: [] });
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Este cliente no tiene incidentes activos.');
+      expect(el().querySelector('#asociar-incidente')).toBeNull();
+    });
+
+    it('describe los eventos de incidente', () => {
+      crear();
+      const c = fixture.componentInstance;
+      expect(c.descripcionEvento(evento({ tipo: 'incidente', valor_nuevo: 'INC-1' }))).toBe('asoció al incidente INC-1');
+      expect(c.descripcionEvento(evento({ tipo: 'incidente', valor_anterior: 'INC-1' }))).toBe('quitó del incidente INC-1');
+    });
   });
 });

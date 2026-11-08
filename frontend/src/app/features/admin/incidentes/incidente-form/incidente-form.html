@@ -1,0 +1,137 @@
+<a
+  [routerLink]="id ? ['/admin/incidentes', id] : '/admin/incidentes'"
+  class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3"
+>
+  <i class="bi bi-arrow-left"></i>{{ id ? 'Volver a la ficha' : 'Incidentes' }}
+</a>
+
+<h4 class="mb-3">{{ id ? 'Editar incidente' : 'Nuevo incidente' }}</h4>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando incidente...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="alert alert-warning">
+    Incidente no encontrado. <a routerLink="/admin/incidentes" class="alert-link">Volver a incidentes</a>
+  </div>
+} @else if (estado() === 'error_carga') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el incidente.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar(id!)">Reintentar</button>
+  </div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="guardar()" novalidate class="card shadow-sm border-0">
+    <div class="card-body p-4">
+      @if (errorGeneral(); as e) {
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+          <i class="bi bi-exclamation-circle"></i><span>{{ e }}</span>
+        </div>
+      }
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="organizacion" class="form-label">Cliente <span class="text-danger" aria-hidden="true">*</span></label>
+          @if (id) {
+            <p class="form-control-plaintext mb-0" id="organizacion">{{ cliente()?.nombre }}</p>
+            <div class="form-text">El cliente de un incidente no se puede cambiar.</div>
+          } @else {
+            <select id="organizacion" class="form-select" formControlName="organizacion" [class.is-invalid]="invalido('organizacion')" (change)="cambiarCliente()">
+              <option value="" disabled>Elige el cliente</option>
+              @for (c of clientes(); track c.id) {
+                <option [value]="c.id">{{ c.nombre }}</option>
+              }
+            </select>
+            <div class="invalid-feedback">{{ mensaje('organizacion') }}</div>
+          }
+        </div>
+
+        <div class="col-md-6">
+          <label for="tecnico" class="form-label">Técnico</label>
+          <select id="tecnico" class="form-select" formControlName="tecnico" [class.is-invalid]="invalido('tecnico')">
+            <option value="">Sin asignar</option>
+            @for (t of opcionesTecnico(); track t.id) {
+              <option [value]="t.id">{{ t.nombre }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('tecnico') }}</div>
+        </div>
+
+        <div class="col-12">
+          <label for="titulo" class="form-label">Título <span class="text-danger" aria-hidden="true">*</span></label>
+          <input id="titulo" class="form-control" formControlName="titulo" placeholder="Qué servicio se interrumpió" [class.is-invalid]="invalido('titulo')" />
+          <div class="invalid-feedback">{{ mensaje('titulo') }}</div>
+        </div>
+
+        <div class="col-12">
+          <label for="descripcion" class="form-label">Descripción <span class="text-danger" aria-hidden="true">*</span></label>
+          <textarea id="descripcion" rows="4" class="form-control" formControlName="descripcion" [class.is-invalid]="invalido('descripcion')"></textarea>
+          <div class="invalid-feedback">{{ mensaje('descripcion') }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="impacto" class="form-label">Impacto <span class="text-danger" aria-hidden="true">*</span></label>
+          <select id="impacto" class="form-select" formControlName="impacto" [class.is-invalid]="invalido('impacto')">
+            <option value="" disabled>Elige el impacto</option>
+            @for (i of impactos; track i.valor) {
+              <option [value]="i.valor">{{ i.texto }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('impacto') }}</div>
+        </div>
+
+        <div class="col-md-6">
+          <label for="fecha_origen" class="form-label">Inicio de la interrupción <span class="text-danger" aria-hidden="true">*</span></label>
+          <input id="fecha_origen" type="datetime-local" class="form-control" formControlName="fecha_origen" [class.is-invalid]="invalido('fecha_origen')" />
+          <div class="invalid-feedback">{{ mensaje('fecha_origen') }}</div>
+          <div class="form-text">Cuándo empezó realmente, aunque se haya detectado después.</div>
+        </div>
+
+        <fieldset class="col-12">
+          <legend class="form-label fs-6">Activos afectados</legend>
+          @if (cargandoActivos()) {
+            <p class="form-text mb-0">Cargando activos...</p>
+          } @else if (activos().length === 0) {
+            <p class="form-text mb-0">
+              {{ form.controls.organizacion.value ? 'Este cliente no tiene activos registrados.' : 'Elige un cliente para ver sus activos.' }}
+            </p>
+          } @else {
+            <div class="lista-activos">
+              @for (a of activos(); track a.id) {
+                <div class="form-check activo-opcion">
+                  <input
+                    class="form-check-input"
+                    type="checkbox"
+                    [id]="'activo-' + a.id"
+                    [checked]="activosMarcados().has(a.id)"
+                    (change)="alternarActivo(a.id)"
+                  />
+                  <label class="form-check-label d-flex align-items-center justify-content-between gap-2" [for]="'activo-' + a.id">
+                    <span class="text-break">{{ a.nombre }}</span>
+                    <app-status-badge [valor]="a.tipo" />
+                  </label>
+                </div>
+              }
+            </div>
+          }
+        </fieldset>
+      </div>
+
+      <p class="form-text mb-0 mt-3">
+        <i class="bi bi-info-circle me-1"></i>La severidad se calcula sola según el impacto y los activos afectados. Podrás corregirla desde la ficha.
+      </p>
+    </div>
+
+    <div class="card-footer d-flex justify-content-end gap-2 p-3">
+      <a class="btn btn-outline-secondary" [routerLink]="id ? ['/admin/incidentes', id] : '/admin/incidentes'">Cancelar</a>
+      <button type="submit" class="btn btn-primary" [disabled]="enviando()">
+        @if (enviando()) {
+          <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando...
+        } @else {
+          <i class="bi bi-check-lg me-1"></i>Guardar
+        }
+      </button>
+    </div>
+  </form>
+}

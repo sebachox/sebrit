@@ -116,6 +116,30 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/tickets/ticket-ficha/ticket-ficha').then((m) => m.TicketFicha),
       },
+      {
+        path: 'admin/incidentes',
+        canActivate: [permisoGuard('incidentes', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/incidentes/incidentes-lista/incidentes-lista').then((m) => m.IncidentesLista),
+      },
+      {
+        path: 'admin/incidentes/nuevo',
+        canActivate: [permisoGuard('incidentes', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/incidentes/incidente-form/incidente-form').then((m) => m.IncidenteForm),
+      },
+      {
+        path: 'admin/incidentes/:id/editar',
+        canActivate: [permisoGuard('incidentes', 'editar')],
+        loadComponent: () =>
+          import('./features/admin/incidentes/incidente-form/incidente-form').then((m) => m.IncidenteForm),
+      },
+      {
+        path: 'admin/incidentes/:id',
+        canActivate: [permisoGuard('incidentes', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/incidentes/incidente-ficha/incidente-ficha').then((m) => m.IncidenteFicha),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },

@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
 import { DashboardAdmin } from '../../../../core/models/dashboard-admin';
 import { DashboardService } from '../../../../core/services/dashboard.service';
 import { StatCard } from '../../../../shared/components/stat-card/stat-card';
@@ -8,7 +9,7 @@ import { StatusBadge } from '../../../../shared/components/status-badge/status-b
 
 @Component({
   selector: 'app-admin-dashboard',
-  imports: [StatCard, StatusBadge, DatePipe],
+  imports: [StatCard, StatusBadge, DatePipe, RouterLink],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.scss',
 })

@@ -140,4 +140,11 @@ describe('ClienteFicha', () => {
     const enlace = el().querySelector<HTMLAnchorElement>('a[href="/admin/tickets?organizacion=7"]');
     expect(enlace?.textContent).toContain('Tickets abiertos');
   });
+
+  it('la tarjeta Incidentes activos enlaza a los incidentes del cliente', () => {
+    crear();
+    cargar();
+    const enlace = el().querySelector<HTMLAnchorElement>('a[href="/admin/incidentes?organizacion=7"]');
+    expect(enlace?.textContent).toContain('Incidentes activos');
+  });
 });

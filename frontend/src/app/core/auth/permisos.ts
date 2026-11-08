@@ -1,6 +1,6 @@
 import { Rol } from '../models/auth';
 
-export type Modulo = 'dashboard' | 'clientes' | 'activos' | 'backups' | 'tickets';
+export type Modulo = 'dashboard' | 'clientes' | 'activos' | 'backups' | 'tickets' | 'incidentes';
 export type Accion = 'ver' | 'editar';
 
 /**
@@ -13,6 +13,7 @@ const PERMISOS: Record<Modulo, Record<Accion, readonly Rol[]>> = {
   activos: { ver: ['admin', 'tecnico'], editar: ['admin', 'tecnico'] },
   backups: { ver: ['admin', 'tecnico'], editar: ['admin', 'tecnico'] },
   tickets: { ver: ['admin', 'tecnico'], editar: ['admin', 'tecnico'] },
+  incidentes: { ver: ['admin', 'tecnico'], editar: ['admin', 'tecnico'] },
 };
 
 export function puede(rol: Rol | null | undefined, modulo: Modulo, accion: Accion): boolean {

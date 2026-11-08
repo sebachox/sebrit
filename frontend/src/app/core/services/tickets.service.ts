@@ -3,6 +3,7 @@ import { Injectable, inject } from '@angular/core';
 import { Observable } from 'rxjs';
 import { API_URL } from '../config/api';
 import { Referencia } from '../models/activo';
+import { DatosEscalar, Incidente } from '../models/incidente';
 import { Paginado } from '../models/organizacion';
 import {
   EstadoTicket,
@@ -33,6 +34,7 @@ export class TicketsService {
     if (f.tecnico) params = params.set('tecnico', f.tecnico);
     if (f.ordering) params = params.set('ordering', f.ordering);
     if (f.page && f.page > 1) params = params.set('page', f.page);
+    if (f.pageSize) params = params.set('page_size', f.pageSize);
     return this.http.get<Paginado<TicketResumido>>(BASE, { params });
   }
 
@@ -58,6 +60,10 @@ export class TicketsService {
 
   comentar(id: number, texto: string): Observable<EventoTicket> {
     return this.http.post<EventoTicket>(`${BASE}${id}/comentarios/`, { texto });
+  }
+
+  escalar(id: number, datos: DatosEscalar): Observable<Incidente> {
+    return this.http.post<Incidente>(`${BASE}${id}/escalar/`, datos);
   }
 
   tecnicos(): Observable<Referencia[]> {

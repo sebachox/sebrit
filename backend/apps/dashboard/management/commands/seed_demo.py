@@ -1,9 +1,12 @@
+from datetime import timedelta
+
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
 from apps.accounts.models import Usuario
 from apps.assets.models import Activo, Backup
 from apps.incidents.models import AccionIncidente, Incidente
+from apps.incidents.severidad import calcular_severidad
 from apps.maintenance.models import Mantenimiento
 from apps.organizations.models import Organizacion
 from apps.tickets.models import Ticket
@@ -90,28 +93,65 @@ class Command(BaseCommand):
             fecha_programada=hoy + timezone.timedelta(days=1),
         )
 
-        # Incidentes: 3 críticos activos (1 abierto sin técnico, 2 en progreso)
-        i1 = Incidente.objects.create(
-            codigo="INC-0001", titulo="Servidor de base de datos sin respuesta",
-            organizacion=org1, severidad="critica", estado="en_progreso", tecnico=carlos,
+        # Incidentes: 3 críticos activos (1 abierto sin técnico, 2 en progreso), 1 cerrado y 1 resuelto
+        ahora = timezone.now()
+        servidores_org2 = list(Activo.objects.filter(organizacion=org2, tipo="servidor"))
+
+        def incidente(impacto, activos, horas_atras, **datos):
+            detectado = ahora - timedelta(hours=horas_atras)
+            i = Incidente.objects.create(
+                impacto=impacto,
+                severidad=calcular_severidad(impacto, activos),
+                fecha_origen=detectado - timedelta(minutes=20),
+                creado_en=detectado,
+                **datos,
+            )
+            i.activos.set(activos)
+            AccionIncidente.objects.create(
+                incidente=i, tipo="creacion", descripcion="Incidente registrado.", fecha=detectado
+            )
+            return i
+
+        i1 = incidente(
+            "total", [servidores_org1[0]], 3,
+            titulo="Servidor de base de datos sin respuesta",
+            descripcion="El servidor principal de base de datos dejó de responder a las aplicaciones.",
+            organizacion=org1, estado="en_progreso", tecnico=carlos,
         )
         AccionIncidente.objects.create(incidente=i1, descripcion="Se inició el diagnóstico del servidor")
-        Incidente.objects.create(
-            codigo="INC-0002", titulo="Caída intermitente del enlace principal",
-            organizacion=org2, severidad="critica", estado="abierto",
+        Ticket.objects.filter(pk__in=Ticket.objects.filter(organizacion=org1).order_by("id")[:2]).update(
+            incidente=i1
         )
-        i3 = Incidente.objects.create(
-            codigo="INC-0003", titulo="Fallo en el firewall perimetral",
-            organizacion=org1, severidad="critica", estado="en_progreso", tecnico=laura,
+        incidente(
+            "total", [servidores_org2[0]], 2,
+            titulo="Caída intermitente del enlace principal",
+            descripcion="El enlace principal se cae por periodos cortos y afecta a toda la sede.",
+            organizacion=org2, estado="abierto",
+        )
+        i3 = incidente(
+            "total", [servidores_org1[1]], 1,
+            titulo="Fallo en el firewall perimetral",
+            descripcion="El firewall perimetral reinicia sus servicios y corta las conexiones externas.",
+            organizacion=org1, estado="en_progreso", tecnico=laura,
         )
         AccionIncidente.objects.create(incidente=i3, descripcion="Se aisló el equipo afectado")
-        Incidente.objects.create(
-            codigo="INC-0004", titulo="Lentitud en el correo",
-            organizacion=org2, severidad="alta", estado="abierto", tecnico=laura,
+        incidente(
+            "total", [], 48,
+            titulo="Lentitud en el correo",
+            descripcion="El correo tardaba varios minutos en entregar los mensajes.",
+            organizacion=org2, estado="cerrado", tecnico=laura,
+            solucion="Se depuró la cola de mensajes del servidor de correo.",
+            causa_raiz="La cola de mensajes se llenó por una cuenta comprometida.",
+            fecha_fin=ahora - timedelta(hours=45),
+            cerrado_en=ahora - timedelta(hours=44),
         )
-        Incidente.objects.create(
-            codigo="INC-0005", titulo="Certificado vencido",
-            organizacion=org1, severidad="media", estado="resuelto", tecnico=carlos,
+        incidente(
+            "parcial", [], 26,
+            titulo="Certificado vencido",
+            descripcion="El certificado del portal interno venció y los navegadores bloqueaban el acceso.",
+            organizacion=org1, estado="resuelto", tecnico=carlos,
+            solucion="Se renovó e instaló el certificado.",
+            fecha_fin=ahora - timedelta(hours=25),
         )
 
         self.stdout.write(self.style.SUCCESS("Datos de demostración cargados."))

@@ -12,6 +12,10 @@ const ESTILOS: Record<string, { texto: string; clase: string }> = {
   en_progreso: { texto: 'En progreso', clase: 'medio' },
   resuelto: { texto: 'Resuelto', clase: 'ok' },
   cerrado: { texto: 'Cerrado', clase: 'neutro' },
+  // impacto de incidente
+  degradado: { texto: 'Degradado', clase: 'medio' },
+  parcial: { texto: 'Parcial', clase: 'alto' },
+  total: { texto: 'Total', clase: 'critico' },
   // estado de activo
   operativo: { texto: 'Operativo', clase: 'ok' },
   advertencia: { texto: 'Advertencia', clase: 'alto' },

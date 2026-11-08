@@ -23,7 +23,7 @@ def conteo_activos(tipo):
 
 
 def serializar_incidente(i):
-    accion = i.accionincidente_set.order_by("-fecha").first()
+    accion = i.acciones.filter(tipo="accion").order_by("-fecha").first()
     return {
         "id": i.id,
         "codigo": i.codigo,
