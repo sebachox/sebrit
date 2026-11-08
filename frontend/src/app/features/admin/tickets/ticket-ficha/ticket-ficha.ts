@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { Referencia } from '../../../../core/models/activo';
@@ -56,6 +56,15 @@ export class TicketFicha implements OnInit {
   motivoInvalido = signal(false);
 
   comentario = signal('');
+
+  private selectorTecnico = viewChild<ElementRef<HTMLSelectElement>>('selectorTecnico');
+
+  /** Incluye al técnico asignado aunque ya no aparezca en la lista (p. ej. si se desactivó). */
+  opcionesTecnico = computed(() => {
+    const actual = this.ticket()?.tecnico;
+    const lista = this.tecnicos();
+    return actual && !lista.some((u) => u.id === actual.id) ? [actual, ...lista] : lista;
+  });
 
   puedeEditar = computed(() => this.auth.puede('tickets', 'editar'));
   cerrado = computed(() => this.ticket()?.estado === 'cerrado');
@@ -195,6 +204,9 @@ export class TicketFicha implements OnInit {
 
   private fallo(e: HttpErrorResponse) {
     this.ocupado.set(false);
+    // Si falló una asignación, el selector vuelve a mostrar al técnico real.
+    const selector = this.selectorTecnico()?.nativeElement;
+    if (selector) selector.value = String(this.ticket()?.tecnico?.id ?? '');
     const detalle = e.status === 400 && e.error ? Object.values(e.error).flat()[0] : null;
     this.errorAccion.set(typeof detalle === 'string' ? detalle : MSG_ERROR);
   }

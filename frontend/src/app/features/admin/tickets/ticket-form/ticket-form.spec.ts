@@ -142,6 +142,33 @@ describe('TicketForm', () => {
     expect(component.form.controls.organizacion.value).toBe('4');
   });
 
+  it('un ?organizacion que no está entre los clientes activos no se preselecciona', () => {
+    crear(undefined, { organizacion: '99' });
+    expect(component.form.controls.organizacion.value).toBe('');
+    http.expectNone((r) => r.url === ACTIVOS);
+    enviar();
+    expect(component.form.controls.organizacion.invalid).toBeTrue();
+  });
+
+  it('un ?organizacion que no es número se ignora', () => {
+    crear(undefined, { organizacion: 'abc' });
+    expect(component.form.controls.organizacion.value).toBe('');
+    http.expectNone((r) => r.url === ACTIVOS);
+  });
+
+  it('en edición, un técnico que ya no está en la lista se conserva', () => {
+    crear('7');
+    http.expectOne(`${BASE}7/`).flush({
+      id: 7, codigo: 'TCK-0007', titulo: 'A', descripcion: 'B', categoria: 'red', alcance: 'un_usuario',
+      organizacion: { id: 4, nombre: 'Metropolis 21' }, activo: null, tecnico: { id: 77, nombre: 'Técnico Retirado' },
+    });
+    activosDe('4');
+    fixture.detectChanges();
+    const s = el().querySelector('#tecnico') as HTMLSelectElement;
+    expect(s.value).toBe('77');
+    expect(s.selectedOptions[0].textContent).toContain('Técnico Retirado');
+  });
+
   it('muestra bajo su campo el error del servidor', () => {
     crear();
     llenar();

@@ -151,6 +151,25 @@ describe('TicketFicha', () => {
     req.flush(ticket());
   });
 
+  it('si falla la asignación, el selector vuelve al técnico real', () => {
+    crear(ticket({ estado: 'en_progreso' }));
+    const s = el().querySelector('#tecnico') as HTMLSelectElement;
+    s.value = '';
+    s.dispatchEvent(new Event('change'));
+    http
+      .expectOne(URL)
+      .flush({ tecnico: ['Un ticket en progreso debe tener un técnico asignado.'] }, { status: 400, statusText: 'Bad Request' });
+    fixture.detectChanges();
+    expect(s.value).toBe('5');
+  });
+
+  it('un técnico que ya no está en la lista se sigue mostrando', () => {
+    crear(ticket({ tecnico: { id: 77, nombre: 'Técnico Retirado' } }));
+    const s = el().querySelector('#tecnico') as HTMLSelectElement;
+    expect(s.value).toBe('77');
+    expect(s.selectedOptions[0].textContent).toContain('Técnico Retirado');
+  });
+
   it('Corregir exige motivo y muestra Corregida a mano', () => {
     crear();
     expect(el().textContent).toContain('Automática');

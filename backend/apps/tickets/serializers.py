@@ -122,6 +122,7 @@ class TicketDetalleSerializer(ConReferenciasMixin, VacioComoNullMixin, serialize
     @transaction.atomic
     def update(self, ticket, datos):
         tecnico_anterior = ticket.tecnico
+        factores = (ticket.alcance, ticket.categoria, ticket.activo_id)
         ticket = super().update(ticket, datos)
         if ticket.tecnico != tecnico_anterior:
             registrar_evento(
@@ -131,6 +132,6 @@ class TicketDetalleSerializer(ConReferenciasMixin, VacioComoNullMixin, serialize
                 anterior=nombre_usuario(tecnico_anterior),
                 nuevo=nombre_usuario(ticket.tecnico),
             )
-        if {"alcance", "categoria", "activo"} & datos.keys():
+        if (ticket.alcance, ticket.categoria, ticket.activo_id) != factores:
             recalcular_prioridad(ticket, self._autor())
         return ticket

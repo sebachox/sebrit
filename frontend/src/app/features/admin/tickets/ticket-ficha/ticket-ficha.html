@@ -158,9 +158,9 @@
         <div class="card-header fw-semibold">Asignación</div>
         <div class="card-body">
           <label for="tecnico" class="form-label small text-muted">Técnico</label>
-          <select id="tecnico" class="form-select" [disabled]="bloqueado()" (change)="asignar($any($event.target).value)">
+          <select #selectorTecnico id="tecnico" class="form-select" [disabled]="bloqueado()" (change)="asignar($any($event.target).value)">
             <option value="" [selected]="!t.tecnico">Sin asignar</option>
-            @for (u of tecnicos(); track u.id) {
+            @for (u of opcionesTecnico(); track u.id) {
               <option [value]="u.id" [selected]="t.tecnico?.id === u.id">{{ u.nombre }}</option>
             }
           </select>

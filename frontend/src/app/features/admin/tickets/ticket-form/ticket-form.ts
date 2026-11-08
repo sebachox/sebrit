@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
@@ -50,6 +50,15 @@ export class TicketForm implements OnInit, OnDestroy {
   cliente = signal<Referencia | null>(null);
   activos = signal<Referencia[]>([]);
   tecnicos = signal<Referencia[]>([]);
+  private tecnicoActual = signal<Referencia | null>(null);
+
+  /** Incluye al técnico asignado aunque ya no aparezca en la lista (p. ej. si se desactivó). */
+  opcionesTecnico = computed(() => {
+    const actual = this.tecnicoActual();
+    const lista = this.tecnicos();
+    return actual && !lista.some((u) => u.id === actual.id) ? [actual, ...lista] : lista;
+  });
+
   estado = signal<'cargando' | 'no_encontrado' | 'error_carga' | 'listo'>(this.id ? 'cargando' : 'listo');
   enviando = signal(false);
   errorGeneral = signal<string | null>(null);
@@ -66,14 +75,20 @@ export class TicketForm implements OnInit, OnDestroy {
       return;
     }
     this.organizaciones.listar({ activa: true, pageSize: 100 }).subscribe({
-      next: (p) => this.clientes.set(p.results.map((o) => ({ id: o.id, nombre: o.nombre }))),
+      next: (p) => {
+        this.clientes.set(p.results.map((o) => ({ id: o.id, nombre: o.nombre })));
+        this.preseleccionarCliente();
+      },
       error: () => this.errorGeneral.set('No se pudo cargar la lista de clientes.'),
     });
-    const org = this.route.snapshot.queryParamMap.get('organizacion');
-    if (org) {
-      this.form.controls.organizacion.setValue(org);
-      this.cargarActivos(Number(org));
-    }
+  }
+
+  /** Solo se preselecciona un cliente que el formulario realmente muestra. */
+  private preseleccionarCliente() {
+    const org = Number(this.route.snapshot.queryParamMap.get('organizacion'));
+    if (!this.clientes().some((c) => c.id === org)) return;
+    this.form.controls.organizacion.setValue(String(org));
+    this.cargarActivos(org);
   }
 
   ngOnDestroy() {
@@ -85,6 +100,7 @@ export class TicketForm implements OnInit, OnDestroy {
     this.servicio.obtener(id).subscribe({
       next: (t) => {
         this.cliente.set(t.organizacion);
+        this.tecnicoActual.set(t.tecnico);
         this.form.patchValue(this.aFormulario(t));
         this.form.controls.organizacion.disable();
         this.cargarActivos(t.organizacion.id, t.activo);

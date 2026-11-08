@@ -164,6 +164,13 @@ class PermisosTicketsTests(BaseTickets):
         self.client.force_authenticate(self.tecnico)
         self.assertEqual(self.client.get(f"{URL}99999/").status_code, 404)
 
+    def test_tecnicos_ordenados_por_nombre_visible(self):
+        Usuario.objects.create_user("zeta", rol="tecnico")
+        Usuario.objects.create_user("beto", rol="tecnico")
+        self.client.force_authenticate(self.tecnico)
+        nombres = [u["nombre"] for u in self.client.get(URL_TECNICOS).data]
+        self.assertEqual(nombres, sorted(nombres, key=str.casefold))
+
     def test_tecnicos_excluye_clientes_e_inactivos(self):
         Usuario.objects.create_user("baja", rol="tecnico", is_active=False)
         self.client.force_authenticate(self.tecnico)
@@ -213,6 +220,19 @@ class CrearEditarTicketTests(BaseTickets):
         self.ticket.save()
         r = self.patch(alcance="varios_usuarios")
         self.assertEqual(r.data["prioridad"], "critica")
+        self.assertFalse(self.eventos("prioridad").exists())
+
+    def test_patch_con_los_mismos_valores_no_recalcula(self):
+        self.ticket.activo = self.servidor
+        self.ticket.prioridad = "media"
+        self.ticket.save()
+        self.servidor.estado = "critico"
+        self.servidor.save()
+        r = self.patch(
+            titulo="Sin typo", alcance="un_usuario", categoria="software", activo=self.servidor.pk
+        )
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.data["prioridad"], "media")
         self.assertFalse(self.eventos("prioridad").exists())
 
     def test_quitar_activo_recalcula(self):

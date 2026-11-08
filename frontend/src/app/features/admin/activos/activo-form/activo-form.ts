@@ -87,10 +87,15 @@ export class ActivoForm implements OnInit {
       this.cargar(this.id);
       return;
     }
-    const org = this.route.snapshot.queryParamMap.get('organizacion');
-    if (org) this.form.controls.organizacion.setValue(org);
     this.organizaciones.listar({ activa: true, pageSize: 100 }).subscribe({
-      next: (p) => this.clientes.set(p.results.map((o) => ({ id: o.id, nombre: o.nombre }))),
+      next: (p) => {
+        this.clientes.set(p.results.map((o) => ({ id: o.id, nombre: o.nombre })));
+        // Solo se preselecciona un cliente que el formulario realmente muestra.
+        const org = Number(this.route.snapshot.queryParamMap.get('organizacion'));
+        if (this.clientes().some((c) => c.id === org)) {
+          this.form.controls.organizacion.setValue(String(org));
+        }
+      },
       error: () => this.errorGeneral.set('No se pudo cargar la lista de clientes.'),
     });
   }

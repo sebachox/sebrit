@@ -96,7 +96,7 @@
           <label for="tecnico" class="form-label">Técnico</label>
           <select id="tecnico" class="form-select" formControlName="tecnico" [class.is-invalid]="invalido('tecnico')">
             <option value="">Sin asignar</option>
-            @for (t of tecnicos(); track t.id) {
+            @for (t of opcionesTecnico(); track t.id) {
               <option [value]="t.id">{{ t.nombre }}</option>
             }
           </select>

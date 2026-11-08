@@ -23,9 +23,6 @@ class TecnicosView(APIView):
     permission_classes = [EsAdminOTecnico]
 
     def get(self, request):
-        usuarios = Usuario.objects.filter(is_active=True, rol__in=["admin", "tecnico"]).order_by(
-            "first_name", "last_name", "username"
-        )
-        return Response(
-            [{"id": u.id, "nombre": u.get_full_name() or u.username} for u in usuarios]
-        )
+        usuarios = Usuario.objects.filter(is_active=True, rol__in=["admin", "tecnico"])
+        tecnicos = [{"id": u.id, "nombre": u.get_full_name() or u.username} for u in usuarios]
+        return Response(sorted(tecnicos, key=lambda t: t["nombre"].casefold()))

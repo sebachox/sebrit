@@ -67,6 +67,11 @@ describe('ActivoForm', () => {
     expect(component.form.controls.organizacion.value).toBe('4');
   });
 
+  it('un ?organizacion que no está entre los clientes activos no se preselecciona', () => {
+    crear(undefined, { organizacion: '99' });
+    expect(component.form.controls.organizacion.value).toBe('');
+  });
+
   it('rechaza una IP inválida', () => {
     crear();
     component.form.patchValue({ organizacion: '4', tipo: 'servidor', nombre: 'S1', ip: '999.1.1.1' });
