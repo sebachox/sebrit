@@ -60,7 +60,7 @@
       <div class="col-6 col-md-4">
         <label for="prioridad" class="visually-hidden">Prioridad</label>
         <select id="prioridad" class="form-select" (change)="cambiarPrioridad($any($event.target).value)">
-          <option value="">Todas las prioridades</option>
+          <option value="">Toda prioridad</option>
           @for (p of prioridades; track p.valor) {
             <option [value]="p.valor">{{ p.texto }}</option>
           }
@@ -69,7 +69,7 @@
       <div class="col-6 col-md-4">
         <label for="categoria" class="visually-hidden">Categoría</label>
         <select id="categoria" class="form-select" (change)="cambiarCategoria($any($event.target).value)">
-          <option value="">Todas las categorías</option>
+          <option value="">Toda categoría</option>
           @for (c of categorias; track c.valor) {
             <option [value]="c.valor">{{ c.texto }}</option>
           }

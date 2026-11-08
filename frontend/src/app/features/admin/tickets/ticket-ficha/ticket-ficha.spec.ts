@@ -212,6 +212,11 @@ describe('TicketFicha', () => {
     expect(texto).toContain('Sistema');
   });
 
+  it('sin eventos (tickets antiguos) lo indica en la línea de tiempo', () => {
+    crear(ticket({ eventos: [] }));
+    expect(el().textContent).toContain('Aún no hay actividad');
+  });
+
   it('muestra "—" para los datos vacíos', () => {
     crear();
     expect(el().querySelector('[data-campo="reportado_por"]')?.textContent?.trim()).toBe('—');

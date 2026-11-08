@@ -125,6 +125,9 @@
       <section class="card shadow-sm border-0">
         <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2 text-muted"></i>Línea de tiempo</div>
         <div class="card-body">
+          @if (t.eventos.length === 0) {
+            <p class="text-muted small mb-0">Aún no hay actividad en este ticket.</p>
+          }
           <ol class="linea-tiempo list-unstyled mb-0">
             @for (e of t.eventos; track e.id) {
               <li [class.es-comentario]="e.tipo === 'comentario'">
