@@ -118,6 +118,8 @@ export class TicketFicha implements OnInit {
         return e.valor_nuevo ? `asignó a ${e.valor_nuevo}` : `quitó la asignación de ${e.valor_anterior}`;
       case 'prioridad':
         return `cambió la prioridad de ${texto(PRIORIDADES, e.valor_anterior)} a ${texto(PRIORIDADES, e.valor_nuevo)}`;
+      case 'incidente':
+        return e.valor_nuevo ? `asoció al incidente ${e.valor_nuevo}` : `quitó del incidente ${e.valor_anterior}`;
     }
   }
 

@@ -4,7 +4,7 @@ export type CategoriaTicket = 'hardware' | 'software' | 'red' | 'seguridad' | 'a
 export type AlcanceTicket = 'un_usuario' | 'varios_usuarios' | 'toda_empresa';
 export type PrioridadTicket = 'baja' | 'media' | 'alta' | 'critica';
 export type EstadoTicket = 'abierto' | 'en_progreso' | 'resuelto' | 'cerrado';
-export type TipoEvento = 'creacion' | 'comentario' | 'estado' | 'tecnico' | 'prioridad';
+export type TipoEvento = 'creacion' | 'comentario' | 'estado' | 'tecnico' | 'prioridad' | 'incidente';
 
 export const CATEGORIAS: { valor: CategoriaTicket; texto: string }[] = [
   { valor: 'hardware', texto: 'Hardware' },
@@ -46,6 +46,7 @@ export interface TicketResumido {
   estado: EstadoTicket;
   tecnico: Referencia | null;
   activo: Referencia | null;
+  incidente: { id: number; codigo: string } | null;
   creado_en: string;
 }
 
@@ -91,4 +92,5 @@ export interface FiltrosTickets {
   tecnico?: number | 'sin_asignar' | null;
   ordering?: string | null;
   page?: number;
+  pageSize?: number;
 }

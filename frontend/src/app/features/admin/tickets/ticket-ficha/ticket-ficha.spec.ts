@@ -31,6 +31,7 @@ const ticket = (t: Partial<Ticket> = {}): Ticket => ({
   estado: 'abierto',
   tecnico: { id: 5, nombre: 'Laura Gómez' },
   activo: { id: 3, nombre: 'SRV-01' },
+  incidente: null,
   creado_en: '2026-11-08T10:00:00-05:00',
   descripcion: 'No responde',
   alcance: 'toda_empresa',
