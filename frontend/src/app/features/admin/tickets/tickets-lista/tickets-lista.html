@@ -1,0 +1,177 @@
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+  <h4 class="mb-0">
+    Tickets
+    @if (datos(); as d) {
+      <span class="text-muted fw-normal fs-6 ms-1 numerico">{{ d.count }}</span>
+    }
+  </h4>
+  @if (puedeEditar()) {
+    <button type="button" class="btn btn-primary" (click)="nuevo()">
+      <i class="bi bi-plus-lg me-1"></i>Nuevo ticket
+    </button>
+  }
+</div>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body border-bottom">
+    <div class="row g-2">
+      <div class="col-12 col-xl-4">
+        <label for="buscar" class="visually-hidden">Buscar tickets</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search"></i></span>
+          <input
+            id="buscar"
+            type="search"
+            class="form-control"
+            placeholder="Buscar por código o título"
+            autocomplete="off"
+            [value]="q()"
+            (input)="alEscribir($any($event.target).value)"
+            (keydown.enter)="aplicarBusqueda($any($event.target).value)"
+          />
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-xl-4">
+        <label for="cliente" class="visually-hidden">Cliente</label>
+        <select id="cliente" class="form-select" (change)="cambiarCliente($any($event.target).value)">
+          <option value="">Todos los clientes</option>
+          @for (c of clientes(); track c.id) {
+            <option [value]="c.id" [selected]="organizacion() === c.id">{{ c.nombre }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-xl-2">
+        <label for="estado" class="visually-hidden">Estado</label>
+        <select id="estado" class="form-select" (change)="cambiarEstado($any($event.target).value)">
+          <option value="abiertos">Abiertos</option>
+          <option value="todos">Todos</option>
+          @for (e of estados; track e.valor) {
+            <option [value]="e.valor">{{ e.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3 col-xl-2">
+        <label for="orden" class="visually-hidden">Orden</label>
+        <select id="orden" class="form-select" (change)="cambiarOrden($any($event.target).value)">
+          <option value="">Más urgentes</option>
+          <option value="-creado_en">Más recientes</option>
+        </select>
+      </div>
+      <div class="col-6 col-md-4">
+        <label for="prioridad" class="visually-hidden">Prioridad</label>
+        <select id="prioridad" class="form-select" (change)="cambiarPrioridad($any($event.target).value)">
+          <option value="">Todas las prioridades</option>
+          @for (p of prioridades; track p.valor) {
+            <option [value]="p.valor">{{ p.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-4">
+        <label for="categoria" class="visually-hidden">Categoría</label>
+        <select id="categoria" class="form-select" (change)="cambiarCategoria($any($event.target).value)">
+          <option value="">Todas las categorías</option>
+          @for (c of categorias; track c.valor) {
+            <option [value]="c.valor">{{ c.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-12 col-md-4">
+        <label for="tecnico" class="visually-hidden">Técnico</label>
+        <select id="tecnico" class="form-select" (change)="cambiarTecnico($any($event.target).value)">
+          <option value="">Todos los técnicos</option>
+          <option value="sin_asignar">Sin asignar</option>
+          @for (t of tecnicos(); track t.id) {
+            <option [value]="t.id">{{ t.nombre }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
+  @if (estado() === 'cargando') {
+    <div class="text-center py-5" role="status">
+      <div class="spinner-border text-primary"></div>
+      <p class="mt-2 mb-0 text-muted">Cargando tickets...</p>
+    </div>
+  } @else if (estado() === 'error') {
+    <div class="card-body">
+      <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+        <span>No se pudo cargar la lista de tickets.</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+      </div>
+    </div>
+  } @else if (datos(); as d) {
+    @if (d.results.length === 0) {
+      <div class="text-center py-5 px-3">
+        <i class="bi bi-ticket-perforated fs-1 text-muted"></i>
+        @if (q()) {
+          <p class="mt-2 mb-0">No hay tickets que coincidan con «{{ q() }}».</p>
+        } @else if (hayFiltros()) {
+          <p class="mt-2 mb-0">No hay tickets con estos filtros.</p>
+        } @else {
+          <p class="mt-2 mb-3">Aún no hay tickets abiertos.</p>
+          @if (puedeEditar()) {
+            <button type="button" class="btn btn-outline-primary" (click)="nuevo()">
+              <i class="bi bi-plus-lg me-1"></i>Crear un ticket
+            </button>
+          }
+        }
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Título</th>
+              <th>Cliente</th>
+              <th>Prioridad</th>
+              <th>Estado</th>
+              <th>Técnico</th>
+              <th>Categoría</th>
+              <th>Fecha</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of d.results; track t.id) {
+              <tr class="fila" (click)="abrir(t.id)">
+                <td class="numerico text-nowrap">
+                  <a class="fw-semibold text-body text-decoration-none" [routerLink]="['/admin/tickets', t.id]" (click)="$event.stopPropagation()">{{ t.codigo }}</a>
+                </td>
+                <td>{{ t.titulo }}</td>
+                <td>{{ t.organizacion.nombre }}</td>
+                <td class="text-nowrap">
+                  <app-status-badge [valor]="t.prioridad" />
+                  @if (t.prioridad_manual) {
+                    <i class="bi bi-pencil-fill ms-1 small text-muted" data-manual title="Corregida a mano" aria-label="Corregida a mano"></i>
+                  }
+                </td>
+                <td><app-status-badge [valor]="t.estado" /></td>
+                <td>
+                  @if (t.tecnico; as tec) { {{ tec.nombre }} } @else { <span class="text-muted">Sin asignar</span> }
+                </td>
+                <td>{{ nombreCategoria(t.categoria) }}</td>
+                <td class="numerico text-nowrap small text-muted">{{ t.creado_en | date: 'dd/MM/yyyy HH:mm' }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPaginas() > 1) {
+        <div class="card-body border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <small class="text-muted numerico">Mostrando {{ desde() }}–{{ hasta() }} de {{ d.count }}</small>
+          <nav aria-label="Paginación de tickets" class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)" aria-label="Página anterior">
+              <i class="bi bi-chevron-left"></i>
+            </button>
+            <span class="small numerico">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() >= totalPaginas()" (click)="irAPagina(pagina() + 1)" aria-label="Página siguiente">
+              <i class="bi bi-chevron-right"></i>
+            </button>
+          </nav>
+        </div>
+      }
+    }
+  }
+</div>

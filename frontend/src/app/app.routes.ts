@@ -92,6 +92,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/backups/backup-editar/backup-editar').then((m) => m.BackupEditar),
       },
+      {
+        path: 'admin/tickets',
+        canActivate: [permisoGuard('tickets', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/tickets/tickets-lista/tickets-lista').then((m) => m.TicketsLista),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },
