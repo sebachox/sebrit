@@ -26,6 +26,7 @@ export class ActivosService {
     if (f.estado) params = params.set('estado', f.estado);
     if (f.de_baja) params = params.set('de_baja', 'true');
     if (f.page && f.page > 1) params = params.set('page', f.page);
+    if (f.pageSize) params = params.set('page_size', f.pageSize);
     return this.http.get<Paginado<ActivoResumido>>(BASE, { params });
   }
 

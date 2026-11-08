@@ -1,0 +1,12 @@
+form {
+  max-width: 960px;
+}
+
+.volver {
+  color: var(--bs-secondary-color);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--bs-primary);
+  }
+}

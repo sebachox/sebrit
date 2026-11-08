@@ -77,4 +77,5 @@ export interface FiltrosActivos {
   estado?: EstadoActivo | null;
   de_baja?: boolean;
   page?: number;
+  pageSize?: number;
 }

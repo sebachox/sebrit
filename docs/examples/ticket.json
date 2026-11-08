@@ -1,0 +1,82 @@
+{
+  "id": 42,
+  "codigo": "TCK-0042",
+  "organizacion": {
+    "id": 1,
+    "nombre": "Empresa Ejemplo S.A.S."
+  },
+  "titulo": "Sin acceso a la base de datos",
+  "descripcion": "Las aplicaciones no se conectan al servidor de base de datos desde las 8:00.",
+  "categoria": "software",
+  "alcance": "toda_empresa",
+  "activo": {
+    "id": 7,
+    "nombre": "SRV-DB-01"
+  },
+  "prioridad": "alta",
+  "prioridad_manual": false,
+  "estado": "en_progreso",
+  "tecnico": {
+    "id": 5,
+    "nombre": "Laura Gómez"
+  },
+  "reportado_por": {
+    "id": 3,
+    "nombre": "Ana Ruiz"
+  },
+  "solucion": null,
+  "creado_en": "2026-11-08T08:15:00-05:00",
+  "actualizado_en": "2026-11-08T08:40:00-05:00",
+  "resuelto_en": null,
+  "cerrado_en": null,
+  "eventos": [
+    {
+      "id": 101,
+      "tipo": "creacion",
+      "autor": {
+        "id": 3,
+        "nombre": "Ana Ruiz"
+      },
+      "texto": null,
+      "valor_anterior": null,
+      "valor_nuevo": null,
+      "fecha": "2026-11-08T08:15:00-05:00"
+    },
+    {
+      "id": 102,
+      "tipo": "tecnico",
+      "autor": {
+        "id": 3,
+        "nombre": "Ana Ruiz"
+      },
+      "texto": null,
+      "valor_anterior": null,
+      "valor_nuevo": "Laura Gómez",
+      "fecha": "2026-11-08T08:20:00-05:00"
+    },
+    {
+      "id": 103,
+      "tipo": "estado",
+      "autor": {
+        "id": 5,
+        "nombre": "Laura Gómez"
+      },
+      "texto": null,
+      "valor_anterior": "abierto",
+      "valor_nuevo": "en_progreso",
+      "fecha": "2026-11-08T08:30:00-05:00"
+    },
+    {
+      "id": 104,
+      "tipo": "comentario",
+      "autor": {
+        "id": 5,
+        "nombre": "Laura Gómez"
+      },
+      "texto": "Reinicié el servicio; sigo revisando los registros.",
+      "valor_anterior": null,
+      "valor_nuevo": null,
+      "fecha": "2026-11-08T08:40:00-05:00"
+    }
+  ]
+}

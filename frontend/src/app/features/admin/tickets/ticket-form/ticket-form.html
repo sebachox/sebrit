@@ -1,0 +1,123 @@
+<a
+  [routerLink]="id ? ['/admin/tickets', id] : '/admin/tickets'"
+  class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3"
+>
+  <i class="bi bi-arrow-left"></i>{{ id ? 'Volver a la ficha' : 'Tickets' }}
+</a>
+
+<h4 class="mb-3">{{ id ? 'Editar ticket' : 'Nuevo ticket' }}</h4>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando ticket...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="alert alert-warning">
+    Ticket no encontrado. <a routerLink="/admin/tickets" class="alert-link">Volver a tickets</a>
+  </div>
+} @else if (estado() === 'error_carga') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el ticket.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar(id!)">Reintentar</button>
+  </div>
+} @else {
+  <form [formGroup]="form" (ngSubmit)="guardar()" novalidate class="card shadow-sm border-0">
+    <div class="card-body p-4">
+      @if (errorGeneral(); as e) {
+        <div class="alert alert-danger d-flex align-items-center gap-2" role="alert">
+          <i class="bi bi-exclamation-circle"></i><span>{{ e }}</span>
+        </div>
+      }
+
+      <div class="row g-3">
+        <div class="col-md-6">
+          <label for="organizacion" class="form-label">Cliente <span class="text-danger" aria-hidden="true">*</span></label>
+          @if (id) {
+            <p class="form-control-plaintext mb-0" id="organizacion">{{ cliente()?.nombre }}</p>
+            <div class="form-text">El cliente de un ticket no se puede cambiar.</div>
+          } @else {
+            <select id="organizacion" class="form-select" formControlName="organizacion" [class.is-invalid]="invalido('organizacion')" (change)="cambiarCliente()">
+              <option value="" disabled>Elige el cliente</option>
+              @for (c of clientes(); track c.id) {
+                <option [value]="c.id">{{ c.nombre }}</option>
+              }
+            </select>
+            <div class="invalid-feedback">{{ mensaje('organizacion') }}</div>
+          }
+        </div>
+
+        <div class="col-md-6">
+          <label for="activo" class="form-label">Activo afectado</label>
+          <select id="activo" class="form-select" formControlName="activo" [class.is-invalid]="invalido('activo')">
+            <option value="">Ninguno</option>
+            @for (a of activos(); track a.id) {
+              <option [value]="a.id">{{ a.nombre }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('activo') }}</div>
+        </div>
+
+        <div class="col-12">
+          <label for="titulo" class="form-label">Título <span class="text-danger" aria-hidden="true">*</span></label>
+          <input id="titulo" class="form-control" formControlName="titulo" placeholder="Resume el problema en una frase" [class.is-invalid]="invalido('titulo')" />
+          <div class="invalid-feedback">{{ mensaje('titulo') }}</div>
+        </div>
+
+        <div class="col-12">
+          <label for="descripcion" class="form-label">Descripción <span class="text-danger" aria-hidden="true">*</span></label>
+          <textarea id="descripcion" rows="4" class="form-control" formControlName="descripcion" [class.is-invalid]="invalido('descripcion')"></textarea>
+          <div class="invalid-feedback">{{ mensaje('descripcion') }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label for="categoria" class="form-label">Categoría <span class="text-danger" aria-hidden="true">*</span></label>
+          <select id="categoria" class="form-select" formControlName="categoria" [class.is-invalid]="invalido('categoria')">
+            <option value="" disabled>Elige la categoría</option>
+            @for (c of categorias; track c.valor) {
+              <option [value]="c.valor">{{ c.texto }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('categoria') }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label for="alcance" class="form-label">¿A quién afecta? <span class="text-danger" aria-hidden="true">*</span></label>
+          <select id="alcance" class="form-select" formControlName="alcance" [class.is-invalid]="invalido('alcance')">
+            <option value="" disabled>Elige el alcance</option>
+            @for (a of alcances; track a.valor) {
+              <option [value]="a.valor">{{ a.texto }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('alcance') }}</div>
+        </div>
+
+        <div class="col-md-4">
+          <label for="tecnico" class="form-label">Técnico</label>
+          <select id="tecnico" class="form-select" formControlName="tecnico" [class.is-invalid]="invalido('tecnico')">
+            <option value="">Sin asignar</option>
+            @for (t of opcionesTecnico(); track t.id) {
+              <option [value]="t.id">{{ t.nombre }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('tecnico') }}</div>
+        </div>
+      </div>
+
+      <p class="form-text mb-0 mt-3">
+        <i class="bi bi-info-circle me-1"></i>La prioridad se calcula sola según a quién afecta, la categoría y el activo. Podrás corregirla desde la ficha.
+      </p>
+    </div>
+
+    <div class="card-footer d-flex justify-content-end gap-2 p-3">
+      <a class="btn btn-outline-secondary" [routerLink]="id ? ['/admin/tickets', id] : '/admin/tickets'">Cancelar</a>
+      <button type="submit" class="btn btn-primary" [disabled]="enviando()">
+        @if (enviando()) {
+          <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando...
+        } @else {
+          <i class="bi bi-check-lg me-1"></i>Guardar
+        }
+      </button>
+    </div>
+  </form>
+}

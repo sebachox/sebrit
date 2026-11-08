@@ -133,4 +133,11 @@ describe('ClienteFicha', () => {
     expect(enlace).not.toBeNull();
     expect(enlace?.textContent).toContain('Activos');
   });
+
+  it('la tarjeta Tickets abiertos enlaza a los tickets del cliente', () => {
+    crear();
+    cargar();
+    const enlace = el().querySelector<HTMLAnchorElement>('a[href="/admin/tickets?organizacion=7"]');
+    expect(enlace?.textContent).toContain('Tickets abiertos');
+  });
 });
