@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.db import connection
 from django.db.migrations.executor import MigrationExecutor
 from django.test import TestCase, TransactionTestCase
+from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 from rest_framework.test import APITestCase
 
@@ -703,3 +704,222 @@ class CascadaTicketsTests(BaseIncidentes):
         self.assertEqual(self.i.estado, "en_progreso")
         self.assertEqual(t.estado, "abierto")
         self.assertFalse(self.i.acciones.exists())
+
+
+class AsociarTicketsTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+        self.i = self.incidente()
+        self.t = Ticket.objects.create(organizacion=self.org, titulo="T", estado="en_progreso")
+
+    def asociar(self, ticket=None, incidente=None):
+        datos = {"ticket": ticket if ticket is not None else self.t.pk}
+        return self.post(url_incidente(incidente or self.i, "tickets/"), datos)
+
+    def quitar(self, ticket=None, incidente=None):
+        return self.client.delete(url_incidente(incidente or self.i, f"tickets/{(ticket or self.t).pk}/"))
+
+    def test_permisos(self):
+        self.client.force_authenticate(None)
+        self.assertEqual(self.asociar().status_code, 401)
+        self.assertEqual(self.quitar().status_code, 401)
+        self.entrar(self.cliente)
+        self.assertEqual(self.asociar().status_code, 403)
+        self.assertEqual(self.quitar().status_code, 403)
+        self.entrar(self.admin)
+        self.assertEqual(self.asociar().status_code, 200)
+        self.assertEqual(self.quitar().status_code, 200)
+
+    def test_asociar(self):
+        r = self.asociar()
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual([t["id"] for t in r.data["tickets"]], [self.t.pk])
+        self.t.refresh_from_db()
+        self.i.refresh_from_db()
+        self.assertEqual(self.t.incidente, self.i)
+        self.assertEqual(self.t.estado, "en_progreso")
+        self.assertEqual(self.i.acciones.get(tipo="ticket").valor_nuevo, self.t.codigo)
+        self.assertEqual(self.t.eventos.get(tipo="incidente").valor_nuevo, self.i.codigo)
+
+    def test_asociar_con_incidente_resuelto_se_permite(self):
+        i = self.incidente(estado="resuelto")
+        self.assertEqual(self.asociar(incidente=i).status_code, 200)
+        self.t.refresh_from_db()
+        self.assertEqual(self.t.estado, "en_progreso")
+
+    def test_ticket_de_otro_cliente(self):
+        ajeno = Ticket.objects.create(organizacion=self.otra, titulo="X")
+        self.assertError(self.asociar(ajeno.pk), "ticket", "El ticket no pertenece a este cliente.")
+
+    def test_ticket_ya_asociado(self):
+        self.t.incidente = self.incidente()
+        self.t.save()
+        self.assertError(self.asociar(), "ticket", "El ticket ya está asociado a un incidente.")
+
+    def test_ticket_cerrado(self):
+        self.t.estado = "cerrado"
+        self.t.save()
+        self.assertError(self.asociar(), "ticket", "El ticket está cerrado.")
+
+    def test_incidente_cerrado(self):
+        i = self.incidente(estado="cerrado")
+        self.assertError(self.asociar(incidente=i), "non_field_errors", MSG_CERRADO)
+
+    def test_ticket_invalido(self):
+        url = url_incidente(self.i, "tickets/")
+        for datos in ({"ticket": "abc"}, {"ticket": [1]}, {"ticket": None}, {"ticket": True}, {"ticket": 999999}, {}):
+            self.assertError(self.post(url, datos), "ticket", "Elige un ticket válido.")
+
+    def test_cuerpo_no_objeto_da_400(self):
+        self.assertError(
+            self.post(url_incidente(self.i, "tickets/"), [1]),
+            "non_field_errors",
+            "El cuerpo de la petición no es válido.",
+        )
+
+    def test_quitar(self):
+        self.asociar()
+        r = self.quitar()
+        self.assertEqual(r.status_code, 200, r.data)
+        self.assertEqual(r.data["tickets"], [])
+        self.t.refresh_from_db()
+        self.i.refresh_from_db()
+        self.assertIsNone(self.t.incidente)
+        self.assertEqual(self.t.estado, "en_progreso")
+        accion = self.i.acciones.filter(tipo="ticket").order_by("-id").first()
+        self.assertEqual(accion.valor_anterior, self.t.codigo)
+        evento = self.t.eventos.filter(tipo="incidente").order_by("-id").first()
+        self.assertEqual(evento.valor_anterior, self.i.codigo)
+
+    def test_quitar_ticket_ajeno_da_404(self):
+        self.assertEqual(self.quitar().status_code, 404)
+        r = self.client.delete(url_incidente(self.i, "tickets/abc/"))
+        self.assertEqual(r.status_code, 404)
+
+    def test_quitar_con_incidente_cerrado(self):
+        i = self.incidente(estado="cerrado")
+        self.t.incidente = i
+        self.t.save()
+        r = self.quitar(incidente=i)
+        self.assertError(r, "non_field_errors", MSG_CERRADO)
+
+    def test_delete_del_incidente_sigue_dando_405(self):
+        self.assertEqual(self.client.delete(url_incidente(self.i)).status_code, 405)
+
+
+class EscalarTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+        self.t = Ticket.objects.create(
+            organizacion=self.org,
+            titulo="ERP caído",
+            descripcion="No abre",
+            activo=self.servidor,
+            tecnico=self.otro_tecnico,
+        )
+
+    def url(self, t=None):
+        return f"/api/tickets/{(t or self.t).pk}/escalar/"
+
+    def escalar(self, t=None, **extra):
+        datos = {"impacto": "total", "fecha_origen": self.hace_una_hora.isoformat()}
+        datos.update(extra)
+        return self.post(self.url(t), datos)
+
+    def test_permisos(self):
+        self.client.force_authenticate(None)
+        self.assertEqual(self.escalar().status_code, 401)
+        self.entrar(self.cliente)
+        self.assertEqual(self.escalar().status_code, 403)
+        self.entrar(self.admin)
+        self.assertEqual(self.escalar().status_code, 201)
+
+    def test_escalar_copia_datos(self):
+        r = self.escalar()
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["titulo"], "ERP caído")
+        self.assertEqual(r.data["descripcion"], "No abre")
+        self.assertEqual(r.data["organizacion"]["id"], self.org.pk)
+        self.assertEqual(r.data["tecnico"]["id"], self.otro_tecnico.pk)
+        self.assertEqual([a["id"] for a in r.data["activos"]], [self.servidor.pk])
+        self.assertEqual(r.data["impacto"], "total")
+        self.assertEqual(r.data["severidad"], "critica")
+        self.assertEqual(r.data["reportado_por"]["id"], self.tecnico.pk)
+        self.assertEqual({a["tipo"] for a in r.data["acciones"]}, {"creacion", "ticket"})
+        self.assertEqual([t["id"] for t in r.data["tickets"]], [self.t.pk])
+        self.t.refresh_from_db()
+        self.assertEqual(self.t.incidente_id, r.data["id"])
+        self.assertEqual(self.t.eventos.get(tipo="incidente").valor_nuevo, r.data["codigo"])
+
+    def test_escalar_sin_descripcion_usa_titulo(self):
+        t = Ticket.objects.create(organizacion=self.org, titulo="Sin detalle", descripcion="")
+        r = self.escalar(t)
+        self.assertEqual(r.data["descripcion"], "Sin detalle")
+
+    def test_escalar_no_copia_activo_de_baja_ni_tecnico_inactivo(self):
+        self.servidor.de_baja = True
+        self.servidor.save()
+        self.otro_tecnico.is_active = False
+        self.otro_tecnico.save()
+        r = self.escalar()
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertEqual(r.data["activos"], [])
+        self.assertIsNone(r.data["tecnico"])
+        self.assertEqual(r.data["severidad"], "alta")
+
+    def test_escalar_ticket_cerrado(self):
+        self.t.estado = "cerrado"
+        self.t.save()
+        self.assertError(self.escalar(), "ticket", "El ticket está cerrado.")
+
+    def test_escalar_ya_asociado(self):
+        self.t.incidente = self.incidente()
+        self.t.save()
+        self.assertError(self.escalar(), "ticket", "El ticket ya está asociado a un incidente.")
+
+    def test_escalar_valida_campos(self):
+        self.assertError(self.escalar(impacto="x"), "impacto", "Indica el impacto.")
+        futura = (timezone.now() + timedelta(hours=1)).isoformat()
+        self.assertError(self.escalar(fecha_origen=futura), "fecha_origen", "La fecha de origen no puede ser futura.")
+        self.assertError(self.post(self.url(), {"impacto": "total"}), "fecha_origen", "Indica cuándo empezó el incidente.")
+        self.assertError(self.post(self.url(), [1]), "non_field_errors", "El cuerpo de la petición no es válido.")
+
+    def test_escalar_atomico(self):
+        with mock.patch("apps.incidents.servicios.registrar_evento", side_effect=RuntimeError):
+            with self.assertRaises(RuntimeError):
+                self.escalar()
+        self.assertFalse(Incidente.objects.exists())
+        self.t.refresh_from_db()
+        self.assertIsNone(self.t.incidente)
+
+    def test_ticket_expone_incidente(self):
+        i = self.incidente()
+        self.t.incidente = i
+        self.t.save()
+        i.refresh_from_db()
+        esperado = {"id": i.pk, "codigo": i.codigo}
+        self.assertEqual(self.client.get(f"/api/tickets/{self.t.pk}/").data["incidente"], esperado)
+        filas = {f["id"]: f for f in self.client.get("/api/tickets/").data["results"]}
+        self.assertEqual(filas[self.t.pk]["incidente"], esperado)
+
+    def test_ticket_sin_incidente_es_null(self):
+        self.assertIsNone(self.client.get(f"/api/tickets/{self.t.pk}/").data["incidente"])
+
+    def test_incidente_no_se_edita_por_patch_de_ticket(self):
+        i = self.incidente()
+        self.client.patch(f"/api/tickets/{self.t.pk}/", {"incidente": i.pk}, format="json")
+        self.t.refresh_from_db()
+        self.assertIsNone(self.t.incidente)
+
+    def test_lista_de_tickets_sin_n_mas_1(self):
+        i = self.incidente()
+        Ticket.objects.update(incidente=i)
+        with CaptureQueriesContext(connection) as una:
+            self.client.get("/api/tickets/")
+        for n in range(3):
+            otro = self.incidente()
+            Ticket.objects.create(organizacion=self.org, titulo=f"T{n}", incidente=otro)
+        with self.assertNumQueries(len(una)):
+            self.client.get("/api/tickets/")

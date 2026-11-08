@@ -4,6 +4,9 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.assets.permissions import EsAdminOTecnico
+from apps.incidents.serializers import EscalarSerializer, IncidenteDetalleSerializer
+from apps.incidents.servicios import escalar_ticket
+from apps.incidents.views import cuerpo
 from apps.organizations.pagination import PaginacionEstandar
 
 from . import servicios
@@ -41,7 +44,7 @@ class TicketViewSet(viewsets.ModelViewSet):
         return TicketDetalleSerializer
 
     def get_queryset(self):
-        qs = Ticket.objects.select_related("organizacion", "activo", "tecnico", "reportado_por")
+        qs = Ticket.objects.select_related("organizacion", "activo", "tecnico", "reportado_por", "incidente")
         if self.action != "list":
             return qs
 
@@ -94,3 +97,14 @@ class TicketViewSet(viewsets.ModelViewSet):
     def comentarios(self, request, pk=None):
         evento = servicios.comentar(self.get_object(), request.data.get("texto"), request.user)
         return Response(EventoSerializer(evento).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def escalar(self, request, pk=None):
+        ticket = self.get_object()
+        entrada = EscalarSerializer(data=cuerpo(request))
+        entrada.is_valid(raise_exception=True)
+        incidente = escalar_ticket(
+            ticket, entrada.validated_data["impacto"], entrada.validated_data["fecha_origen"], request.user
+        )
+        datos = IncidenteDetalleSerializer(incidente, context=self.get_serializer_context()).data
+        return Response(datos, status=status.HTTP_201_CREATED)

@@ -27,6 +27,14 @@ def errores(mensaje):
     return dict.fromkeys(claves, mensaje)
 
 
+class EscalarSerializer(serializers.Serializer):
+    impacto = serializers.ChoiceField(choices=Incidente.Impacto.choices, error_messages=errores(MSG_IMPACTO))
+    fecha_origen = serializers.DateTimeField(error_messages=errores(MSG_FECHA_ORIGEN))
+
+    def validate_fecha_origen(self, valor):
+        return validar_fecha_origen(valor)
+
+
 class AccionSerializer(VacioComoNullMixin, serializers.ModelSerializer):
     texto_opcional = ["descripcion"]
 

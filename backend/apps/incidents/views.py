@@ -69,3 +69,12 @@ class IncidenteViewSet(
     def acciones(self, request, pk=None):
         accion = servicios.agregar_accion(self.get_object(), cuerpo(request).get("descripcion"), request.user)
         return Response(AccionSerializer(accion).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def tickets(self, request, pk=None):
+        incidente = servicios.asociar_ticket(self.get_object(), cuerpo(request).get("ticket"), request.user)
+        return self._detalle(incidente)
+
+    @action(detail=True, methods=["delete"], url_path=r"tickets/(?P<ticket_id>[^/.]+)")
+    def quitar_ticket(self, request, pk=None, ticket_id=None):
+        return self._detalle(servicios.quitar_ticket(self.get_object(), ticket_id, request.user))

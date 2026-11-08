@@ -528,7 +528,7 @@ class ListaTicketsTests(APITestCase):
         self.assertEqual(
             set(self.client.get(URL).data["results"][0]),
             {"id", "codigo", "titulo", "organizacion", "categoria", "prioridad", "prioridad_manual",
-             "estado", "tecnico", "activo", "creado_en"},
+             "estado", "tecnico", "activo", "incidente", "creado_en"},
         )
 
     def test_lista_sin_n_mas_1(self):

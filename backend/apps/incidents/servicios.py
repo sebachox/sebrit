@@ -3,6 +3,7 @@
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import ValidationError
+from rest_framework.generics import get_object_or_404
 
 from apps.tickets.models import EventoTicket, Ticket
 from apps.tickets.servicios import registrar_evento
@@ -147,6 +148,74 @@ def corregir_severidad(incidente, severidad, motivo, autor):
     registrar_accion(
         incidente, AccionIncidente.Tipo.SEVERIDAD, autor, descripcion=motivo, anterior=anterior, nuevo=severidad
     )
+    return incidente
+
+
+def _vincular(incidente, ticket, autor):
+    ticket.incidente = incidente
+    ticket.save(update_fields=["incidente", "actualizado_en"])
+    registrar_accion(incidente, AccionIncidente.Tipo.TICKET, autor, nuevo=ticket.codigo)
+    registrar_evento(ticket, EventoTicket.Tipo.INCIDENTE, autor, nuevo=incidente.codigo)
+
+
+def _exigir_ticket_disponible(ticket):
+    if ticket.estado == Ticket.Estado.CERRADO:
+        raise ValidationError({"ticket": ["El ticket está cerrado."]})
+    if ticket.incidente_id:
+        raise ValidationError({"ticket": ["El ticket ya está asociado a un incidente."]})
+
+
+def _buscar_ticket(ticket_id):
+    valido = not isinstance(ticket_id, bool) and isinstance(ticket_id, (int, str)) and str(ticket_id).isdecimal()
+    ticket = Ticket.objects.filter(pk=int(ticket_id)).first() if valido else None
+    if ticket is None:
+        raise ValidationError({"ticket": ["Elige un ticket válido."]})
+    return ticket
+
+
+@transaction.atomic
+def asociar_ticket(incidente, ticket_id, autor):
+    _exigir_no_cerrado(incidente)
+    ticket = _buscar_ticket(ticket_id)
+    if ticket.organizacion_id != incidente.organizacion_id:
+        raise ValidationError({"ticket": ["El ticket no pertenece a este cliente."]})
+    _exigir_ticket_disponible(ticket)
+    _vincular(incidente, ticket, autor)
+    return incidente
+
+
+@transaction.atomic
+def quitar_ticket(incidente, ticket_id, autor):
+    _exigir_no_cerrado(incidente)
+    ticket = get_object_or_404(incidente.tickets.all(), pk=ticket_id)
+    ticket.incidente = None
+    ticket.save(update_fields=["incidente", "actualizado_en"])
+    registrar_accion(incidente, AccionIncidente.Tipo.TICKET, autor, anterior=ticket.codigo)
+    registrar_evento(ticket, EventoTicket.Tipo.INCIDENTE, autor, anterior=incidente.codigo)
+    return incidente
+
+
+@transaction.atomic
+def escalar_ticket(ticket, impacto, fecha_origen, autor):
+    _exigir_ticket_disponible(ticket)
+    activos = [ticket.activo] if ticket.activo and not ticket.activo.de_baja else []
+    tecnico = ticket.tecnico
+    if tecnico and (not tecnico.is_active or tecnico.rol not in ("admin", "tecnico")):
+        tecnico = None
+
+    incidente = Incidente.objects.create(
+        organizacion=ticket.organizacion,
+        titulo=ticket.titulo,
+        descripcion=ticket.descripcion or ticket.titulo,
+        impacto=impacto,
+        fecha_origen=fecha_origen,
+        severidad=calcular_severidad(impacto, activos),
+        tecnico=tecnico,
+        reportado_por=autor,
+    )
+    incidente.activos.set(activos)
+    registrar_accion(incidente, AccionIncidente.Tipo.CREACION, autor)
+    _vincular(incidente, ticket, autor)
     return incidente
 
 
