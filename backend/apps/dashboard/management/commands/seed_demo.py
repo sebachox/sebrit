@@ -7,6 +7,7 @@ from apps.incidents.models import AccionIncidente, Incidente
 from apps.maintenance.models import Mantenimiento
 from apps.organizations.models import Organizacion
 from apps.tickets.models import Ticket
+from apps.tickets.prioridad import calcular_prioridad
 
 
 class Command(BaseCommand):
@@ -53,10 +54,30 @@ class Command(BaseCommand):
             )
 
         # Tickets
+        categorias = ["hardware", "software", "red", "seguridad", "accesos", "otro"]
+        alcances = ["un_usuario", "varios_usuarios", "toda_empresa"]
         for n in range(28):
-            Ticket.objects.create(organizacion=org1 if n % 2 else org2, titulo=f"Solicitud {n + 1}")
+            categoria, alcance = categorias[n % 6], alcances[n % 3]
+            Ticket.objects.create(
+                organizacion=org1 if n % 2 else org2,
+                titulo=f"Solicitud {n + 1}",
+                descripcion=f"Detalle de la solicitud {n + 1} reportada por el cliente.",
+                categoria=categoria,
+                alcance=alcance,
+                prioridad=calcular_prioridad(alcance, categoria, None),
+                tecnico=carlos if n % 4 == 0 else None,
+            )
         for n in range(5):
-            Ticket.objects.create(organizacion=org1, titulo=f"Solicitud cerrada {n + 1}", estado="cerrado")
+            Ticket.objects.create(
+                organizacion=org1,
+                titulo=f"Solicitud cerrada {n + 1}",
+                descripcion="Solicitud atendida y cerrada.",
+                estado="cerrado",
+                categoria="software",
+                solucion="Se aplicó la corrección y el cliente confirmó.",
+                tecnico=laura,
+                cerrado_en=timezone.now(),
+            )
 
         # Mantenimientos: 4 hoy y 1 mañana
         hoy = timezone.localtime().replace(minute=0, second=0, microsecond=0)

@@ -1,0 +1,45 @@
+.volver {
+  color: var(--bs-secondary-color);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--bs-primary);
+  }
+}
+
+.texto-largo {
+  white-space: pre-line;
+  overflow-wrap: anywhere;
+}
+
+.datos {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.linea-tiempo {
+  li {
+    position: relative;
+    padding: 0 0 1rem 1.25rem;
+    border-left: 1px solid var(--bs-border-color);
+
+    &::before {
+      content: '';
+      position: absolute;
+      left: -0.3rem;
+      top: 0.35rem;
+      width: 0.55rem;
+      height: 0.55rem;
+      border-radius: 50%;
+      background: var(--sb-neutro);
+    }
+
+    &.es-comentario::before {
+      background: var(--sb-primario);
+    }
+
+    &:last-child {
+      padding-bottom: 0;
+    }
+  }
+}
