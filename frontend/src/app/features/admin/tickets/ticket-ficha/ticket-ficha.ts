@@ -2,8 +2,9 @@ import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, ElementRef, OnInit, computed, inject, signal, viewChild } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { Observable } from 'rxjs';
+import { Observable, switchMap } from 'rxjs';
 import { Referencia } from '../../../../core/models/activo';
+import { IMPACTOS, ImpactoIncidente, IncidenteResumido } from '../../../../core/models/incidente';
 import {
   ALCANCES,
   CATEGORIAS,
@@ -15,6 +16,7 @@ import {
   Ticket,
 } from '../../../../core/models/ticket';
 import { AuthService } from '../../../../core/services/auth.service';
+import { IncidentesService } from '../../../../core/services/incidentes.service';
 import { TicketsService } from '../../../../core/services/tickets.service';
 import { StatusBadge } from '../../../../shared/components/status-badge/status-badge';
 
@@ -31,6 +33,7 @@ const MSG_ERROR = 'No se pudo guardar el cambio. Intenta de nuevo.';
 })
 export class TicketFicha implements OnInit {
   private servicio = inject(TicketsService);
+  private incidentes = inject(IncidentesService);
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   protected auth = inject(AuthService);
@@ -56,6 +59,15 @@ export class TicketFicha implements OnInit {
   motivoInvalido = signal(false);
 
   comentario = signal('');
+
+  readonly impactos = IMPACTOS;
+  panelIncidente = signal<'escalar' | 'asociar' | null>(null);
+  impactoEscalar = signal('');
+  impactoInvalido = signal(false);
+  fechaEscalar = signal('');
+  errorFecha = signal<string | null>(null);
+  incidentesActivos = signal<IncidenteResumido[]>([]);
+  incidenteElegido = signal('');
 
   private selectorTecnico = viewChild<ElementRef<HTMLSelectElement>>('selectorTecnico');
 
@@ -187,6 +199,65 @@ export class TicketFicha implements OnInit {
 
   editar() {
     this.router.navigate(['/admin/tickets', this.id, 'editar']);
+  }
+
+  abrirEscalar() {
+    this.impactoEscalar.set('');
+    this.fechaEscalar.set('');
+    this.impactoInvalido.set(false);
+    this.errorFecha.set(null);
+    this.errorAccion.set(null);
+    this.panelIncidente.set('escalar');
+  }
+
+  escalar() {
+    const impacto = this.impactoEscalar();
+    const fecha = this.fechaEscalar();
+    this.impactoInvalido.set(!impacto);
+    if (!fecha) this.errorFecha.set('Indica cuándo empezó el incidente.');
+    else if (new Date(fecha).getTime() > Date.now()) this.errorFecha.set('La fecha de origen no puede ser futura.');
+    else this.errorFecha.set(null);
+    if (!impacto || this.errorFecha() || this.ocupado()) return;
+
+    this.ocupado.set(true);
+    this.errorAccion.set(null);
+    this.servicio
+      .escalar(this.id, { impacto: impacto as ImpactoIncidente, fecha_origen: new Date(fecha).toISOString() })
+      .subscribe({
+        next: (i) => this.router.navigate(['/admin/incidentes', i.id]),
+        error: (e: HttpErrorResponse) => this.fallo(e),
+      });
+  }
+
+  abrirAsociar() {
+    const t = this.ticket();
+    if (!t) return;
+    this.incidenteElegido.set('');
+    this.incidentesActivos.set([]);
+    this.errorAccion.set(null);
+    this.panelIncidente.set('asociar');
+    this.incidentes.listar({ organizacion: t.organizacion.id, abiertos: true, pageSize: 100 }).subscribe({
+      next: (p) => this.incidentesActivos.set(p.results),
+      error: () => this.errorAccion.set('No se pudo cargar la lista de incidentes.'),
+    });
+  }
+
+  asociarIncidente() {
+    const incidente = Number(this.incidenteElegido());
+    if (!incidente || this.ocupado()) return;
+    this.ocupado.set(true);
+    this.errorAccion.set(null);
+    this.incidentes
+      .asociarTicket(incidente, this.id)
+      .pipe(switchMap(() => this.servicio.obtener(this.id)))
+      .subscribe({
+        next: (t) => {
+          this.ticket.set(t);
+          this.ocupado.set(false);
+          this.panelIncidente.set(null);
+        },
+        error: (e: HttpErrorResponse) => this.fallo(e),
+      });
   }
 
   private ejecutar(peticion: Observable<Ticket>, alTerminar?: () => void) {

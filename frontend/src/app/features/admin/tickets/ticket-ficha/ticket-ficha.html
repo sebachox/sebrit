@@ -154,6 +154,63 @@
     </div>
 
     <div class="col-lg-4 d-flex flex-column gap-3">
+      @if (t.incidente || (!cerrado() && puedeEditar())) {
+        <section class="card shadow-sm border-0">
+          <div class="card-header fw-semibold">Incidente</div>
+          <div class="card-body">
+            @if (t.incidente; as inc) {
+              <p class="mb-0" data-incidente>
+                <i class="bi bi-exclamation-octagon me-1 text-muted"></i>Parte del incidente
+                <a class="numerico" [routerLink]="['/admin/incidentes', inc.id]">{{ inc.codigo }}</a>
+              </p>
+            } @else {
+              @switch (panelIncidente()) {
+                @case ('escalar') {
+                  <label for="escalar-impacto" class="form-label small text-muted">Impacto</label>
+                  <select id="escalar-impacto" class="form-select" [class.is-invalid]="impactoInvalido()" (change)="impactoEscalar.set($any($event.target).value); impactoInvalido.set(false)">
+                    <option value="" disabled selected>Elige el impacto</option>
+                    @for (i of impactos; track i.valor) {
+                      <option [value]="i.valor">{{ i.texto }}</option>
+                    }
+                  </select>
+                  <div class="invalid-feedback">Indica el impacto.</div>
+                  <label for="escalar-fecha" class="form-label small text-muted mt-2">Inicio de la interrupción</label>
+                  <input id="escalar-fecha" type="datetime-local" class="form-control" [class.is-invalid]="errorFecha()" [value]="fechaEscalar()" (input)="fechaEscalar.set($any($event.target).value); errorFecha.set(null)" />
+                  <div class="invalid-feedback">{{ errorFecha() }}</div>
+                  <div class="d-flex justify-content-end gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="ocupado()" (click)="panelIncidente.set(null)">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado()" (click)="escalar()">Crear incidente</button>
+                  </div>
+                }
+                @case ('asociar') {
+                  <label for="asociar-incidente" class="form-label small text-muted">Incidente activo del cliente</label>
+                  <select id="asociar-incidente" class="form-select" (change)="incidenteElegido.set($any($event.target).value)">
+                    <option value="">Elige un incidente</option>
+                    @for (i of incidentesActivos(); track i.id) {
+                      <option [value]="i.id">{{ i.codigo }} · {{ i.titulo }}</option>
+                    }
+                  </select>
+                  <div class="d-flex justify-content-end gap-2 mt-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="ocupado()" (click)="panelIncidente.set(null)">Cancelar</button>
+                    <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado() || !incidenteElegido()" (click)="asociarIncidente()">Asociar</button>
+                  </div>
+                }
+                @default {
+                  <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-danger" [disabled]="bloqueado()" (click)="abrirEscalar()">
+                      <i class="bi bi-arrow-up-circle me-1"></i>Escalar a incidente
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="bloqueado()" (click)="abrirAsociar()">
+                      <i class="bi bi-link-45deg me-1"></i>Asociar a incidente
+                    </button>
+                  </div>
+                }
+              }
+            }
+          </div>
+        </section>
+      }
+
       <section class="card shadow-sm border-0">
         <div class="card-header fw-semibold">Asignación</div>
         <div class="card-body">

@@ -49,7 +49,7 @@
         <tbody>
           @for (i of d.incidentes; track i.id) {
             <tr>
-              <td class="fw-semibold">{{ i.codigo }}</td>
+              <td class="fw-semibold"><a class="text-body text-decoration-none" [routerLink]="['/admin/incidentes', i.id]">{{ i.codigo }}</a></td>
               <td>{{ i.titulo }}</td>
               <td>{{ i.empresa.nombre }}</td>
               <td><app-status-badge [valor]="i.severidad" /></td>
