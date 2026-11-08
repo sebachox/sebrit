@@ -1,0 +1,327 @@
+<a routerLink="/admin/incidentes" class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3">
+  <i class="bi bi-arrow-left"></i>Incidentes
+</a>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando incidente...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-exclamation-octagon fs-1 text-muted"></i>
+      <h4 class="mt-2">Incidente no encontrado</h4>
+      <p class="text-muted">Puede que el enlace esté mal escrito.</p>
+      <a routerLink="/admin/incidentes" class="btn btn-outline-primary">Volver a incidentes</a>
+    </div>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el incidente.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (incidente(); as i) {
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div class="encabezado">
+      <div class="small text-muted numerico mb-1">{{ i.codigo }}</div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <h4 class="mb-0">{{ i.titulo }}</h4>
+        <app-status-badge [valor]="i.severidad" />
+        <app-status-badge [valor]="i.estado" />
+      </div>
+      <div class="small text-muted mt-1">
+        Cliente: <a [routerLink]="['/admin/clientes', i.organizacion.id]">{{ i.organizacion.nombre }}</a>
+      </div>
+    </div>
+
+    @if (puedeEditar()) {
+      <div class="d-flex flex-wrap gap-2 acciones">
+        @switch (i.estado) {
+          @case ('abierto') {
+            @if (!i.tecnico) {
+              <button type="button" class="btn btn-outline-primary" [disabled]="ocupado()" (click)="tomar()">
+                <i class="bi bi-person-check me-1"></i>Tomar
+              </button>
+            }
+            <button type="button" class="btn btn-primary" [disabled]="ocupado() || !i.tecnico" (click)="cambiarEstado('en_progreso')">
+              <i class="bi bi-play-fill me-1"></i>Iniciar
+            </button>
+          }
+          @case ('en_progreso') {
+            <button type="button" class="btn btn-primary" [disabled]="ocupado() || panel() === 'resolver'" (click)="abrirPanel('resolver')">
+              <i class="bi bi-check2-circle me-1"></i>Resolver
+            </button>
+            <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="cambiarEstado('abierto')">Devolver a abierto</button>
+          }
+          @case ('resuelto') {
+            <button type="button" class="btn btn-primary" [disabled]="ocupado() || panel() === 'cerrar'" (click)="abrirPanel('cerrar')">
+              <i class="bi bi-lock me-1"></i>Cerrar incidente
+            </button>
+            <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado() || panel() === 'reabrir'" (click)="abrirPanel('reabrir')">Reabrir</button>
+          }
+          @case ('cerrado') {
+            <button type="button" class="btn btn-primary" [disabled]="ocupado() || panel() === 'reabrir'" (click)="abrirPanel('reabrir')">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir
+            </button>
+          }
+        }
+        <button type="button" class="btn btn-outline-primary" [disabled]="bloqueado()" (click)="editar()">
+          <i class="bi bi-pencil me-1"></i>Editar
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (i.estado === 'abierto' && !i.tecnico) {
+    <p class="small text-muted"><i class="bi bi-info-circle me-1"></i>Asigna un técnico primero para poder iniciar.</p>
+  }
+
+  @if (guardado()) {
+    <div class="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-check-circle"></i><span>Incidente guardado correctamente.</span>
+      <button type="button" class="btn-close" aria-label="Cerrar" (click)="guardado.set(false)"></button>
+    </div>
+  }
+
+  @if (cerrado()) {
+    <div class="alert alert-secondary d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-lock"></i>
+      <span>Este incidente está cerrado. Para modificarlo o registrar acciones, reábrelo.</span>
+    </div>
+  }
+
+  @if (errorAccion(); as e) {
+    <div class="alert alert-danger" role="alert">{{ e }}</div>
+  }
+
+  @switch (panel()) {
+    @case ('resolver') {
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+          <label for="solucion" class="form-label fw-semibold">¿Cómo se restableció el servicio?</label>
+          <textarea id="solucion" rows="3" class="form-control" [class.is-invalid]="solucionInvalida()" [value]="solucion()" (input)="solucion.set($any($event.target).value); solucionInvalida.set(false)"></textarea>
+          <div class="invalid-feedback">Describe cómo se restableció el servicio.</div>
+          @if (avisoTickets(); as aviso) {
+            <p class="small text-muted mt-2 mb-0"><i class="bi bi-info-circle me-1"></i>{{ aviso }}</p>
+          }
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="panel.set(null)">Cancelar</button>
+            <button type="button" class="btn btn-primary" [disabled]="ocupado()" (click)="confirmarResolver()">Confirmar solución</button>
+          </div>
+        </div>
+      </div>
+    }
+    @case ('cerrar') {
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body">
+          <label for="causa_raiz" class="form-label fw-semibold">¿Cuál fue la causa raíz?</label>
+          <textarea id="causa_raiz" rows="3" class="form-control" [class.is-invalid]="causaInvalida()" [value]="causaRaiz()" (input)="causaRaiz.set($any($event.target).value); causaInvalida.set(false)"></textarea>
+          <div class="invalid-feedback">Indica la causa raíz para cerrar el incidente.</div>
+          <div class="d-flex justify-content-end gap-2 mt-3">
+            <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="panel.set(null)">Cancelar</button>
+            <button type="button" class="btn btn-primary" [disabled]="ocupado()" (click)="confirmarCerrar()">Confirmar cierre</button>
+          </div>
+        </div>
+      </div>
+    }
+    @case ('reabrir') {
+      <div class="card shadow-sm border-0 mb-3">
+        <div class="card-body d-flex flex-wrap align-items-center justify-content-between gap-3">
+          <p class="mb-0">
+            Al reabrir se borrarán la solución, la causa raíz y las fechas de fin y cierre. Quedan registradas en la bitácora y los tickets asociados no se reabren.
+          </p>
+          <div class="d-flex gap-2">
+            <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="panel.set(null)">Cancelar</button>
+            <button type="button" class="btn btn-primary" [disabled]="ocupado()" (click)="confirmarReabrir()">Sí, reabrir</button>
+          </div>
+        </div>
+      </div>
+    }
+  }
+
+  <!-- Tiempos -->
+  <section class="card shadow-sm border-0 mb-3" aria-label="Tiempos del incidente">
+    <dl class="card-body mb-0 tiempos">
+      <div>
+        <dt class="text-muted small fw-normal">Inicio</dt>
+        <dd class="mb-0 numerico" data-tiempo="origen">{{ i.fecha_origen | date: 'dd/MM/yyyy HH:mm' }}</dd>
+      </div>
+      <div>
+        <dt class="text-muted small fw-normal">Detección</dt>
+        <dd class="mb-0 numerico" data-tiempo="deteccion">{{ i.fecha_deteccion | date: 'dd/MM/yyyy HH:mm' }}</dd>
+      </div>
+      <div>
+        <dt class="text-muted small fw-normal">Fin</dt>
+        <dd class="mb-0 numerico" data-tiempo="fin">{{ (i.fecha_fin | date: 'dd/MM/yyyy HH:mm') ?? '—' }}</dd>
+      </div>
+      <div>
+        <dt class="text-muted small fw-normal">Duración</dt>
+        <dd class="mb-0 numerico fw-semibold" data-tiempo="duracion">{{ duracion() }}</dd>
+      </div>
+    </dl>
+  </section>
+
+  <div class="row g-3">
+    <div class="col-lg-8 d-flex flex-column gap-3">
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Descripción</div>
+        <div class="card-body texto-largo">{{ i.descripcion }}</div>
+      </section>
+
+      @if (i.solucion) {
+        <section class="card shadow-sm border-0">
+          <div class="card-header fw-semibold"><i class="bi bi-check2-circle me-2 text-muted"></i>Solución</div>
+          <div class="card-body texto-largo">{{ i.solucion }}</div>
+        </section>
+      }
+
+      @if (i.causa_raiz) {
+        <section class="card shadow-sm border-0">
+          <div class="card-header fw-semibold"><i class="bi bi-search me-2 text-muted"></i>Causa raíz</div>
+          <div class="card-body texto-largo">{{ i.causa_raiz }}</div>
+        </section>
+      }
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2 text-muted"></i>Bitácora</div>
+        <div class="card-body">
+          <ol class="linea-tiempo list-unstyled mb-0">
+            @for (a of i.acciones; track a.id) {
+              <li [class.es-accion]="a.tipo === 'accion'">
+                <div class="small">
+                  <span class="fw-semibold">{{ autor(a) }}</span>
+                  <span class="text-muted"> {{ descripcionAccion(a) }} · <span class="numerico">{{ a.fecha | date: 'dd/MM/yyyy HH:mm' }}</span></span>
+                </div>
+                @if (a.descripcion) {
+                  <div class="texto-largo mt-1">{{ a.descripcion }}</div>
+                }
+              </li>
+            }
+          </ol>
+
+          <div class="mt-3">
+            <label for="nueva-accion" class="visually-hidden">Nueva acción</label>
+            <textarea id="nueva-accion" rows="2" class="form-control" placeholder="Describe qué se hizo..." [disabled]="bloqueado()" [value]="nuevaAccion()" (input)="nuevaAccion.set($any($event.target).value)"></textarea>
+            <div class="d-flex justify-content-end mt-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="bloqueado() || !nuevaAccion().trim()" (click)="registrarAccion()">Registrar acción</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-4 d-flex flex-column gap-3">
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Asignación</div>
+        <div class="card-body">
+          <label for="tecnico" class="form-label small text-muted">Técnico</label>
+          <select #selectorTecnico id="tecnico" class="form-select" [disabled]="bloqueado()" (change)="asignar($any($event.target).value)">
+            <option value="" [selected]="!i.tecnico">Sin asignar</option>
+            @for (u of opcionesTecnico(); track u.id) {
+              <option [value]="u.id" [selected]="i.tecnico?.id === u.id">{{ u.nombre }}</option>
+            }
+          </select>
+        </div>
+      </section>
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Severidad e impacto</div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-2">
+            <div>
+              <app-status-badge [valor]="i.severidad" />
+              <span class="small text-muted ms-2">{{ i.severidad_manual ? 'Corregida a mano' : 'Automática' }}</span>
+            </div>
+            @if (!corrigiendo()) {
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="bloqueado()" (click)="abrirCorregir()">Corregir</button>
+            }
+          </div>
+          <div class="small text-muted mt-2">Impacto: <app-status-badge [valor]="i.impacto" /></div>
+          @if (corrigiendo()) {
+            <div class="mt-3">
+              <label for="severidad-nueva" class="form-label small text-muted">Nueva severidad</label>
+              <select id="severidad-nueva" class="form-select" (change)="severidadNueva.set($any($event.target).value)">
+                @for (s of severidades; track s.valor) {
+                  <option [value]="s.valor" [selected]="severidadNueva() === s.valor">{{ s.texto }}</option>
+                }
+              </select>
+              <label for="motivo" class="form-label small text-muted mt-2">Motivo</label>
+              <textarea id="motivo" rows="2" class="form-control" [class.is-invalid]="motivoInvalido()" [value]="motivo()" (input)="motivo.set($any($event.target).value); motivoInvalido.set(false)"></textarea>
+              <div class="invalid-feedback">Explica por qué cambias la severidad.</div>
+              <div class="d-flex justify-content-end gap-2 mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="ocupado()" (click)="corrigiendo.set(false)">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado()" (click)="confirmarCorregir()">Guardar severidad</button>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Activos afectados <span class="text-muted fw-normal numerico">{{ i.activos.length }}</span></div>
+        <div class="card-body">
+          @if (i.activos.length === 0) {
+            <p class="text-muted small mb-0">No se registraron activos afectados.</p>
+          } @else {
+            <ul class="list-unstyled mb-0 d-flex flex-column gap-2">
+              @for (a of i.activos; track a.id) {
+                <li class="d-flex align-items-center justify-content-between gap-2">
+                  <a class="text-break" [routerLink]="['/admin/activos', a.id]">{{ a.nombre }}</a>
+                  <app-status-badge [valor]="a.estado" />
+                </li>
+              }
+            </ul>
+          }
+        </div>
+      </section>
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Tickets asociados <span class="text-muted fw-normal numerico">{{ i.tickets.length }}</span></div>
+        <div class="card-body">
+          @if (i.tickets.length === 0) {
+            <p class="text-muted small">Ningún ticket asociado.</p>
+          } @else {
+            <ul class="list-unstyled d-flex flex-column gap-2">
+              @for (t of i.tickets; track t.id) {
+                <li class="d-flex align-items-center gap-2">
+                  <a class="numerico text-nowrap" [routerLink]="['/admin/tickets', t.id]" [title]="t.titulo">{{ t.codigo }}</a>
+                  <app-status-badge [valor]="t.estado" />
+                  <button type="button" class="btn btn-sm btn-link text-muted ms-auto p-0" [disabled]="bloqueado()" [attr.aria-label]="'Quitar ' + t.codigo" title="Quitar del incidente" (click)="quitar(t.id)">
+                    <i class="bi bi-x-lg"></i>
+                  </button>
+                </li>
+              }
+            </ul>
+          }
+          @if (asociando()) {
+            <label for="ticket-nuevo" class="form-label small text-muted">Ticket abierto del cliente</label>
+            <select id="ticket-nuevo" class="form-select" (change)="ticketElegido.set($any($event.target).value)">
+              <option value="">Elige un ticket</option>
+              @for (t of ticketsLibres(); track t.id) {
+                <option [value]="t.id">{{ t.codigo }} · {{ t.titulo }}</option>
+              }
+            </select>
+            <div class="d-flex justify-content-end gap-2 mt-2">
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="ocupado()" (click)="asociando.set(false)">Cancelar</button>
+              <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado() || !ticketElegido()" (click)="asociar()">Asociar</button>
+            </div>
+          } @else {
+            <button type="button" class="btn btn-sm btn-outline-primary w-100" [disabled]="bloqueado()" (click)="abrirAsociar()">
+              <i class="bi bi-link-45deg me-1"></i>Asociar ticket
+            </button>
+          }
+        </div>
+      </section>
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Datos</div>
+        <dl class="card-body mb-0 datos">
+          <div><dt class="text-muted small fw-normal">Reportado por</dt><dd class="mb-0">{{ i.reportado_por?.nombre ?? '—' }}</dd></div>
+          <div><dt class="text-muted small fw-normal">Cerrado</dt><dd class="mb-0 numerico">{{ (i.cerrado_en | date: 'dd/MM/yyyy HH:mm') ?? '—' }}</dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>
+}
