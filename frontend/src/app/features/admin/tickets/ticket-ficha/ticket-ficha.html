@@ -183,16 +183,24 @@
                   </div>
                 }
                 @case ('asociar') {
-                  <label for="asociar-incidente" class="form-label small text-muted">Incidente activo del cliente</label>
-                  <select id="asociar-incidente" class="form-select" (change)="incidenteElegido.set($any($event.target).value)">
-                    <option value="">Elige un incidente</option>
-                    @for (i of incidentesActivos(); track i.id) {
-                      <option [value]="i.id">{{ i.codigo }} · {{ i.titulo }}</option>
-                    }
-                  </select>
+                  @if (cargandoIncidentes()) {
+                    <p class="small text-muted mb-0">Cargando incidentes...</p>
+                  } @else if (incidentesActivos().length === 0) {
+                    <p class="small text-muted mb-2">Este cliente no tiene incidentes activos.</p>
+                  } @else {
+                    <label for="asociar-incidente" class="form-label small text-muted">Incidente activo del cliente</label>
+                    <select id="asociar-incidente" class="form-select" (change)="incidenteElegido.set($any($event.target).value)">
+                      <option value="">Elige un incidente</option>
+                      @for (i of incidentesActivos(); track i.id) {
+                        <option [value]="i.id">{{ i.codigo }} · {{ i.titulo }}</option>
+                      }
+                    </select>
+                  }
                   <div class="d-flex justify-content-end gap-2 mt-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="ocupado()" (click)="panelIncidente.set(null)">Cancelar</button>
-                    <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado() || !incidenteElegido()" (click)="asociarIncidente()">Asociar</button>
+                    @if (incidentesActivos().length > 0) {
+                      <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado() || !incidenteElegido()" (click)="asociarIncidente()">Asociar</button>
+                    }
                   </div>
                 }
                 @default {

@@ -28,11 +28,17 @@
       <div class="small text-muted numerico mb-1">{{ i.codigo }}</div>
       <div class="d-flex flex-wrap align-items-center gap-2">
         <h4 class="mb-0">{{ i.titulo }}</h4>
-        <app-status-badge [valor]="i.severidad" />
+        <span class="text-nowrap">
+          <app-status-badge [valor]="i.severidad" />
+          @if (i.severidad_manual) {
+            <i class="bi bi-pencil-fill ms-1 small text-muted" data-manual title="Corregida a mano" aria-label="Corregida a mano"></i>
+          }
+        </span>
         <app-status-badge [valor]="i.estado" />
       </div>
       <div class="small text-muted mt-1">
         Cliente: <a [routerLink]="['/admin/clientes', i.organizacion.id]">{{ i.organizacion.nombre }}</a>
+        · Impacto: <app-status-badge [valor]="i.impacto" />
       </div>
     </div>
 
@@ -296,16 +302,24 @@
             </ul>
           }
           @if (asociando()) {
-            <label for="ticket-nuevo" class="form-label small text-muted">Ticket abierto del cliente</label>
-            <select id="ticket-nuevo" class="form-select" (change)="ticketElegido.set($any($event.target).value)">
-              <option value="">Elige un ticket</option>
-              @for (t of ticketsLibres(); track t.id) {
-                <option [value]="t.id">{{ t.codigo }} · {{ t.titulo }}</option>
-              }
-            </select>
+            @if (cargandoTickets()) {
+              <p class="small text-muted mb-0" role="status">Cargando tickets...</p>
+            } @else if (ticketsLibres().length === 0) {
+              <p class="small text-muted mb-2">Este cliente no tiene tickets abiertos sin incidente.</p>
+            } @else {
+              <label for="ticket-nuevo" class="form-label small text-muted">Ticket abierto del cliente</label>
+              <select id="ticket-nuevo" class="form-select" (change)="ticketElegido.set($any($event.target).value)">
+                <option value="">Elige un ticket</option>
+                @for (t of ticketsLibres(); track t.id) {
+                  <option [value]="t.id">{{ t.codigo }} · {{ t.titulo }}</option>
+                }
+              </select>
+            }
             <div class="d-flex justify-content-end gap-2 mt-2">
               <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="ocupado()" (click)="asociando.set(false)">Cancelar</button>
-              <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado() || !ticketElegido()" (click)="asociar()">Asociar</button>
+              @if (ticketsLibres().length > 0) {
+                <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado() || !ticketElegido()" (click)="asociar()">Asociar</button>
+              }
             </div>
           } @else {
             <button type="button" class="btn btn-sm btn-outline-primary w-100" [disabled]="bloqueado()" (click)="abrirAsociar()">

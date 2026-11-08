@@ -60,7 +60,7 @@ class IncidenteViewSet(
             return qs
 
         p = self.request.query_params
-        q = p.get("q", "").strip()
+        q = p.get("q", "").replace("\x00", "").strip()
         if q:
             qs = qs.filter(Q(codigo__icontains=q) | Q(titulo__icontains=q))
 

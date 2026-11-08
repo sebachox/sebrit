@@ -68,6 +68,7 @@ export class TicketFicha implements OnInit {
   errorFecha = signal<string | null>(null);
   incidentesActivos = signal<IncidenteResumido[]>([]);
   incidenteElegido = signal('');
+  cargandoIncidentes = signal(false);
 
   private selectorTecnico = viewChild<ElementRef<HTMLSelectElement>>('selectorTecnico');
 
@@ -235,10 +236,18 @@ export class TicketFicha implements OnInit {
     this.incidenteElegido.set('');
     this.incidentesActivos.set([]);
     this.errorAccion.set(null);
+    this.cargandoIncidentes.set(true);
     this.panelIncidente.set('asociar');
     this.incidentes.listar({ organizacion: t.organizacion.id, abiertos: true, pageSize: 100 }).subscribe({
-      next: (p) => this.incidentesActivos.set(p.results),
-      error: () => this.errorAccion.set('No se pudo cargar la lista de incidentes.'),
+      next: (p) => {
+        this.incidentesActivos.set(p.results);
+        this.cargandoIncidentes.set(false);
+      },
+      error: () => {
+        this.cargandoIncidentes.set(false);
+        this.panelIncidente.set(null);
+        this.errorAccion.set('No se pudo cargar la lista de incidentes.');
+      },
     });
   }
 

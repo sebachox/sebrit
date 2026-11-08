@@ -61,7 +61,8 @@ def validar_fecha_origen(valor, deteccion=None):
 
 
 def _texto(valor):
-    return valor.strip() if isinstance(valor, str) else ""
+    # PostgreSQL no admite el carácter NUL: se trata como un texto no válido.
+    return valor.strip() if isinstance(valor, str) and "\x00" not in valor else ""
 
 
 def _exigir_no_cerrado(incidente):

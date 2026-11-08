@@ -587,6 +587,36 @@ class FlujoIncidenteTests(BaseIncidentes):
             )
 
 
+class CaracterNulTests(BaseIncidentes):
+    def setUp(self):
+        super().setUp()
+        self.entrar()
+
+    def test_textos_con_nul_dan_400(self):
+        en_progreso = self.incidente(estado="en_progreso", tecnico=self.tecnico)
+        resuelto = self.incidente(estado="resuelto", tecnico=self.tecnico)
+        abierto = self.incidente()
+        casos = [
+            (en_progreso, "estado/", {"estado": "resuelto", "solucion": "a\x00b"}, "solucion",
+             "Describe cómo se restableció el servicio."),
+            (resuelto, "estado/", {"estado": "cerrado", "causa_raiz": "a\x00b"}, "causa_raiz",
+             "Indica la causa raíz para cerrar el incidente."),
+            (abierto, "severidad/", {"severidad": "alta", "motivo": "a\x00b"}, "motivo",
+             "Explica por qué cambias la severidad."),
+            (abierto, "acciones/", {"descripcion": "a\x00b"}, "descripcion", "Describe la acción realizada."),
+        ]
+        for incidente, sufijo, datos, campo, mensaje in casos:
+            self.assertError(self.post(url_incidente(incidente, sufijo), datos), campo, mensaje)
+
+    def test_busqueda_con_nul_no_falla(self):
+        i = self.incidente(titulo="Caída del ERP")
+        r = self.client.get(f"{URL}?q=%00")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual([f["id"] for f in r.data["results"]], [i.pk])
+        r = self.client.get(f"{URL}?q=erp%00")
+        self.assertEqual([f["id"] for f in r.data["results"]], [i.pk])
+
+
 class CorreccionSeveridadTests(BaseIncidentes):
     def setUp(self):
         super().setUp()

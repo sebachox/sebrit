@@ -329,6 +329,56 @@ describe('IncidenteFicha', () => {
     expect(boton('Reintentar')).toBeDefined();
   });
 
+  it('cambiar el técnico no cierra el panel ni borra lo escrito', () => {
+    crear(incidente({ estado: 'en_progreso' }));
+    pulsar('Resolver');
+    escribir('#solucion', 'Se reinició');
+    const select = el().querySelector('#tecnico') as HTMLSelectElement;
+    select.value = '9';
+    select.dispatchEvent(new Event('change'));
+    http.expectOne(URL).flush(incidente({ estado: 'en_progreso', tecnico: { id: 9, nombre: 'Yo' } }));
+    fixture.detectChanges();
+    expect((el().querySelector('#solucion') as HTMLTextAreaElement).value).toBe('Se reinició');
+  });
+
+  it('quitar un ticket no cierra la corrección de severidad', () => {
+    crear(incidente({ tickets: [{ id: 3, codigo: 'TCK-3', titulo: 'Ya', estado: 'abierto' }] }));
+    pulsar('Corregir');
+    escribir('#motivo', 'Afecta facturación');
+    (el().querySelector('[aria-label="Quitar TCK-3"]') as HTMLButtonElement).click();
+    http.expectOne(`${URL}tickets/3/`).flush(incidente());
+    fixture.detectChanges();
+    expect((el().querySelector('#motivo') as HTMLTextAreaElement).value).toBe('Afecta facturación');
+  });
+
+  it('cambiar de estado cierra el panel abierto', () => {
+    crear(incidente({ estado: 'en_progreso' }));
+    pulsar('Resolver');
+    pulsar('Devolver a abierto');
+    http.expectOne(`${URL}estado/`).flush(incidente());
+    fixture.detectChanges();
+    expect(el().querySelector('#solucion')).toBeNull();
+  });
+
+  it('el selector de tickets indica la carga y la lista vacía', () => {
+    crear();
+    pulsar('Asociar ticket');
+    expect(el().textContent).toContain('Cargando tickets...');
+    expect(el().querySelector('#ticket-nuevo')).toBeNull();
+    http.expectOne((r) => r.url === TICKETS).flush({ count: 0, next: null, previous: null, results: [] });
+    fixture.detectChanges();
+    expect(el().textContent).toContain('Este cliente no tiene tickets abiertos sin incidente.');
+    expect(el().querySelector('#ticket-nuevo')).toBeNull();
+  });
+
+  it('el encabezado muestra el impacto y la marca de severidad manual', () => {
+    crear(incidente({ impacto: 'total', severidad_manual: true }));
+    const encabezado = el().querySelector('.encabezado') as HTMLElement;
+    expect(encabezado.textContent).toContain('Impacto');
+    expect(encabezado.textContent).toContain('Total');
+    expect(encabezado.querySelector('[data-manual]')).not.toBeNull();
+  });
+
   it('muestra el aviso de guardado', () => {
     crear(incidente(), { guardado: '1' });
     expect(el().textContent).toContain('Incidente guardado correctamente.');

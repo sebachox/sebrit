@@ -351,6 +351,17 @@ describe('TicketFicha', () => {
       expect(el().textContent).toContain('Parte del incidente INC-0003');
     });
 
+    it('el selector de incidentes indica la carga y la lista vacía', () => {
+      crear();
+      pulsar('Asociar a incidente');
+      expect(el().textContent).toContain('Cargando incidentes...');
+      expect(el().querySelector('#asociar-incidente')).toBeNull();
+      http.expectOne((r) => r.url === INCIDENTES).flush({ count: 0, next: null, previous: null, results: [] });
+      fixture.detectChanges();
+      expect(el().textContent).toContain('Este cliente no tiene incidentes activos.');
+      expect(el().querySelector('#asociar-incidente')).toBeNull();
+    });
+
     it('describe los eventos de incidente', () => {
       crear();
       const c = fixture.componentInstance;

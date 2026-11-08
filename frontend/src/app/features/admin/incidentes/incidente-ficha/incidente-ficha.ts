@@ -66,6 +66,7 @@ export class IncidenteFicha implements OnInit {
   asociando = signal(false);
   ticketsLibres = signal<TicketResumido[]>([]);
   ticketElegido = signal('');
+  cargandoTickets = signal(false);
 
   private selectorTecnico = viewChild<ElementRef<HTMLSelectElement>>('selectorTecnico');
 
@@ -138,7 +139,7 @@ export class IncidenteFicha implements OnInit {
   }
 
   cambiarEstado(nuevo: EstadoIncidente) {
-    this.ejecutar(this.servicio.cambiarEstado(this.id, nuevo));
+    this.ejecutar(this.servicio.cambiarEstado(this.id, nuevo), this.cerrarPanel);
   }
 
   abrirPanel(panel: Panel) {
@@ -155,7 +156,7 @@ export class IncidenteFicha implements OnInit {
       this.solucionInvalida.set(true);
       return;
     }
-    this.ejecutar(this.servicio.cambiarEstado(this.id, 'resuelto', { solucion: s }));
+    this.ejecutar(this.servicio.cambiarEstado(this.id, 'resuelto', { solucion: s }), this.cerrarPanel);
   }
 
   confirmarCerrar() {
@@ -164,11 +165,11 @@ export class IncidenteFicha implements OnInit {
       this.causaInvalida.set(true);
       return;
     }
-    this.ejecutar(this.servicio.cambiarEstado(this.id, 'cerrado', { causa_raiz: c }));
+    this.ejecutar(this.servicio.cambiarEstado(this.id, 'cerrado', { causa_raiz: c }), this.cerrarPanel);
   }
 
   confirmarReabrir() {
-    this.ejecutar(this.servicio.cambiarEstado(this.id, 'abierto'));
+    this.ejecutar(this.servicio.cambiarEstado(this.id, 'abierto'), this.cerrarPanel);
   }
 
   tomar() {
@@ -194,7 +195,9 @@ export class IncidenteFicha implements OnInit {
       this.motivoInvalido.set(true);
       return;
     }
-    this.ejecutar(this.servicio.corregirSeveridad(this.id, this.severidadNueva(), m));
+    this.ejecutar(this.servicio.corregirSeveridad(this.id, this.severidadNueva(), m), () =>
+      this.corrigiendo.set(false),
+    );
   }
 
   registrarAccion() {
@@ -217,16 +220,25 @@ export class IncidenteFicha implements OnInit {
     if (!i) return;
     this.ticketElegido.set('');
     this.ticketsLibres.set([]);
+    this.errorAccion.set(null);
+    this.cargandoTickets.set(true);
     this.asociando.set(true);
     this.ticketsServicio.listar({ organizacion: i.organizacion.id, abiertos: true, pageSize: 100 }).subscribe({
-      next: (p) => this.ticketsLibres.set(p.results.filter((t) => !t.incidente)),
-      error: () => this.errorAccion.set('No se pudo cargar la lista de tickets.'),
+      next: (p) => {
+        this.ticketsLibres.set(p.results.filter((t) => !t.incidente));
+        this.cargandoTickets.set(false);
+      },
+      error: () => {
+        this.cargandoTickets.set(false);
+        this.asociando.set(false);
+        this.errorAccion.set('No se pudo cargar la lista de tickets.');
+      },
     });
   }
 
   asociar() {
     const ticket = Number(this.ticketElegido());
-    if (ticket) this.ejecutar(this.servicio.asociarTicket(this.id, ticket));
+    if (ticket) this.ejecutar(this.servicio.asociarTicket(this.id, ticket), () => this.asociando.set(false));
   }
 
   quitar(ticket: number) {
@@ -237,7 +249,10 @@ export class IncidenteFicha implements OnInit {
     this.router.navigate(['/admin/incidentes', this.id, 'editar']);
   }
 
-  private ejecutar(peticion: Observable<Incidente>) {
+  private cerrarPanel = () => this.panel.set(null);
+
+  /** `alTerminar` cierra solo lo que corresponde: otra acción no debe borrar lo que se está escribiendo. */
+  private ejecutar(peticion: Observable<Incidente>, alTerminar?: () => void) {
     if (this.ocupado()) return;
     this.ocupado.set(true);
     this.errorAccion.set(null);
@@ -246,9 +261,7 @@ export class IncidenteFicha implements OnInit {
       next: (i) => {
         this.incidente.set(i);
         this.ocupado.set(false);
-        this.panel.set(null);
-        this.corrigiendo.set(false);
-        this.asociando.set(false);
+        alTerminar?.();
       },
       error: (e: HttpErrorResponse) => this.fallo(e),
     });

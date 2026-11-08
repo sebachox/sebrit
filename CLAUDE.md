@@ -253,7 +253,7 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 - `apps/tickets/tests.py` (60): regla de prioridad, migración de códigos, seed, permisos, crear/editar, recálculo, eventos, flujo de estados, corrección, comentarios, filtros, orden y consultas sin N+1.
 - `apps/assets/tests.py` (47): modelo, baja, conteos sin dados de baja, seed, permisos de activos y backups, validaciones (nombre por cliente, IP, cliente fijo, baja, fecha futura, tamaño), datos derivados, filtros, orden, `ultimo_backup` sin N+1 y fechas en hora local.
 
-- `apps/incidents/tests.py` (105): regla de severidad, código automático, migración de datos, seed, permisos, crear/editar, recálculo, flujo de estados, corrección, bitácora, resolución en cascada, asociar y escalar, filtros, orden y consultas sin N+1.
+- `apps/incidents/tests.py` (107): regla de severidad, código automático, migración de datos, seed, permisos, crear/editar, recálculo, flujo de estados, corrección, bitácora, resolución en cascada, asociar y escalar, filtros, orden y consultas sin N+1.
 
 Todo endpoint nuevo debe traer pruebas de permisos (401 / 403 / 200).
 
