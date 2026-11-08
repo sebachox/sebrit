@@ -61,7 +61,7 @@
       <div class="col-6 col-md-4 col-xl-2">
         <label for="severidad" class="visually-hidden">Severidad</label>
         <select id="severidad" class="form-select" (change)="cambiarSeveridad($any($event.target).value)">
-          <option value="">Toda severidad</option>
+          <option value="">Severidad</option>
           @for (s of severidades; track s.valor) {
             <option [value]="s.valor">{{ s.texto }}</option>
           }
@@ -70,7 +70,7 @@
       <div class="col-6 col-md-4 col-xl-2">
         <label for="impacto" class="visually-hidden">Impacto</label>
         <select id="impacto" class="form-select" (change)="cambiarImpacto($any($event.target).value)">
-          <option value="">Todo impacto</option>
+          <option value="">Impacto</option>
           @for (i of impactos; track i.valor) {
             <option [value]="i.valor">{{ i.texto }}</option>
           }

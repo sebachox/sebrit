@@ -16,7 +16,7 @@ Principio clave: **la autorización se hace en el backend**. Ocultar opciones en
 | 02 | Clientes y organizaciones | Hecho (CRUD sin borrado, panel compartido admin/técnico) |
 | 03 | Infraestructura y activos | Hecho (inventario de activos y registro manual de backups; admin y técnico) |
 | 04 | Tickets y soporte | Hecho (prioridad automática, flujo de estados y línea de tiempo; admin y técnico). El portal para que el cliente abra tickets va con la vista del cliente |
-| 05 | Incidentes | Solo modelo base |
+| 05 | Incidentes | Hecho (interrupciones del servicio: tiempos, activos, bitácora, causa raíz, severidad automática y vínculo con tickets; admin y técnico) |
 | 06 | Mantenimientos | Solo modelo base |
 | 07 | Reportes y SLA | Pendiente (las reglas de SLA no están definidas) |
 | 08 | Monitoreo y alertas (integraciones externas) | Pendiente, módulo posterior |
@@ -91,7 +91,7 @@ sebrit/
 │       ├── organizations/   # Organizacion, API /api/organizaciones/ (viewset, permisos, serializers)
 │       ├── assets/          # Activo, Backup, API /api/activos/ y /api/backups/
 │       ├── tickets/         # Ticket, EventoTicket, regla de prioridad, API /api/tickets/
-│       ├── incidents/       # Incidente, AccionIncidente
+│       ├── incidents/       # Incidente, AccionIncidente, regla de severidad, API /api/incidentes/
 │       ├── maintenance/     # Mantenimiento
 │       └── dashboard/       # AdminDashboardView, seed_demo, tests
 ├── frontend/
@@ -101,10 +101,10 @@ sebrit/
 │   └── src/app/
 │       ├── core/            # auth/permisos.ts, config/api.ts, models, services, interceptors, guards, layout
 │       ├── shared/components/   # stat-card, status-badge
-│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, auth/login, errors/sin-permiso
+│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, auth/login, errors/sin-permiso
 ├── docs/
 │   ├── api-contract.md      # fuente de verdad del contrato de la API
-│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json
+│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json
 │   └── superpowers/         # specs/ y plans/ de cada módulo
 ├── docker-compose.yml
 ├── .env.example
@@ -143,7 +143,7 @@ cd frontend && npx ng build
 
 Variables de `.env`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` (=`db`), `POSTGRES_PORT`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`.
 
-Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 organizaciones con NIT, ciudad y plan (una inactiva), 25 servidores y 15 equipos de red, 20 backups, 28 tickets abiertos y 5 cerrados, 5 incidentes (3 críticos activos, uno sin técnico), 5 mantenimientos (4 de hoy). Los números se parecen al JSON de ejemplo pero no son iguales (por ejemplo 2 clientes activos, no 12).
+Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 organizaciones con NIT, ciudad y plan (una inactiva), 25 servidores y 15 equipos de red, 20 backups, 28 tickets abiertos y 5 cerrados, 5 incidentes (3 críticos activos, uno sin técnico, uno resuelto y uno cerrado), 5 mantenimientos (4 de hoy). Los números se parecen al JSON de ejemplo pero no son iguales (por ejemplo 2 clientes activos, no 12).
 
 ### Usuarios en la base local de Seb
 
@@ -186,10 +186,10 @@ Conexión: host `localhost`, puerto `5433`, base y usuario de `POSTGRES_DB` / `P
 | `Organizacion` | `nombre` (único), `nit` (único; nulo solo en registros anteriores al módulo 02), `sector`, `telefono`, `correo`, `direccion`, `ciudad`, `contacto_*` (nombre, cargo, correo, teléfono), `plan` (`basico`, `estandar`, `premium`), `fecha_inicio_contrato`, `fecha_fin_contrato`, `activa`, `creado_en`, `actualizado_en` |
 | `Activo` (assets) | `organizacion` (fija al crear), `tipo` (`servidor`, `red`), `nombre` (único por cliente, sin mayúsculas), `estado` (`operativo`, `advertencia`, `critico`), `hostname`, `ip`, `sistema_operativo`, `fabricante`, `modelo`, `numero_serie`, `ubicacion`, `notas`, `de_baja`, `fecha_baja` (automática), `creado_en`, `actualizado_en` |
 | `Backup` (assets) | `activo` (`PROTECT`; obligatorio en la API), `organizacion` (se toma del activo), `estado` (`exitoso`, `fallido`, `pendiente`), `tipo` (`completo`, `incremental`, `diferencial`), `fecha` (no futura), `tamano_gb`, `notas`, `registrado_por` (automático), `creado_en` |
-| `Ticket` | `codigo` (`TCK-0001`, automático), `organizacion` (fija al crear), `titulo`, `descripcion`, `categoria` (`hardware`, `software`, `red`, `seguridad`, `accesos`, `otro`), `alcance` (`un_usuario`, `varios_usuarios`, `toda_empresa`), `activo` (opcional), `prioridad` (`baja`, `media`, `alta`, `critica`), `prioridad_manual`, `estado`, `tecnico`, `reportado_por`, `solucion`, `creado_en`, `actualizado_en`, `resuelto_en`, `cerrado_en` |
-| `EventoTicket` | `ticket`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prioridad`), `autor`, `texto`, `valor_anterior`, `valor_nuevo`, `fecha`. Es la línea de tiempo del ticket |
-| `Incidente` | `codigo` (único, ej. `INC-0001`), `titulo`, `organizacion`, `severidad`, `estado`, `tecnico` (FK a Usuario, **puede ser null**), `creado_en` |
-| `AccionIncidente` | `incidente`, `descripcion`, `fecha` (la más reciente es la `ultima_accion`) |
+| `Ticket` | `codigo` (`TCK-0001`, automático), `organizacion` (fija al crear), `titulo`, `descripcion`, `categoria` (`hardware`, `software`, `red`, `seguridad`, `accesos`, `otro`), `alcance` (`un_usuario`, `varios_usuarios`, `toda_empresa`), `activo` (opcional), `incidente` (opcional, `SET_NULL`), `prioridad` (`baja`, `media`, `alta`, `critica`), `prioridad_manual`, `estado`, `tecnico`, `reportado_por`, `solucion`, `creado_en`, `actualizado_en`, `resuelto_en`, `cerrado_en` |
+| `EventoTicket` | `ticket`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prioridad`, `incidente`), `autor`, `texto`, `valor_anterior`, `valor_nuevo`, `fecha`. Es la línea de tiempo del ticket |
+| `Incidente` | `codigo` (`INC-0001`, automático; si ya existe toma el siguiente libre), `organizacion` (fija al crear), `titulo`, `descripcion`, `impacto` (`degradado`, `parcial`, `total`), `activos` (M2M), `severidad`, `severidad_manual`, `estado`, `tecnico` (**puede ser null**), `reportado_por`, `solucion`, `causa_raiz`, `fecha_origen` (la escribe el usuario), `creado_en` (la API lo expone como `fecha_deteccion`), `fecha_fin` (automática al resolver), `cerrado_en`, `actualizado_en`. `duracion_minutos` es calculado |
+| `AccionIncidente` | `incidente` (`related_name="acciones"`), `tipo` (`creacion`, `accion`, `estado`, `tecnico`, `severidad`, `ticket`), `autor`, `descripcion`, `valor_anterior`, `valor_nuevo`, `fecha`. Es la bitácora; la `ultima_accion` del dashboard es la más reciente de tipo `accion` |
 | `Mantenimiento` | `organizacion`, `titulo`, `fecha_programada`, `estado` (`programado`, `en_curso`, `completado`) |
 
 Las FK `organizacion` de `Activo`, `Backup`, `Ticket`, `Incidente` y `Mantenimiento` usan `on_delete=PROTECT`: un cliente con datos no se puede borrar (se desactiva). Los activos tampoco se borran: se dan de baja (`de_baja`); un activo dado de baja solo admite reactivarse y no recibe backups nuevos.
@@ -213,9 +213,13 @@ El admin de Django (`accounts/admin.py`) permite elegir rol y organización al c
 | GET, POST, PATCH, DELETE | `/api/backups/`, `/{id}/` | Admin y técnico. Lista: `organizacion`, `activo`, `estado`, `tipo`, `desde`, `hasta` (hora local). PUT 405 |
 | GET, POST, PATCH | `/api/tickets/`, `/{id}/` | Admin y técnico. Lista: `q`, `organizacion`, `activo`, `estado`, `abiertos`, `prioridad`, `categoria`, `tecnico` (id o `sin_asignar`), `ordering` (`prioridad` por defecto). PUT y DELETE 405 |
 | POST | `/api/tickets/{id}/estado/`, `/prioridad/`, `/comentarios/` | Admin y técnico. Cambio de estado, corrección de prioridad con motivo y comentarios |
+| POST | `/api/tickets/{id}/escalar/` | Admin y técnico. Crea un incidente desde el ticket y lo asocia |
+| GET, POST, PATCH | `/api/incidentes/`, `/{id}/` | Admin y técnico. Lista: `q`, `organizacion`, `activo`, `estado`, `abiertos`, `severidad`, `impacto`, `tecnico` (id o `sin_asignar`), `desde`, `hasta` (sobre `fecha_origen`, hora local), `ordering` (`severidad` por defecto). PUT y DELETE 405 |
+| POST | `/api/incidentes/{id}/estado/`, `/severidad/`, `/acciones/`, `/tickets/` | Admin y técnico. Flujo de estados, corrección con motivo, bitácora y asociar tickets |
+| DELETE | `/api/incidentes/{id}/tickets/{ticket_id}/` | Admin y técnico. Quita el ticket del incidente |
 | GET | `/api/tecnicos/` | Admin y técnico. `[{id, nombre}]` de usuarios activos admin o técnico |
 
-El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. `EsAdminOTecnico` (en `apps/assets/permissions.py`) da acceso completo a ambos; la usan activos y backups (los técnicos levantan el inventario). Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
+El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. `EsAdminOTecnico` (en `apps/assets/permissions.py`) da acceso completo a ambos; la usan activos, backups, tickets e incidentes (los técnicos levantan el inventario). Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
 
 ### Reglas de cálculo del dashboard
 
@@ -233,19 +237,29 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 - **Estados** (`apps/tickets/servicios.py`): `abierto` ↔ `en_progreso` (exige técnico); `en_progreso` → `resuelto` (exige solución); `resuelto` → `cerrado`; `resuelto`/`cerrado` → `abierto` (reabrir). Un ticket cerrado solo admite reabrirse. Los tickets no se borran.
 - Cada cambio deja un `EventoTicket` con autor y fecha.
 
+### Reglas de incidentes
+
+- Un incidente es la interrupción de un servicio; un ticket es una solicitud de soporte. Un ticket puede escalarse a incidente o asociarse a uno (máximo uno por ticket).
+- **Severidad** (`apps/incidents/severidad.py`): impacto `degradado`/`parcial`/`total` = 1/2/3; +1 si algún activo es `servidor`; +1 si alguno está `critico`. Total 1 → `baja`, 2 → `media`, 3 → `alta`, 4–5 → `critica`. Se recalcula al cambiar impacto o el conjunto de activos, salvo que `severidad_manual` sea verdadero.
+- **Estados** (`apps/incidents/servicios.py`): `abierto` ↔ `en_progreso` (exige técnico); `en_progreso` → `resuelto` (exige solución, guarda `fecha_fin`); `resuelto` → `cerrado` (exige causa raíz); `resuelto`/`cerrado` → `abierto` (vacía solución, causa raíz y fechas; la bitácora las conserva). Un incidente cerrado no se edita ni recibe acciones ni tickets. Los incidentes no se borran.
+- Al resolver un incidente, sus tickets `abierto` y `en_progreso` pasan a `resuelto` con la misma solución, sin exigir técnico. Reabrir el incidente no los reabre.
+- `fecha_origen` no puede ser futura ni posterior a la detección. `duracion_minutos` va de `fecha_origen` a `fecha_fin`.
+
 ### Pruebas
 
-- `apps/dashboard/tests.py` (6): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico.
+- `apps/dashboard/tests.py` (8): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico, `ultima_accion` solo de tipo `accion`.
 - `apps/accounts/tests.py` (5): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200.
 - `apps/organizations/tests.py` (33): modelo y `PROTECT`, seed, permisos por rol y método, validaciones, `resumen`, nulos, búsqueda, filtros, orden y paginación.
 - `apps/tickets/tests.py` (60): regla de prioridad, migración de códigos, seed, permisos, crear/editar, recálculo, eventos, flujo de estados, corrección, comentarios, filtros, orden y consultas sin N+1.
 - `apps/assets/tests.py` (47): modelo, baja, conteos sin dados de baja, seed, permisos de activos y backups, validaciones (nombre por cliente, IP, cliente fijo, baja, fecha futura, tamaño), datos derivados, filtros, orden, `ultimo_backup` sin N+1 y fechas en hora local.
 
+- `apps/incidents/tests.py` (105): regla de severidad, código automático, migración de datos, seed, permisos, crear/editar, recálculo, flujo de estados, corrección, bitácora, resolución en cascada, asociar y escalar, filtros, orden y consultas sin N+1.
+
 Todo endpoint nuevo debe traer pruebas de permisos (401 / 403 / 200).
 
 ## 8. Contrato de la API
 
-Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
+Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`, `incidente.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
 
 ```
 GET /api/dashboard/admin/
@@ -311,8 +325,11 @@ Estilo de consola de monitoreo con **dos temas**: oscuro (por defecto) y claro. 
 | Activos: formulario crear/editar | `/admin/activos/nuevo`, `/admin/activos/:id/editar` | `POST`/`PATCH` |
 | Backups: lista con filtros, editar y borrar | `/admin/backups`, `/admin/backups/:id/editar` | `/api/backups/` |
 | Tickets: lista (por defecto abiertos y más urgentes primero; acepta `?organizacion=`) | `/admin/tickets` | `GET /api/tickets/` |
-| Tickets: ficha con flujo, asignación, corrección de prioridad, comentarios y línea de tiempo | `/admin/tickets/:id` | `/api/tickets/{id}/` y acciones |
+| Tickets: ficha con flujo, asignación, corrección de prioridad, comentarios, línea de tiempo y escalar o asociar a incidente | `/admin/tickets/:id` | `/api/tickets/{id}/` y acciones |
 | Tickets: formulario crear/editar | `/admin/tickets/nuevo`, `/admin/tickets/:id/editar` | `POST`/`PATCH` |
+| Incidentes: lista (por defecto activos y más severos primero; acepta `?organizacion=`) | `/admin/incidentes` | `GET /api/incidentes/` |
+| Incidentes: ficha con tiempos, flujo, asignación, corrección de severidad, activos, tickets y bitácora | `/admin/incidentes/:id` | `/api/incidentes/{id}/` y acciones |
+| Incidentes: formulario crear/editar | `/admin/incidentes/nuevo`, `/admin/incidentes/:id/editar` | `POST`/`PATCH` |
 
 ### Panel compartido y permisos en el frontend
 
@@ -325,6 +342,7 @@ Admin y técnico usan el mismo layout. Lo que un rol no puede usar **se muestra 
 | `activos` | admin, técnico | admin, técnico |
 | `backups` | admin, técnico | admin, técnico |
 | `tickets` | admin, técnico | admin, técnico |
+| `incidentes` | admin, técnico | admin, técnico |
 
 Al agregar un módulo: una fila en `PERMISOS`, un enlace en `Layout.enlaces` y `permisoGuard(modulo, accion)` en sus rutas. El mapa solo refleja lo que el backend ya permite.
 
@@ -363,7 +381,7 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 ## 11. Qué sigue después del Sprint 1
 
 1. Dashboard del técnico y del cliente (mismos endpoints con datos filtrados por rol y organización).
-2. ~~CRUD de clientes~~ (módulo 02) y ~~activos y backups~~ (módulo 03) y ~~tickets~~ (módulo 04) hechos; siguen incidentes (módulo 05) (creación, asignación, estados, comentarios, historial), luego mantenimientos.
+2. ~~CRUD de clientes~~ (módulo 02), ~~activos y backups~~ (módulo 03), ~~tickets~~ (módulo 04) e ~~incidentes~~ (módulo 05) hechos; siguen los mantenimientos (módulo 06).
 3. Aislamiento por organización en el backend (un cliente nunca ve datos de otra empresa), con pruebas con dos organizaciones.
 4. Reportes y SLA cuando se definan las reglas de negocio.
 5. Monitoreo y alertas con integraciones externas.
