@@ -1,0 +1,215 @@
+<a routerLink="/admin/tickets" class="volver d-inline-flex align-items-center gap-1 small text-decoration-none mb-3">
+  <i class="bi bi-arrow-left"></i>Tickets
+</a>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando ticket...</p>
+  </div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="card shadow-sm border-0">
+    <div class="card-body text-center py-5">
+      <i class="bi bi-ticket-perforated fs-1 text-muted"></i>
+      <h4 class="mt-2">Ticket no encontrado</h4>
+      <p class="text-muted">Puede que el enlace esté mal escrito.</p>
+      <a routerLink="/admin/tickets" class="btn btn-outline-primary">Volver a tickets</a>
+    </div>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el ticket.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (ticket(); as t) {
+  <!-- Encabezado -->
+  <div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-3">
+    <div class="encabezado">
+      <div class="small text-muted numerico mb-1">{{ t.codigo }}</div>
+      <div class="d-flex flex-wrap align-items-center gap-2">
+        <h4 class="mb-0">{{ t.titulo }}</h4>
+        <app-status-badge [valor]="t.prioridad" />
+        <app-status-badge [valor]="t.estado" />
+      </div>
+      <div class="small text-muted mt-1">
+        Cliente: <a [routerLink]="['/admin/clientes', t.organizacion.id]">{{ t.organizacion.nombre }}</a>
+        @if (t.activo; as a) {
+          · Activo: <a [routerLink]="['/admin/activos', a.id]">{{ a.nombre }}</a>
+        }
+      </div>
+    </div>
+
+    @if (puedeEditar()) {
+      <div class="d-flex flex-wrap gap-2 acciones">
+        @switch (t.estado) {
+          @case ('abierto') {
+            <button type="button" class="btn btn-primary" [disabled]="ocupado() || !t.tecnico" (click)="cambiarEstado('en_progreso')">
+              <i class="bi bi-play-fill me-1"></i>Empezar
+            </button>
+          }
+          @case ('en_progreso') {
+            <button type="button" class="btn btn-primary" [disabled]="ocupado() || resolviendo()" (click)="abrirResolver()">
+              <i class="bi bi-check2-circle me-1"></i>Resolver
+            </button>
+            <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="cambiarEstado('abierto')">Devolver a abierto</button>
+          }
+          @case ('resuelto') {
+            <button type="button" class="btn btn-primary" [disabled]="ocupado()" (click)="cambiarEstado('cerrado')">
+              <i class="bi bi-lock me-1"></i>Cerrar ticket
+            </button>
+            <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="cambiarEstado('abierto')">Reabrir</button>
+          }
+          @case ('cerrado') {
+            <button type="button" class="btn btn-primary" [disabled]="ocupado()" (click)="cambiarEstado('abierto')">
+              <i class="bi bi-arrow-counterclockwise me-1"></i>Reabrir
+            </button>
+          }
+        }
+        <button type="button" class="btn btn-outline-primary" [disabled]="bloqueado()" (click)="editar()">
+          <i class="bi bi-pencil me-1"></i>Editar
+        </button>
+      </div>
+    }
+  </div>
+
+  @if (t.estado === 'abierto' && !t.tecnico) {
+    <p class="small text-muted"><i class="bi bi-info-circle me-1"></i>Asigna un técnico primero para poder empezar.</p>
+  }
+
+  @if (guardado()) {
+    <div class="alert alert-success alert-dismissible d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-check-circle"></i><span>Ticket guardado correctamente.</span>
+      <button type="button" class="btn-close" aria-label="Cerrar" (click)="guardado.set(false)"></button>
+    </div>
+  }
+
+  @if (cerrado()) {
+    <div class="alert alert-secondary d-flex align-items-center gap-2" role="status">
+      <i class="bi bi-lock"></i>
+      <span>Este ticket está cerrado. Para modificarlo o comentar, reábrelo.</span>
+    </div>
+  }
+
+  @if (errorAccion(); as e) {
+    <div class="alert alert-danger" role="alert">{{ e }}</div>
+  }
+
+  @if (resolviendo()) {
+    <div class="card shadow-sm border-0 mb-3">
+      <div class="card-body">
+        <label for="solucion" class="form-label fw-semibold">¿Cómo se resolvió?</label>
+        <textarea id="solucion" rows="3" class="form-control" [class.is-invalid]="solucionInvalida()" [value]="solucion()" (input)="solucion.set($any($event.target).value); solucionInvalida.set(false)"></textarea>
+        <div class="invalid-feedback">Describe la solución para resolver el ticket.</div>
+        <div class="d-flex justify-content-end gap-2 mt-3">
+          <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="resolviendo.set(false)">Cancelar</button>
+          <button type="button" class="btn btn-primary" [disabled]="ocupado()" (click)="confirmarResolver()">Confirmar solución</button>
+        </div>
+      </div>
+    </div>
+  }
+
+  <div class="row g-3">
+    <div class="col-lg-8 d-flex flex-column gap-3">
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Descripción</div>
+        <div class="card-body texto-largo">{{ t.descripcion || '—' }}</div>
+      </section>
+
+      @if (t.solucion) {
+        <section class="card shadow-sm border-0">
+          <div class="card-header fw-semibold"><i class="bi bi-check2-circle me-2 text-muted"></i>Solución</div>
+          <div class="card-body texto-largo">{{ t.solucion }}</div>
+        </section>
+      }
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold"><i class="bi bi-clock-history me-2 text-muted"></i>Línea de tiempo</div>
+        <div class="card-body">
+          <ol class="linea-tiempo list-unstyled mb-0">
+            @for (e of t.eventos; track e.id) {
+              <li [class.es-comentario]="e.tipo === 'comentario'">
+                <div class="small">
+                  <span class="fw-semibold">{{ autor(e) }}</span>
+                  <span class="text-muted"> {{ descripcionEvento(e) }} · <span class="numerico">{{ e.fecha | date: 'dd/MM/yyyy HH:mm' }}</span></span>
+                </div>
+                @if (e.texto) {
+                  <div class="texto-largo mt-1">{{ e.texto }}</div>
+                }
+              </li>
+            }
+          </ol>
+
+          <div class="mt-3">
+            <label for="comentario" class="visually-hidden">Comentario</label>
+            <textarea id="comentario" rows="2" class="form-control" placeholder="Escribe un comentario..." [disabled]="bloqueado()" [value]="comentario()" (input)="comentario.set($any($event.target).value)"></textarea>
+            <div class="d-flex justify-content-end mt-2">
+              <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="bloqueado() || !comentario().trim()" (click)="comentar()">Comentar</button>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col-lg-4 d-flex flex-column gap-3">
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Asignación</div>
+        <div class="card-body">
+          <label for="tecnico" class="form-label small text-muted">Técnico</label>
+          <select id="tecnico" class="form-select" [disabled]="bloqueado()" (change)="asignar($any($event.target).value)">
+            <option value="" [selected]="!t.tecnico">Sin asignar</option>
+            @for (u of tecnicos(); track u.id) {
+              <option [value]="u.id" [selected]="t.tecnico?.id === u.id">{{ u.nombre }}</option>
+            }
+          </select>
+          <button type="button" class="btn btn-sm btn-outline-primary w-100 mt-2" [disabled]="bloqueado() || t.tecnico?.id === usuarioId()" (click)="tomar()">
+            <i class="bi bi-person-check me-1"></i>Tomarlo yo
+          </button>
+        </div>
+      </section>
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Prioridad</div>
+        <div class="card-body">
+          <div class="d-flex align-items-center justify-content-between gap-2">
+            <div>
+              <app-status-badge [valor]="t.prioridad" />
+              <span class="small text-muted ms-2">{{ t.prioridad_manual ? 'Corregida a mano' : 'Automática' }}</span>
+            </div>
+            @if (!corrigiendo()) {
+              <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="bloqueado()" (click)="abrirCorregir()">Corregir</button>
+            }
+          </div>
+          @if (corrigiendo()) {
+            <div class="mt-3">
+              <label for="prioridad-nueva" class="form-label small text-muted">Nueva prioridad</label>
+              <select id="prioridad-nueva" class="form-select" (change)="prioridadNueva.set($any($event.target).value)">
+                @for (p of prioridades; track p.valor) {
+                  <option [value]="p.valor" [selected]="prioridadNueva() === p.valor">{{ p.texto }}</option>
+                }
+              </select>
+              <label for="motivo" class="form-label small text-muted mt-2">Motivo</label>
+              <textarea id="motivo" rows="2" class="form-control" [class.is-invalid]="motivoInvalido()" [value]="motivo()" (input)="motivo.set($any($event.target).value); motivoInvalido.set(false)"></textarea>
+              <div class="invalid-feedback">Explica por qué cambias la prioridad.</div>
+              <div class="d-flex justify-content-end gap-2 mt-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="ocupado()" (click)="corrigiendo.set(false)">Cancelar</button>
+                <button type="button" class="btn btn-sm btn-primary" [disabled]="ocupado()" (click)="confirmarCorregir()">Guardar prioridad</button>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+
+      <section class="card shadow-sm border-0">
+        <div class="card-header fw-semibold">Datos</div>
+        <dl class="card-body mb-0 datos">
+          <div><dt class="text-muted small fw-normal">Categoría</dt><dd class="mb-0">{{ nombreCategoria(t) }}</dd></div>
+          <div><dt class="text-muted small fw-normal">Alcance</dt><dd class="mb-0">{{ nombreAlcance(t) }}</dd></div>
+          <div><dt class="text-muted small fw-normal">Reportado por</dt><dd class="mb-0" data-campo="reportado_por">{{ t.reportado_por?.nombre ?? '—' }}</dd></div>
+          <div><dt class="text-muted small fw-normal">Creado</dt><dd class="mb-0 numerico">{{ t.creado_en | date: 'dd/MM/yyyy HH:mm' }}</dd></div>
+          <div><dt class="text-muted small fw-normal">Resuelto</dt><dd class="mb-0 numerico">{{ (t.resuelto_en | date: 'dd/MM/yyyy HH:mm') ?? '—' }}</dd></div>
+          <div><dt class="text-muted small fw-normal">Cerrado</dt><dd class="mb-0 numerico">{{ (t.cerrado_en | date: 'dd/MM/yyyy HH:mm') ?? '—' }}</dd></div>
+        </dl>
+      </section>
+    </div>
+  </div>
+}

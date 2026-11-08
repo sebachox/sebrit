@@ -98,6 +98,12 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/tickets/tickets-lista/tickets-lista').then((m) => m.TicketsLista),
       },
+      {
+        path: 'admin/tickets/:id',
+        canActivate: [permisoGuard('tickets', 'ver')],
+        loadComponent: () =>
+          import('./features/admin/tickets/ticket-ficha/ticket-ficha').then((m) => m.TicketFicha),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },
