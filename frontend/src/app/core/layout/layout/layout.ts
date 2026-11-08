@@ -37,5 +37,6 @@ export class Layout {
     { ruta: '/admin/clientes', icono: 'bi-building', texto: 'Clientes', modulo: 'clientes' },
     { ruta: '/admin/activos', icono: 'bi-hdd-rack', texto: 'Activos', modulo: 'activos' },
     { ruta: '/admin/backups', icono: 'bi-cloud-arrow-up', texto: 'Backups', modulo: 'backups' },
+    { ruta: '/admin/tickets', icono: 'bi-ticket-perforated', texto: 'Tickets', modulo: 'tickets' },
   ];
 }
