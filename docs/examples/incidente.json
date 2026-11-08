@@ -1,0 +1,86 @@
+{
+  "id": 3,
+  "codigo": "INC-0003",
+  "organizacion": {
+    "id": 1,
+    "nombre": "Empresa Ejemplo S.A.S."
+  },
+  "titulo": "Servidor de base de datos sin respuesta",
+  "descripcion": "El servidor principal dejó de responder a las aplicaciones.",
+  "impacto": "total",
+  "activos": [
+    {
+      "id": 7,
+      "nombre": "SRV-DB-01",
+      "tipo": "servidor",
+      "estado": "critico"
+    }
+  ],
+  "severidad": "critica",
+  "severidad_manual": false,
+  "estado": "resuelto",
+  "tecnico": {
+    "id": 5,
+    "nombre": "Laura Gómez"
+  },
+  "reportado_por": {
+    "id": 3,
+    "nombre": "Ana Ruiz"
+  },
+  "fecha_origen": "2026-11-08T07:50:00-05:00",
+  "fecha_deteccion": "2026-11-08T08:15:00-05:00",
+  "fecha_fin": "2026-11-08T09:20:00-05:00",
+  "duracion_minutos": 90,
+  "solucion": "Se reinició el servicio y se liberó espacio en disco.",
+  "causa_raiz": null,
+  "cerrado_en": null,
+  "actualizado_en": "2026-11-08T09:20:00-05:00",
+  "tickets": [
+    {
+      "id": 42,
+      "codigo": "TCK-0042",
+      "titulo": "Sin acceso a la base de datos",
+      "estado": "resuelto"
+    }
+  ],
+  "total_activos": 1,
+  "total_tickets": 1,
+  "acciones": [
+    {
+      "id": 10,
+      "tipo": "creacion",
+      "autor": {
+        "id": 3,
+        "nombre": "Ana Ruiz"
+      },
+      "descripcion": null,
+      "valor_anterior": null,
+      "valor_nuevo": null,
+      "fecha": "2026-11-08T08:15:00-05:00"
+    },
+    {
+      "id": 11,
+      "tipo": "accion",
+      "autor": {
+        "id": 5,
+        "nombre": "Laura Gómez"
+      },
+      "descripcion": "Se revisó el espacio en disco.",
+      "valor_anterior": null,
+      "valor_nuevo": null,
+      "fecha": "2026-11-08T08:40:00-05:00"
+    },
+    {
+      "id": 12,
+      "tipo": "estado",
+      "autor": {
+        "id": 5,
+        "nombre": "Laura Gómez"
+      },
+      "descripcion": "Se reinició el servicio y se liberó espacio en disco.",
+      "valor_anterior": "en_progreso",
+      "valor_nuevo": "resuelto",
+      "fecha": "2026-11-08T09:20:00-05:00"
+    }
+  ]
+}

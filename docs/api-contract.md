@@ -289,6 +289,7 @@ Recurso `/api/tickets/`. Admin y técnico tienen los mismos permisos. Sin token:
 | POST | `/api/tickets/{id}/estado/` | 200 |
 | POST | `/api/tickets/{id}/prioridad/` | 200 |
 | POST | `/api/tickets/{id}/comentarios/` | 201 |
+| POST | `/api/tickets/{id}/escalar/` | 201 |
 | PUT, DELETE | `/api/tickets/{id}/` | 405 |
 | GET | `/api/tecnicos/` | 200 |
 
@@ -310,13 +311,13 @@ Recurso `/api/tickets/`. Admin y técnico tienen los mismos permisos. Sin token:
 
 Los valores inválidos se ignoran.
 
-Cada fila: `id`, `codigo`, `titulo`, `organizacion: {id, nombre}`, `categoria`, `prioridad`, `prioridad_manual`, `estado`, `tecnico: {id, nombre} | null`, `activo: {id, nombre} | null`, `creado_en`.
+Cada fila: `id`, `codigo`, `titulo`, `organizacion: {id, nombre}`, `categoria`, `prioridad`, `prioridad_manual`, `estado`, `tecnico: {id, nombre} | null`, `activo: {id, nombre} | null`, `incidente: {id, codigo} | null`, `creado_en`.
 
 ## Detalle, creación y edición
 
 Ejemplo: [`docs/examples/ticket.json`](examples/ticket.json). Además de los campos de la lista: `descripcion`, `alcance` (`un_usuario`, `varios_usuarios`, `toda_empresa`), `reportado_por: {id, nombre} | null`, `solucion | null`, `actualizado_en`, `resuelto_en | null`, `cerrado_en | null` y `eventos` en orden cronológico.
 
-Cada evento: `id`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prioridad`), `autor: {id, nombre} | null`, `texto | null`, `valor_anterior | null`, `valor_nuevo | null`, `fecha`.
+Cada evento: `id`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prioridad`, `incidente`), `autor: {id, nombre} | null`, `texto | null`, `valor_anterior | null`, `valor_nuevo | null`, `fecha`.
 
 - `POST` recibe `organizacion` (id), `titulo`, `descripcion`, `categoria`, `alcance` y opcionales `activo` y `tecnico` (id o `null`).
 - `PATCH` acepta los mismos campos; `organizacion` no puede cambiar.
@@ -368,3 +369,127 @@ Un ticket `cerrado` solo admite reabrirse.
 | `activo` | `El activo no pertenece a este cliente.` |
 | `activo` | `El activo está dado de baja.` |
 | `non_field_errors` | `El ticket está cerrado. Reábrelo para modificarlo.` |
+
+# Incidentes
+
+Recurso `/api/incidentes/`: interrupciones del servicio de un cliente. Admin y técnico tienen los mismos permisos. Sin token: 401. Cliente: 403. Los incidentes no se borran.
+
+## Permisos
+
+| Método | Ruta | Admin y técnico |
+|---|---|---|
+| GET | `/api/incidentes/`, `/api/incidentes/{id}/` | 200 |
+| POST | `/api/incidentes/` | 201 |
+| PATCH | `/api/incidentes/{id}/` | 200 |
+| POST | `/api/incidentes/{id}/estado/` | 200 |
+| POST | `/api/incidentes/{id}/severidad/` | 200 |
+| POST | `/api/incidentes/{id}/acciones/` | 201 |
+| POST | `/api/incidentes/{id}/tickets/` | 200 |
+| DELETE | `/api/incidentes/{id}/tickets/{ticket_id}/` | 200 |
+| PUT, DELETE | `/api/incidentes/{id}/` | 405 |
+
+## Lista: `GET /api/incidentes/`
+
+| Parámetro | Valores | Por defecto |
+|---|---|---|
+| `q` | Busca, sin distinguir mayúsculas, en `codigo` y `titulo` | — |
+| `organizacion`, `activo` | id | Sin filtro |
+| `estado` | `abierto`, `en_progreso`, `resuelto`, `cerrado` | Sin filtro |
+| `abiertos` | `true`: solo `abierto` y `en_progreso` | Sin filtro |
+| `severidad` | `baja`, `media`, `alta`, `critica` | Sin filtro |
+| `impacto` | `degradado`, `parcial`, `total` | Sin filtro |
+| `tecnico` | id o `sin_asignar` | Sin filtro |
+| `desde`, `hasta` | `YYYY-MM-DD`, sobre `fecha_origen`, inclusivos, en hora de Colombia | Sin filtro |
+| `ordering` | `severidad` (critica → baja; el más antiguo primero), `fecha_deteccion`, `-fecha_deteccion` | `severidad` |
+| `page`, `page_size` | Como organizaciones | 20, máximo 100 |
+
+Los valores inválidos se ignoran.
+
+Cada fila: `id`, `codigo`, `titulo`, `organizacion: {id, nombre}`, `severidad`, `severidad_manual`, `impacto`, `estado`, `tecnico: {id, nombre} | null`, `fecha_origen`, `fecha_deteccion`, `fecha_fin | null`, `duracion_minutos | null`, `total_activos`, `total_tickets`.
+
+## Detalle, creación y edición
+
+Ejemplo: [`docs/examples/incidente.json`](examples/incidente.json). Además de los campos de la lista: `descripcion`, `reportado_por: {id, nombre} | null`, `solucion | null`, `causa_raiz | null`, `cerrado_en | null`, `actualizado_en`, y:
+
+- `activos`: `[{id, nombre, tipo, estado}]`.
+- `tickets`: `[{id, codigo, titulo, estado}]`.
+- `acciones`, en orden cronológico: `id`, `tipo` (`creacion`, `accion`, `estado`, `tecnico`, `severidad`, `ticket`), `autor: {id, nombre} | null`, `descripcion | null`, `valor_anterior | null`, `valor_nuevo | null`, `fecha`.
+
+Fechas:
+
+- `fecha_origen`: cuándo empezó la interrupción. La indica el usuario; no puede ser futura ni posterior a la detección.
+- `fecha_deteccion`: cuándo se abrió el incidente. Automática.
+- `fecha_fin`: automática al resolver; se vacía al reabrir.
+- `duracion_minutos`: minutos enteros de `fecha_origen` a `fecha_fin`.
+
+Entrada:
+
+- `POST` recibe `organizacion` (id), `titulo`, `descripcion`, `impacto`, `fecha_origen` y opcionales `activos` (lista de ids) y `tecnico` (id o `null`).
+- `PATCH` acepta los mismos campos; `organizacion` no puede cambiar.
+- `codigo` (`INC-0001`), `severidad`, `estado`, `solucion`, `causa_raiz`, `reportado_por` y las fechas automáticas no se envían.
+
+## Severidad automática
+
+| Factor | Puntos |
+|---|---|
+| Impacto `degradado` / `parcial` / `total` | 1 / 2 / 3 |
+| Algún activo es `servidor` | +1 |
+| Algún activo está `critico` | +1 |
+
+Total: 1 → `baja`; 2 → `media`; 3 → `alta`; 4–5 → `critica`. Se calcula al crear y al cambiar `impacto` o `activos`, salvo que `severidad_manual` sea `true`.
+
+`POST /{id}/severidad/` con `{"severidad": "alta", "motivo": "..."}` la corrige a mano y marca `severidad_manual`.
+
+## Flujo de estados
+
+`POST /{id}/estado/` con `{"estado": "resuelto", "solucion": "..."}` o `{"estado": "cerrado", "causa_raiz": "..."}`.
+
+| Desde | Hacia | Requisito |
+|---|---|---|
+| `abierto` | `en_progreso` | Técnico asignado |
+| `en_progreso` | `abierto` | — |
+| `en_progreso` | `resuelto` | `solucion`. Guarda `fecha_fin` y resuelve los tickets `abierto` y `en_progreso` asociados |
+| `resuelto` | `cerrado` | `causa_raiz` |
+| `resuelto`, `cerrado` | `abierto` | Reabrir: vacía `solucion`, `causa_raiz`, `fecha_fin` y `cerrado_en`. No reabre tickets |
+
+Un incidente `cerrado` no se edita ni recibe acciones ni tickets hasta reabrirlo.
+
+## Bitácora
+
+`POST /{id}/acciones/` con `{"descripcion": "..."}` responde 201 con la acción creada, de tipo `accion`.
+
+## Tickets asociados
+
+- `POST /{id}/tickets/` con `{"ticket": 12}` asocia un ticket del mismo cliente, que no esté cerrado ni tenga incidente. Responde con el detalle.
+- `DELETE /{id}/tickets/{ticket_id}/` lo desasocia y responde con el detalle. Un ticket que no pertenece al incidente da 404.
+- `POST /api/tickets/{id}/escalar/` con `{"impacto": "total", "fecha_origen": "..."}` crea un incidente con el cliente, título, descripción, activo y técnico del ticket, y lo asocia. No copia un activo dado de baja ni un técnico inactivo. Responde 201 con el detalle del incidente.
+
+## Errores de validación (400)
+
+| Campo | Mensaje |
+|---|---|
+| `estado` | `No se puede pasar de «Abierto» a «Resuelto».` |
+| `estado` | `Elige un estado válido.` |
+| `tecnico` | `Asigna un técnico antes de pasar a En progreso.` |
+| `tecnico` | `Un incidente en progreso debe tener un técnico asignado.` |
+| `tecnico` | `El usuario debe ser un técnico o administrador activo.` |
+| `solucion` | `Describe cómo se restableció el servicio.` |
+| `causa_raiz` | `Indica la causa raíz para cerrar el incidente.` |
+| `severidad` | `Elige una severidad válida.` |
+| `motivo` | `Explica por qué cambias la severidad.` |
+| `descripcion` | `Describe qué está pasando.` (incidente) o `Describe la acción realizada.` (bitácora) |
+| `titulo` | `Escribe un título corto.` |
+| `impacto` | `Indica el impacto.` |
+| `fecha_origen` | `Indica cuándo empezó el incidente.` |
+| `fecha_origen` | `La fecha de origen no puede ser futura.` |
+| `fecha_origen` | `La fecha de origen no puede ser posterior a la detección.` |
+| `organizacion` | `Elige el cliente.` |
+| `organizacion` | `No se puede cambiar el cliente de un incidente.` |
+| `activos` | `Todos los activos deben ser de este cliente.` |
+| `activos` | `Hay activos dados de baja.` |
+| `ticket` | `Elige un ticket válido.` |
+| `ticket` | `El ticket no pertenece a este cliente.` |
+| `ticket` | `El ticket ya está asociado a un incidente.` |
+| `ticket` | `El ticket está cerrado.` |
+| `non_field_errors` | `El incidente está cerrado. Reábrelo para modificarlo.` |
+| `non_field_errors` | `El cuerpo de la petición no es válido.` |
