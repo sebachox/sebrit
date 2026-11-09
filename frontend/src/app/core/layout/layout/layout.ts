@@ -5,6 +5,8 @@ import { ETIQUETA_ROL } from '../../models/auth';
 import { AuthService } from '../../services/auth.service';
 import { SelectorTema } from '../../../shared/components/selector-tema/selector-tema';
 
+const CLAVE_BARRA = 'sebrit.sidebar';
+
 @Component({
   selector: 'app-layout',
   imports: [RouterOutlet, RouterLink, RouterLinkActive, SelectorTema],
@@ -14,9 +16,16 @@ import { SelectorTema } from '../../../shared/components/selector-tema/selector-
 export class Layout {
   protected auth = inject(AuthService);
   menuAbierto = signal(false);
+  plegado = signal(localStorage.getItem(CLAVE_BARRA) === 'plegado');
 
   alternarMenu() {
     this.menuAbierto.update((v) => !v);
+  }
+
+  alternarPlegado() {
+    const plegado = !this.plegado();
+    this.plegado.set(plegado);
+    localStorage.setItem(CLAVE_BARRA, plegado ? 'plegado' : 'expandido');
   }
 
   cerrarMenu() {

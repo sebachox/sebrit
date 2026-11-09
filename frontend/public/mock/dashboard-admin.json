@@ -3,7 +3,7 @@
   "resumen_operativo": {
     "clientes_activos": 12,
     "tickets_abiertos": 28,
-    "mantenimientos_hoy": 4,
+    "activos_criticos": 2,
     "incidentes_criticos": 3
   },
   "incidentes": [

@@ -1,4 +1,4 @@
-<div class="card shadow-sm h-100">
+<ng-template #contenido>
   <div class="card-body d-flex align-items-center gap-3">
     <div class="icono rounded-3 d-flex align-items-center justify-content-center estado-{{ tono() }}">
       <i class="bi {{ icono() }} fs-3"></i>
@@ -8,4 +8,14 @@
       <div class="fs-3 fw-bold numerico">{{ valor() }}</div>
     </div>
   </div>
-</div>
+</ng-template>
+
+@if (ruta(); as r) {
+  <a class="card shadow-sm h-100 enlace" [routerLink]="r" [queryParams]="parametros()">
+    <ng-container *ngTemplateOutlet="contenido" />
+  </a>
+} @else {
+  <div class="card shadow-sm h-100">
+    <ng-container *ngTemplateOutlet="contenido" />
+  </div>
+}

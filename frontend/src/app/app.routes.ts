@@ -140,6 +140,10 @@ export const routes: Routes = [
         loadComponent: () =>
           import('./features/admin/incidentes/incidente-ficha/incidente-ficha').then((m) => m.IncidenteFicha),
       },
+      {
+        path: 'admin/perfil',
+        loadComponent: () => import('./features/admin/perfil/perfil').then((m) => m.PerfilPagina),
+      },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
     ],
   },
