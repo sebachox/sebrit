@@ -1,0 +1,48 @@
+<div class="min-vh-100 d-flex flex-column">
+  <nav class="navbar navbar-expand-md barra px-3" aria-label="Portal del cliente">
+    <a class="navbar-brand fw-bold d-flex align-items-baseline gap-2 me-3" routerLink="/portal/inicio" (click)="cerrarMenu()">
+      SEBRIT
+    </a>
+    @if (empresa(); as e) {
+      <span class="empresa text-truncate small">{{ e }}</span>
+    }
+
+    <button
+      class="btn btn-outline-secondary d-md-none ms-auto"
+      type="button"
+      data-prueba="menu"
+      aria-label="Menú"
+      [attr.aria-expanded]="menuAbierto()"
+      (click)="alternarMenu()"
+    >
+      <i class="bi bi-list" aria-hidden="true"></i>
+    </button>
+
+    <div class="collapse navbar-collapse" [class.show]="menuAbierto()">
+      <ul class="navbar-nav ms-md-4">
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/portal/inicio" routerLinkActive="active" (click)="cerrarMenu()">Inicio</a>
+        </li>
+        <li class="nav-item">
+          <a class="nav-link" routerLink="/portal/tickets" routerLinkActive="active" (click)="cerrarMenu()">Mis tickets</a>
+        </li>
+      </ul>
+
+      <div class="ms-md-auto d-flex align-items-center gap-2 mt-2 mt-md-0">
+        <a class="perfil d-flex align-items-center gap-2" routerLink="/portal/perfil" aria-label="Mi perfil" title="Mi perfil" (click)="cerrarMenu()">
+          <i class="bi bi-person-circle fs-4" aria-hidden="true"></i>
+          <span>{{ auth.usuario()?.nombre }}</span>
+        </a>
+        <app-selector-tema class="ms-md-2 ms-auto" />
+        <button class="btn btn-sm btn-outline-secondary" type="button" data-prueba="salir" title="Cerrar sesión" (click)="auth.logout()">
+          <i class="bi bi-box-arrow-right" aria-hidden="true"></i>
+          <span class="ms-1">Salir</span>
+        </button>
+      </div>
+    </div>
+  </nav>
+
+  <main class="contenido flex-grow-1 p-3 p-md-4">
+    <router-outlet />
+  </main>
+</div>

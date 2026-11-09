@@ -72,6 +72,8 @@ export class AuthService {
       case 'admin':
       case 'tecnico':
         return '/admin/dashboard';
+      case 'cliente':
+        return '/portal/inicio';
       default:
         return '/sin-permiso';
     }
