@@ -8,6 +8,8 @@ from apps.assets.views import ActivoViewSet, BackupViewSet
 from apps.dashboard.views import AdminDashboardView
 from apps.incidents.views import IncidenteViewSet
 from apps.organizations.views import OrganizacionViewSet
+from apps.portal.views import ActivosView as ActivosPortalView
+from apps.portal.views import ResumenView
 from apps.tickets.views import TicketViewSet
 
 router = DefaultRouter(trailing_slash=True)
@@ -27,5 +29,7 @@ urlpatterns = [
     path("api/auth/perfil/clave/", CambiarClaveView.as_view()),
     path("api/dashboard/admin/", AdminDashboardView.as_view()),
     path("api/tecnicos/", TecnicosView.as_view()),
+    path("api/portal/resumen/", ResumenView.as_view()),
+    path("api/portal/activos/", ActivosPortalView.as_view()),
     path("api/", include(router.urls)),
 ]

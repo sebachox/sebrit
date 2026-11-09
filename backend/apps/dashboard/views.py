@@ -12,12 +12,27 @@ from apps.tickets.models import Ticket
 ACTIVOS = ["abierto", "en_progreso"]
 
 
-def conteo_activos(tipo):
-    return Activo.objects.filter(tipo=tipo, de_baja=False).aggregate(
+def conteo_activos(tipo, organizacion=None):
+    activos = Activo.objects.filter(tipo=tipo, de_baja=False)
+    if organizacion is not None:
+        activos = activos.filter(organizacion=organizacion)
+    return activos.aggregate(
         total=Count("id"),
         operativos=Count("id", filter=Q(estado="operativo")),
         advertencia=Count("id", filter=Q(estado="advertencia")),
         criticos=Count("id", filter=Q(estado="critico")),
+    )
+
+
+def conteo_backups(organizacion=None):
+    backups = Backup.objects.all()
+    if organizacion is not None:
+        backups = backups.filter(organizacion=organizacion)
+    return backups.aggregate(
+        total=Count("id"),
+        exitosos=Count("id", filter=Q(estado="exitoso")),
+        fallidos=Count("id", filter=Q(estado="fallido")),
+        pendientes=Count("id", filter=Q(estado="pendiente")),
     )
 
 
@@ -71,12 +86,7 @@ class AdminDashboardView(APIView):
                 "infraestructura": {
                     "servidores": conteo_activos("servidor"),
                     "redes": conteo_activos("red"),
-                    "backups": Backup.objects.aggregate(
-                        total=Count("id"),
-                        exitosos=Count("id", filter=Q(estado="exitoso")),
-                        fallidos=Count("id", filter=Q(estado="fallido")),
-                        pendientes=Count("id", filter=Q(estado="pendiente")),
-                    ),
+                    "backups": conteo_backups(),
                     "incidentes_criticos": {
                         "total": criticos.count(),
                         "abiertos": criticos.filter(estado="abierto").count(),
