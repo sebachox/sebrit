@@ -81,6 +81,14 @@ class TicketPortalDetalleSerializer(VacioComoNullMixin, TicketPortalListaSeriali
         return EventoPortalSerializer(eventos, many=True).data
 
 
+class ActivoPortalField(serializers.PrimaryKeyRelatedField):
+    def to_internal_value(self, data):
+        # Un decimal no es un id; 1e400 llega como infinito y haría fallar la consulta.
+        if isinstance(data, float):
+            self.fail("incorrect_type", data_type="float")
+        return super().to_internal_value(data)
+
+
 class TicketPortalCrearSerializer(serializers.Serializer):
     titulo = serializers.CharField(
         max_length=200,
@@ -89,7 +97,7 @@ class TicketPortalCrearSerializer(serializers.Serializer):
     descripcion = serializers.CharField(error_messages=errores("Describe lo que ocurre."))
     categoria = serializers.ChoiceField(choices=Ticket.Categoria.choices, error_messages=errores("Elige una categoría."))
     alcance = serializers.ChoiceField(choices=Ticket.Alcance.choices, error_messages=errores("Indica a quién afecta."))
-    activo = serializers.PrimaryKeyRelatedField(
+    activo = ActivoPortalField(
         queryset=Activo.objects.filter(de_baja=False),
         required=False,
         allow_null=True,

@@ -59,7 +59,11 @@ def recalcular_prioridad(ticket, autor):
 
 def _texto(valor):
     texto = str(valor or "")
-    # PostgreSQL no admite el carácter NUL: se trata como un texto no válido.
+    # PostgreSQL no admite NUL ni texto que no se pueda codificar en UTF-8: es un texto no válido.
+    try:
+        texto.encode("utf-8")
+    except UnicodeEncodeError:
+        return ""
     return "" if "\x00" in texto else texto.strip()
 
 

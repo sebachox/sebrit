@@ -254,6 +254,13 @@ describe('TicketFicha', () => {
     });
   });
 
+  it('al resolver avisa que el cliente verá la solución', () => {
+    crear(ticket({ estado: 'en_progreso' }));
+    boton('Resolver')!.click();
+    fixture.detectChanges();
+    expect(el().textContent).toContain('El cliente verá este texto.');
+  });
+
   it('comentar agrega el evento a la línea de tiempo', () => {
     crear();
     escribir('#comentario', 'Llamé al cliente');

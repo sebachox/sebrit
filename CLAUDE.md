@@ -374,7 +374,7 @@ Al agregar un módulo: una fila en `PERMISOS`, un enlace en `Layout.enlaces` y `
 
 - `AuthService` (`core/services/auth.service.ts`): guarda en `localStorage` `sebrit.access`, `sebrit.refresh` y `sebrit.usuario`; expone `usuario()` y `autenticado()` como signals; `logout()` borra todo y redirige a `/login`; `puede(modulo, accion)`; `rutaInicio()` devuelve `/admin/dashboard` para `admin` y `tecnico`, y `/portal/inicio` para `cliente`.
 - `authInterceptor`: añade `Authorization: Bearer <token>` **solo** a peticiones a `API_URL` (excepto login y refresh). Ante 401 intenta **un** refresh compartido y reintenta; si falla, cierra sesión. Ante 403 redirige a `/sin-permiso`.
-- `authGuard`: sin sesión redirige a `/login?volver=<ruta>`. `invitadoGuard`: con sesión, `/login` redirige a `rutaInicio()`. `permisoGuard(modulo, accion)`: sin permiso redirige a `/sin-permiso`. `inicioGuard`: la raíz del panel va a `rutaInicio()`. `portalGuard`: `/portal` es solo para clientes. `equipoGuard`: `/admin/perfil` envía al cliente a `/portal/perfil`.
+- `authGuard`: sin sesión redirige a `/login?volver=<ruta>`. `invitadoGuard`: con sesión, `/login` redirige a `rutaInicio()`. `permisoGuard(modulo, accion)`: sin permiso redirige a `/sin-permiso` (al cliente, a su portal). `inicioGuard`: la raíz del panel va a `rutaInicio()`. `portalGuard`: `/portal` es solo para clientes. `equipoGuard`: `/admin/perfil` envía al cliente a `/portal/perfil`.
 
 ## 10. Estado del Sprint 1
 

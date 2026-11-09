@@ -28,6 +28,13 @@ describe('permisoGuard', () => {
     expect(TestBed.inject(Router).serializeUrl(r as UrlTree)).toBe('/sin-permiso');
   });
 
+  it('manda al cliente a su portal', () => {
+    sesion('cliente');
+    configurar();
+    const r = ejecutar();
+    expect(TestBed.inject(Router).serializeUrl(r as UrlTree)).toBe('/portal/inicio');
+  });
+
   it('deja pasar al admin', () => {
     sesion('admin');
     configurar();

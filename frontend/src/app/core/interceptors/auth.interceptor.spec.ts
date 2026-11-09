@@ -37,6 +37,19 @@ describe('authInterceptor', () => {
     req.flush({});
   });
 
+  it('si el reintento tras renovar da 403, redirige a /sin-permiso', () => {
+    localStorage.setItem('sebrit.refresh', 'r1');
+    const navegar = spyOn(router, 'navigate');
+    const URL_API = `${API_URL}/portal/tickets/`;
+    let error: unknown;
+    http.get(URL_API).subscribe({ error: (e) => (error = e) });
+    backend.expectOne(URL_API).flush({}, { status: 401, statusText: 'Unauthorized' });
+    backend.expectOne(`${API_URL}/auth/refresh/`).flush({ access: 'token-2' });
+    backend.expectOne(URL_API).flush({}, { status: 403, statusText: 'Forbidden' });
+    expect(navegar).toHaveBeenCalledWith(['/sin-permiso']);
+    expect(error).toBeDefined();
+  });
+
   it('ante un 403 redirige a /sin-permiso', () => {
     const navegar = spyOn(router, 'navigate').and.resolveTo(true);
 

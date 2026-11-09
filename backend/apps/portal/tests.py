@@ -330,6 +330,12 @@ class CrearTicketPortalTests(BaseTicketsPortal):
             self.assertError(self.crear(activo=valor), "activo", "Elige un activo de tu empresa.")
         self.assertFalse(Ticket.objects.exists())
 
+    def test_activo_decimal_o_infinito_da_400(self):
+        for valor in ("1e400", "1.5"):
+            cuerpo = json.dumps(self.datos()).replace("}", f', "activo": {valor}}}')
+            r = self.client.post(TICKETS, cuerpo, content_type="application/json")
+            self.assertError(r, "activo", "Elige un activo de tu empresa.")
+
     def test_cuerpo_no_objeto_da_400(self):
         r = self.client.post(TICKETS, [1], format="json")
         self.assertError(r, "non_field_errors", "El cuerpo de la petición no es válido.")
@@ -417,6 +423,12 @@ class ComentariosPortalTests(BaseTicketsPortal):
         t = self.ticket()
         for datos in ({}, {"texto": "   "}, {"texto": "a\x00b"}):
             self.assertError(self.comentar(t, **datos), "texto", "Escribe el comentario.")
+
+    def test_texto_con_caracter_invalido_da_400(self):
+        r = self.client.post(
+            url_ticket(self.ticket(), "comentarios/"), r'{"texto": "\ud800"}', content_type="application/json"
+        )
+        self.assertError(r, "texto", "Escribe el comentario.")
 
     def test_resuelto_admite_comentarios(self):
         self.assertEqual(self.comentar(self.ticket(estado="resuelto"), texto="x").status_code, 201)
