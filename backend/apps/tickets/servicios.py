@@ -98,6 +98,8 @@ def corregir_prioridad(ticket, prioridad, motivo, autor):
     _exigir_no_cerrado(ticket)
     if prioridad not in Ticket.Prioridad.values:
         raise ValidationError({"prioridad": ["Elige una prioridad válida."]})
+    if prioridad == ticket.prioridad:
+        raise ValidationError({"prioridad": ["La prioridad ya tiene ese valor. Elige otra para corregirla."]})
     motivo = _texto(motivo)
     if not motivo:
         raise ValidationError({"motivo": ["Explica por qué cambias la prioridad."]})

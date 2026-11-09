@@ -470,6 +470,14 @@ class CorregirPrioridadTests(BaseAcciones):
     def test_prioridad_invalida(self):
         self.assertEqual(self.accion("prioridad", prioridad="urgente", motivo="x").status_code, 400)
 
+    def test_misma_prioridad_se_rechaza_y_no_la_vuelve_manual(self):
+        r = self.accion("prioridad", prioridad="baja", motivo="x")
+        self.assertEqual(r.status_code, 400, r.data)
+        self.assertEqual(r.data["prioridad"], ["La prioridad ya tiene ese valor. Elige otra para corregirla."])
+        self.ticket.refresh_from_db()
+        self.assertFalse(self.ticket.prioridad_manual)
+        self.assertFalse(self.eventos("prioridad").exists())
+
     def test_permisos(self):
         self.client.force_authenticate(self.cliente)
         self.assertEqual(self.accion("prioridad", prioridad="alta", motivo="x").status_code, 403)

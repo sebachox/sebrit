@@ -334,7 +334,7 @@ Cada evento: `id`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prior
 
 Total: 1 → `baja`; 2 → `media`; 3–4 → `alta`; 5–6 → `critica`. Se calcula al crear y al editar `alcance`, `categoria` o `activo`, salvo que `prioridad_manual` sea `true`.
 
-`POST /{id}/prioridad/` con `{"prioridad": "alta", "motivo": "..."}` la corrige a mano y marca `prioridad_manual`.
+`POST /{id}/prioridad/` con `{"prioridad": "alta", "motivo": "..."}` la corrige a mano y marca `prioridad_manual`. Enviar la prioridad que el ticket ya tiene da 400 en `prioridad` y no cambia nada.
 
 ## Flujo de estados
 
@@ -439,7 +439,7 @@ Entrada:
 
 Total: 1 → `baja`; 2 → `media`; 3 → `alta`; 4–5 → `critica`. Se calcula al crear y al cambiar `impacto` o `activos`, salvo que `severidad_manual` sea `true`.
 
-`POST /{id}/severidad/` con `{"severidad": "alta", "motivo": "..."}` la corrige a mano y marca `severidad_manual`.
+`POST /{id}/severidad/` con `{"severidad": "alta", "motivo": "..."}` la corrige a mano y marca `severidad_manual`. Enviar la severidad que el incidente ya tiene da 400 en `severidad` y no cambia nada.
 
 ## Flujo de estados
 
