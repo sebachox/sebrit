@@ -7,6 +7,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { OrganizacionesService } from '../../../../core/services/organizaciones.service';
 import { StatCard } from '../../../../shared/components/stat-card/stat-card';
 import { StatusBadge } from '../../../../shared/components/status-badge/status-badge';
+import { UsuariosPortal } from '../usuarios-portal/usuarios-portal';
 
 type Clave = keyof Organizacion;
 interface Campo {
@@ -51,7 +52,7 @@ const BLOQUES: { titulo: string; icono: string; campos: Campo[] }[] = [
 
 @Component({
   selector: 'app-cliente-ficha',
-  imports: [DatePipe, RouterLink, StatCard, StatusBadge],
+  imports: [DatePipe, RouterLink, StatCard, StatusBadge, UsuariosPortal],
   templateUrl: './cliente-ficha.html',
   styleUrl: './cliente-ficha.scss',
 })
