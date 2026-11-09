@@ -1,0 +1,74 @@
+<a routerLink="/portal/tickets" class="d-inline-flex align-items-center gap-1 small text-decoration-none text-body-secondary mb-3">
+  <i class="bi bi-arrow-left" aria-hidden="true"></i>Mis tickets
+</a>
+<h4 class="mb-3">Abrir ticket</h4>
+
+<div class="card shadow-sm border-0" style="max-width: 760px">
+  <div class="card-body p-4">
+    <form [formGroup]="form" (ngSubmit)="enviar()" novalidate>
+      @if (errorGeneral(); as e) {
+        <div class="alert alert-danger py-2" role="alert">{{ e }}</div>
+      }
+
+      <div class="row g-3">
+        <div class="col-12">
+          <label for="titulo" class="form-label">Título <span class="text-danger" aria-hidden="true">*</span></label>
+          <input id="titulo" type="text" class="form-control" formControlName="titulo" placeholder="En pocas palabras, ¿qué pasa?" [class.is-invalid]="invalido('titulo')" />
+          <div class="invalid-feedback">{{ mensaje('titulo') }}</div>
+        </div>
+
+        <div class="col-12">
+          <label for="descripcion" class="form-label">Descripción <span class="text-danger" aria-hidden="true">*</span></label>
+          <textarea id="descripcion" rows="4" class="form-control" formControlName="descripcion" placeholder="Cuéntanos desde cuándo ocurre y qué estabas haciendo." [class.is-invalid]="invalido('descripcion')"></textarea>
+          <div class="invalid-feedback">{{ mensaje('descripcion') }}</div>
+        </div>
+
+        <div class="col-sm-6">
+          <label for="categoria" class="form-label">Categoría <span class="text-danger" aria-hidden="true">*</span></label>
+          <select id="categoria" class="form-select" formControlName="categoria" [class.is-invalid]="invalido('categoria')">
+            <option value="" disabled>Elige una categoría</option>
+            @for (c of categorias; track c.valor) {
+              <option [value]="c.valor">{{ c.texto }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('categoria') }}</div>
+        </div>
+
+        <div class="col-sm-6">
+          <label for="alcance" class="form-label">¿A quién afecta? <span class="text-danger" aria-hidden="true">*</span></label>
+          <select id="alcance" class="form-select" formControlName="alcance" [class.is-invalid]="invalido('alcance')">
+            <option value="" disabled>Elige una opción</option>
+            @for (a of alcances; track a.valor) {
+              <option [value]="a.valor">{{ a.texto }}</option>
+            }
+          </select>
+          <div class="invalid-feedback">{{ mensaje('alcance') }}</div>
+        </div>
+
+        @if (activos().length > 0) {
+          <div class="col-12">
+            <label for="activo" class="form-label">Equipo relacionado</label>
+            <select id="activo" class="form-select" formControlName="activo" [class.is-invalid]="invalido('activo')">
+              <option value="">Ninguno en particular</option>
+              @for (a of activos(); track a.id) {
+                <option [value]="a.id">{{ a.nombre }}</option>
+              }
+            </select>
+            <div class="invalid-feedback">{{ mensaje('activo') }}</div>
+          </div>
+        }
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-3">
+        <a class="btn btn-outline-secondary" routerLink="/portal/tickets">Cancelar</a>
+        <button type="submit" class="btn btn-primary" [disabled]="enviando()">
+          @if (enviando()) {
+            <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando...
+          } @else {
+            <i class="bi bi-send me-1" aria-hidden="true"></i>Abrir ticket
+          }
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
