@@ -28,9 +28,19 @@ def nombre_usuario(usuario):
     return (usuario.get_full_name() or usuario.username) if usuario else ""
 
 
-def registrar_evento(ticket, tipo, autor, texto="", anterior="", nuevo=""):
+def autor_es_cliente(evento):
+    return evento.autor is not None and evento.autor.rol == "cliente"
+
+
+def registrar_evento(ticket, tipo, autor, texto="", anterior="", nuevo="", visible_cliente=False):
     return EventoTicket.objects.create(
-        ticket=ticket, tipo=tipo, autor=autor, texto=texto, valor_anterior=anterior, valor_nuevo=nuevo
+        ticket=ticket,
+        tipo=tipo,
+        autor=autor,
+        texto=texto,
+        valor_anterior=anterior,
+        valor_nuevo=nuevo,
+        visible_cliente=visible_cliente,
     )
 
 
@@ -112,9 +122,13 @@ def corregir_prioridad(ticket, prioridad, motivo, autor):
     return ticket
 
 
-def comentar(ticket, texto, autor):
+def comentar(ticket, texto, autor, visible_cliente=False):
     _exigir_no_cerrado(ticket)
+    if not isinstance(visible_cliente, bool):
+        raise ValidationError({"visible_cliente": ["Indica si el comentario es visible para el cliente."]})
     texto = _texto(texto)
     if not texto:
         raise ValidationError({"texto": ["Escribe el comentario."]})
-    return registrar_evento(ticket, EventoTicket.Tipo.COMENTARIO, autor, texto=texto)
+    return registrar_evento(
+        ticket, EventoTicket.Tipo.COMENTARIO, autor, texto=texto, visible_cliente=visible_cliente
+    )

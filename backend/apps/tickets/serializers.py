@@ -9,7 +9,7 @@ from apps.organizations.serializers import VacioComoNullMixin
 
 from .models import EventoTicket, Ticket
 from .prioridad import calcular_prioridad
-from .servicios import MSG_CERRADO, nombre_usuario, recalcular_prioridad, registrar_evento
+from .servicios import MSG_CERRADO, autor_es_cliente, nombre_usuario, recalcular_prioridad, registrar_evento
 
 
 class EventoSerializer(VacioComoNullMixin, serializers.ModelSerializer):
@@ -17,11 +17,12 @@ class EventoSerializer(VacioComoNullMixin, serializers.ModelSerializer):
 
     class Meta:
         model = EventoTicket
-        fields = ["id", "tipo", "autor", "texto", "valor_anterior", "valor_nuevo", "fecha"]
+        fields = ["id", "tipo", "autor", "texto", "valor_anterior", "valor_nuevo", "visible_cliente", "fecha"]
 
     def to_representation(self, instance):
         data = super().to_representation(instance)
         data["autor"] = referencia_usuario(instance.autor)
+        data["autor_es_cliente"] = autor_es_cliente(instance)
         return data
 
 

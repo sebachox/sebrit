@@ -515,6 +515,51 @@ class ComentariosTests(BaseAcciones):
         self.assertEqual(self.accion("comentarios", texto="x").status_code, 401)
 
 
+class ComentariosVisiblesTests(BaseAcciones):
+    MSG = "Indica si el comentario es visible para el cliente."
+
+    def evento_de(self, autor, **datos):
+        return EventoTicket.objects.create(ticket=self.ticket, tipo="comentario", autor=autor, texto="x", **datos)
+
+    def eventos_del_detalle(self):
+        return self.client.get(url_ticket(self.ticket)).data["eventos"]
+
+    def test_por_defecto_es_interno(self):
+        r = self.accion("comentarios", texto="x")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertIs(r.data["visible_cliente"], False)
+        self.assertFalse(self.eventos("comentario").get().visible_cliente)
+
+    def test_se_puede_marcar_visible(self):
+        r = self.accion("comentarios", texto="x", visible_cliente=True)
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertIs(r.data["visible_cliente"], True)
+        self.assertTrue(self.eventos("comentario").get().visible_cliente)
+
+    def test_valor_no_booleano_da_400(self):
+        for valor in ("si", 1, [], None):
+            r = self.accion("comentarios", texto="x", visible_cliente=valor)
+            self.assertEqual(r.status_code, 400, r.data)
+            self.assertEqual(r.data["visible_cliente"], [self.MSG])
+        self.assertFalse(self.eventos("comentario").exists())
+
+    def test_detalle_expone_visible_y_autor_es_cliente(self):
+        cliente = Usuario.objects.create_user("portal1", rol="cliente")
+        self.evento_de(cliente, visible_cliente=True)
+        self.evento_de(self.tecnico)
+        eventos = [e for e in self.eventos_del_detalle() if e["tipo"] == "comentario"]
+        self.assertEqual(
+            [(e["autor_es_cliente"], e["visible_cliente"]) for e in eventos],
+            [(True, True), (False, False)],
+        )
+
+    def test_autor_nulo_no_es_cliente(self):
+        self.evento_de(None)
+        evento = [e for e in self.eventos_del_detalle() if e["tipo"] == "comentario"][0]
+        self.assertIsNone(evento["autor"])
+        self.assertIs(evento["autor_es_cliente"], False)
+
+
 class ListaTicketsTests(APITestCase):
     def setUp(self):
         self.tec = Usuario.objects.create_user("tec1", rol="tecnico")

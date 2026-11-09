@@ -92,4 +92,5 @@ class EventoTicket(models.Model):
     texto = models.TextField(blank=True)
     valor_anterior = models.CharField(max_length=100, blank=True)
     valor_nuevo = models.CharField(max_length=100, blank=True)
+    visible_cliente = models.BooleanField(default=False)
     fecha = models.DateTimeField(default=timezone.now)
