@@ -1,10 +1,18 @@
+import { Component, input } from '@angular/core';
+import { By } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { API_URL } from '../../../../core/config/api';
 import { Organizacion } from '../../../../core/models/organizacion';
+import { UsuariosPortal } from '../usuarios-portal/usuarios-portal';
 import { ClienteFicha } from './cliente-ficha';
+
+@Component({ selector: 'app-usuarios-portal', template: '' })
+class UsuariosPortalVacio {
+  organizacionId = input.required<number>();
+}
 
 const URL = `${API_URL}/organizaciones/7/`;
 
@@ -58,6 +66,10 @@ describe('ClienteFicha', () => {
         },
       ],
     });
+    TestBed.overrideComponent(ClienteFicha, {
+      remove: { imports: [UsuariosPortal] },
+      add: { imports: [UsuariosPortalVacio] },
+    });
     fixture = TestBed.createComponent(ClienteFicha);
     http = TestBed.inject(HttpTestingController);
     fixture.detectChanges();
@@ -67,6 +79,13 @@ describe('ClienteFicha', () => {
     http.expectOne(URL).flush(o);
     fixture.detectChanges();
   }
+
+  it('incluye los usuarios del portal de ese cliente', () => {
+    crear();
+    cargar();
+    const hijo = fixture.debugElement.query(By.directive(UsuariosPortalVacio));
+    expect(hijo.componentInstance.organizacionId()).toBe(7);
+  });
 
   afterEach(() => {
     http.verify();

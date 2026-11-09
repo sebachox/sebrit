@@ -17,16 +17,16 @@
   <!-- Resumen operativo -->
   <div class="row g-3 mb-4">
     <div class="col-6 col-lg-3">
-      <app-stat-card titulo="Clientes activos" [valor]="d.resumen_operativo.clientes_activos" icono="bi-building" color="primary" />
+      <app-stat-card titulo="Clientes activos" [valor]="d.resumen_operativo.clientes_activos" icono="bi-building" color="primary" ruta="/admin/clientes" />
     </div>
     <div class="col-6 col-lg-3">
-      <app-stat-card titulo="Tickets abiertos" [valor]="d.resumen_operativo.tickets_abiertos" icono="bi-ticket-perforated" color="info" />
+      <app-stat-card titulo="Tickets abiertos" [valor]="d.resumen_operativo.tickets_abiertos" icono="bi-ticket-perforated" color="info" ruta="/admin/tickets" />
     </div>
     <div class="col-6 col-lg-3">
-      <app-stat-card titulo="Mantenimientos hoy" [valor]="d.resumen_operativo.mantenimientos_hoy" icono="bi-tools" color="warning" />
+      <app-stat-card titulo="Activos críticos" [valor]="d.resumen_operativo.activos_criticos" icono="bi-hdd-rack" color="danger" ruta="/admin/activos" [parametros]="{ estado: 'critico' }" />
     </div>
     <div class="col-6 col-lg-3">
-      <app-stat-card titulo="Incidentes críticos" [valor]="d.resumen_operativo.incidentes_criticos" icono="bi-exclamation-triangle" color="danger" />
+      <app-stat-card titulo="Incidentes críticos" [valor]="d.resumen_operativo.incidentes_criticos" icono="bi-exclamation-triangle" color="danger" ruta="/admin/incidentes" [parametros]="{ severidad: 'critica' }" />
     </div>
   </div>
 

@@ -58,8 +58,8 @@ export class TicketsService {
     return this.http.post<Ticket>(`${BASE}${id}/prioridad/`, { prioridad, motivo });
   }
 
-  comentar(id: number, texto: string): Observable<EventoTicket> {
-    return this.http.post<EventoTicket>(`${BASE}${id}/comentarios/`, { texto });
+  comentar(id: number, texto: string, visibleCliente = false): Observable<EventoTicket> {
+    return this.http.post<EventoTicket>(`${BASE}${id}/comentarios/`, { texto, visible_cliente: visibleCliente });
   }
 
   escalar(id: number, datos: DatosEscalar): Observable<Incidente> {

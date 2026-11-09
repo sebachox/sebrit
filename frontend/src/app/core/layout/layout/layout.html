@@ -1,8 +1,9 @@
 <div class="d-flex">
   <!-- Sidebar -->
-  <aside class="sidebar text-white" [class.abierto]="menuAbierto()">
+  <aside class="sidebar text-white" [class.abierto]="menuAbierto()" [class.plegada]="plegado()">
     <div class="marca p-3">
-      <span class="fs-4 fw-bold">SEBRIT</span>
+      <span class="fs-4 fw-bold nombre-completo">SEBRIT</span>
+      <span class="fs-4 fw-bold nombre-corto" aria-hidden="true">S</span>
     </div>
     <ul class="nav nav-pills flex-column p-2 gap-1">
       @for (e of enlaces; track e.ruta) {
@@ -12,19 +13,21 @@
               class="nav-link text-white"
               [routerLink]="e.ruta"
               routerLinkActive="active"
+              [attr.title]="plegado() ? e.texto : null"
               (click)="cerrarMenu()"
             >
-              <i class="bi {{ e.icono }} me-2"></i>{{ e.texto }}
+              <i class="bi {{ e.icono }} icono" aria-hidden="true"></i><span class="etiqueta">{{ e.texto }}</span>
             </a>
           } @else {
             <span
               class="nav-link bloqueado"
               aria-disabled="true"
               tabindex="0"
+              [attr.title]="plegado() ? e.texto + ': solo administradores' : null"
               [attr.aria-describedby]="'pista-' + e.modulo"
             >
-              <span class="d-flex align-items-center">
-                <i class="bi {{ e.icono }} me-2"></i>{{ e.texto }}
+              <span class="d-flex align-items-center fila">
+                <i class="bi {{ e.icono }} icono" aria-hidden="true"></i><span class="etiqueta">{{ e.texto }}</span>
                 <i class="bi bi-lock-fill ms-auto candado" aria-hidden="true"></i>
               </span>
               <span class="pista" [id]="'pista-' + e.modulo">Solo administradores</span>
@@ -38,16 +41,29 @@
   <!-- Contenido -->
   <div class="contenido flex-grow-1 min-vh-100">
     <nav class="navbar barra px-3">
-      <button class="btn btn-outline-secondary d-md-none" (click)="alternarMenu()">
-        <i class="bi bi-list"></i>
+      <button class="btn btn-outline-secondary d-md-none" type="button" aria-label="Abrir menú" (click)="alternarMenu()">
+        <i class="bi bi-list" aria-hidden="true"></i>
+      </button>
+      <button
+        class="btn btn-outline-secondary d-none d-md-inline-block"
+        type="button"
+        data-prueba="plegar"
+        [attr.aria-expanded]="!plegado()"
+        [attr.aria-label]="plegado() ? 'Expandir menú' : 'Contraer menú'"
+        [attr.title]="plegado() ? 'Expandir menú' : 'Contraer menú'"
+        (click)="alternarPlegado()"
+      >
+        <i class="bi bi-list" aria-hidden="true"></i>
       </button>
       <span class="navbar-text ms-2 fw-semibold">{{ tituloPanel() }}</span>
       <div class="ms-auto d-flex align-items-center gap-2">
-        <i class="bi bi-person-circle fs-4"></i>
-        <span class="d-none d-sm-inline">{{ auth.usuario()?.nombre }}</span>
-        @if (rol(); as r) {
-          <span class="badge rounded-pill border text-body-secondary bg-body-tertiary d-none d-sm-inline">{{ r }}</span>
-        }
+        <a class="perfil d-flex align-items-center gap-2" routerLink="/admin/perfil" aria-label="Mi perfil" title="Mi perfil">
+          <i class="bi bi-person-circle fs-4" aria-hidden="true"></i>
+          <span class="d-none d-sm-inline">{{ auth.usuario()?.nombre }}</span>
+          @if (rol(); as r) {
+            <span class="badge rounded-pill border text-body-secondary bg-body-tertiary d-none d-sm-inline">{{ r }}</span>
+          }
+        </a>
         <app-selector-tema class="ms-2" />
         <button
           class="btn btn-sm btn-outline-secondary"

@@ -1,5 +1,17 @@
+import re
+
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.utils import translation
+from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
+from apps.incidents.serializers import errores
+from apps.organizations.serializers import VacioComoNullMixin
+
+from .models import Usuario
+
+USERNAME_VALIDO = re.compile(r"[\w.@+-]+")
 
 def datos_usuario(u):
     return {
@@ -23,3 +35,147 @@ class LoginSerializer(TokenObtainPairSerializer):
         data = super().validate(attrs)
         data["usuario"] = datos_usuario(self.user)
         return data
+
+
+MSG_NOMBRE_LARGO = {"max_length": "Usa máximo 150 caracteres."}
+MSG_USERNAME = "Usa solo letras, números y @ . + - _ (máximo 150)."
+
+
+def validar_clave(valor, usuario=None):
+    """Aplica AUTH_PASSWORD_VALIDATORS; con LANGUAGE_CODE en-us, Django explicaría el rechazo en inglés."""
+    with translation.override("es"):
+        try:
+            validate_password(valor, usuario)
+        except DjangoValidationError as e:
+            raise serializers.ValidationError(list(e.messages))
+
+
+class DatosPersonalesSerializer(VacioComoNullMixin, serializers.ModelSerializer):
+    texto_opcional = ["nombres", "apellidos", "correo"]
+
+    nombres = serializers.CharField(
+        source="first_name", required=False, allow_blank=True, max_length=150, error_messages=MSG_NOMBRE_LARGO
+    )
+    apellidos = serializers.CharField(
+        source="last_name", required=False, allow_blank=True, max_length=150, error_messages=MSG_NOMBRE_LARGO
+    )
+    correo = serializers.EmailField(
+        source="email",
+        required=False,
+        allow_blank=True,
+        max_length=254,
+        error_messages={"invalid": "Escribe un correo válido.", "max_length": "Usa máximo 254 caracteres."},
+    )
+
+
+class PerfilSerializer(DatosPersonalesSerializer):
+    """Datos personales del usuario de la sesión. Usuario, rol y organización son de solo lectura."""
+
+    nombre_completo = serializers.SerializerMethodField()
+    organizacion = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Usuario
+        fields = ["id", "username", "nombres", "apellidos", "nombre_completo", "correo", "rol", "organizacion"]
+        read_only_fields = ["username", "rol"]
+
+    def get_nombre_completo(self, u):
+        return u.get_full_name() or u.username
+
+    def get_organizacion(self, u):
+        return {"id": u.organizacion_id, "nombre": u.organizacion.nombre} if u.organizacion else None
+
+
+class CambiarClaveSerializer(serializers.Serializer):
+    clave_actual = serializers.CharField(
+        trim_whitespace=False,
+        max_length=128,
+        error_messages={**errores("Escribe tu contraseña actual."), "max_length": "La contraseña actual no es correcta."},
+    )
+    clave_nueva = serializers.CharField(
+        trim_whitespace=False,
+        max_length=128,
+        error_messages={**errores("Escribe la nueva contraseña."), "max_length": "Usa máximo 128 caracteres."},
+    )
+
+    def validate_clave_actual(self, valor):
+        if not self.context["usuario"].check_password(valor):
+            raise serializers.ValidationError("La contraseña actual no es correcta.")
+        return valor
+
+    def validate_clave_nueva(self, valor):
+        usuario = self.context["usuario"]
+        if usuario.check_password(valor):
+            raise serializers.ValidationError("La nueva contraseña debe ser distinta de la actual.")
+        validar_clave(valor, usuario)
+        return valor
+
+    def save(self):
+        usuario = self.context["usuario"]
+        usuario.set_password(self.validated_data["clave_nueva"])
+        usuario.save(update_fields=["password"])
+        return usuario
+
+
+class UsuarioEmpresaSerializer(DatosPersonalesSerializer):
+    """Cuenta `cliente` de una organización, vista desde la ficha del cliente."""
+
+    activo = serializers.BooleanField(
+        source="is_active", required=False, error_messages=errores("Indica si el usuario está activo.")
+    )
+
+    class Meta:
+        model = Usuario
+        fields = ["id", "username", "nombres", "apellidos", "correo", "activo"]
+        read_only_fields = ["username"]
+
+
+class UsuarioEmpresaCrearSerializer(UsuarioEmpresaSerializer):
+    username = serializers.CharField(
+        max_length=150, error_messages={**errores("Escribe el usuario."), "max_length": MSG_USERNAME}
+    )
+    clave_inicial = serializers.CharField(
+        write_only=True,
+        trim_whitespace=False,
+        max_length=128,
+        error_messages={**errores("Escribe la contraseña inicial."), "max_length": "Usa máximo 128 caracteres."},
+    )
+
+    class Meta(UsuarioEmpresaSerializer.Meta):
+        fields = UsuarioEmpresaSerializer.Meta.fields + ["clave_inicial"]
+        read_only_fields = []
+
+    def validate_username(self, valor):
+        if not USERNAME_VALIDO.fullmatch(valor):
+            raise serializers.ValidationError(MSG_USERNAME)
+        if Usuario.objects.filter(username__iexact=valor).exists():
+            raise serializers.ValidationError("Ese usuario ya existe.")
+        return valor
+
+    def validate_clave_inicial(self, valor):
+        validar_clave(valor)
+        return valor
+
+    def create(self, datos):
+        clave = datos.pop("clave_inicial")
+        return Usuario.objects.create_user(
+            password=clave, rol=Usuario.Rol.CLIENTE, organizacion=self.context["organizacion"], **datos
+        )
+
+
+class DefinirClaveSerializer(serializers.Serializer):
+    clave_nueva = serializers.CharField(
+        trim_whitespace=False,
+        max_length=128,
+        error_messages={**errores("Escribe la nueva contraseña."), "max_length": "Usa máximo 128 caracteres."},
+    )
+
+    def validate_clave_nueva(self, valor):
+        validar_clave(valor, self.context["usuario"])
+        return valor
+
+    def save(self):
+        usuario = self.context["usuario"]
+        usuario.set_password(self.validated_data["clave_nueva"])
+        usuario.save(update_fields=["password"])
+        return usuario

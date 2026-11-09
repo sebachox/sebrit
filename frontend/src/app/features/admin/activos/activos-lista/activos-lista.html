@@ -55,7 +55,7 @@
         <select id="estado" class="form-select" (change)="cambiarEstado($any($event.target).value)">
           <option value="">Todos los estados</option>
           @for (e of estados; track e.valor) {
-            <option [value]="e.valor">{{ e.texto }}</option>
+            <option [value]="e.valor" [selected]="filtroEstado() === e.valor">{{ e.texto }}</option>
           }
         </select>
       </div>

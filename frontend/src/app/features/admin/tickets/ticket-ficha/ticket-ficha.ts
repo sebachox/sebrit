@@ -59,6 +59,7 @@ export class TicketFicha implements OnInit {
   motivoInvalido = signal(false);
 
   comentario = signal('');
+  visibleCliente = signal(false);
 
   readonly impactos = IMPACTOS;
   panelIncidente = signal<'escalar' | 'asociar' | null>(null);
@@ -116,6 +117,13 @@ export class TicketFicha implements OnInit {
 
   autor(e: EventoTicket) {
     return e.autor?.nombre ?? 'Sistema';
+  }
+
+  /** Quién puede leer un comentario; los demás eventos no llevan marca. */
+  marcaComentario(e: EventoTicket): { texto: string; tono: string } | null {
+    if (e.tipo !== 'comentario') return null;
+    if (e.autor_es_cliente) return { texto: 'Cliente', tono: 'primario' };
+    return e.visible_cliente ? { texto: 'Visible al cliente', tono: 'info' } : { texto: 'Nota interna', tono: 'neutro' };
   }
 
   /** Frase de la línea de tiempo (el comentario o motivo se muestra aparte). */
@@ -188,10 +196,11 @@ export class TicketFicha implements OnInit {
     if (!c || this.ocupado()) return;
     this.ocupado.set(true);
     this.errorAccion.set(null);
-    this.servicio.comentar(this.id, c).subscribe({
+    this.servicio.comentar(this.id, c, this.visibleCliente()).subscribe({
       next: (evento) => {
         this.ticket.update((t) => (t ? { ...t, eventos: [...t.eventos, evento] } : t));
         this.comentario.set('');
+        this.visibleCliente.set(false);
         this.ocupado.set(false);
       },
       error: (e: HttpErrorResponse) => this.fallo(e),

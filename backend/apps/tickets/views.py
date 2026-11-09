@@ -97,7 +97,10 @@ class TicketViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=["post"])
     def comentarios(self, request, pk=None):
-        evento = servicios.comentar(self.get_object(), cuerpo(request).get("texto"), request.user)
+        datos = cuerpo(request)
+        evento = servicios.comentar(
+            self.get_object(), datos.get("texto"), request.user, datos.get("visible_cliente", False)
+        )
         return Response(EventoSerializer(evento).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=["post"])

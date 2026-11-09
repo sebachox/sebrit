@@ -51,7 +51,7 @@ export class IncidentesLista implements OnInit, OnDestroy {
   q = signal('');
   organizacion = signal<number | null>(this.leerOrganizacion());
   filtroEstado = signal<'abiertos' | 'todos' | EstadoIncidente>('abiertos');
-  severidad = signal<SeveridadIncidente | null>(null);
+  severidad = signal<SeveridadIncidente | null>(this.leerSeveridad());
   impacto = signal<ImpactoIncidente | null>(null);
   tecnico = signal<number | 'sin_asignar' | null>(null);
   fechaDesde = signal('');
@@ -196,6 +196,11 @@ export class IncidentesLista implements OnInit, OnDestroy {
   private leerOrganizacion(): number | null {
     const v = Number(this.route.snapshot.queryParamMap.get('organizacion'));
     return Number.isInteger(v) && v > 0 ? v : null;
+  }
+
+  private leerSeveridad(): SeveridadIncidente | null {
+    const v = this.route.snapshot.queryParamMap.get('severidad');
+    return SEVERIDADES.find((s) => s.valor === v)?.valor ?? null;
   }
 
   private filtros(): FiltrosIncidentes {

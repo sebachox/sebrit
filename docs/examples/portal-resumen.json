@@ -1,0 +1,11 @@
+{
+  "generado_en": "2026-11-08T10:00:00-05:00",
+  "empresa": { "id": 1, "nombre": "Empresa Ejemplo S.A.S." },
+  "tickets": { "abiertos": 3, "en_progreso": 1, "resueltos": 2 },
+  "incidentes_activos": 1,
+  "infraestructura": {
+    "servidores": { "total": 12, "operativos": 10, "advertencia": 1, "criticos": 1 },
+    "redes": { "total": 6, "operativos": 6, "advertencia": 0, "criticos": 0 },
+    "backups": { "total": 20, "exitosos": 18, "fallidos": 1, "pendientes": 1 }
+  }
+}

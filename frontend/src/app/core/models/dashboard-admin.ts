@@ -4,7 +4,7 @@ export type EstadoIncidente = 'abierto' | 'en_progreso' | 'resuelto' | 'cerrado'
 export interface ResumenOperativo {
   clientes_activos: number;
   tickets_abiertos: number;
-  mantenimientos_hoy: number;
+  activos_criticos: number;
   incidentes_criticos: number;
 }
 

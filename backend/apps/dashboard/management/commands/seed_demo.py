@@ -7,7 +7,6 @@ from apps.accounts.models import Usuario
 from apps.assets.models import Activo, Backup
 from apps.incidents.models import AccionIncidente, Incidente
 from apps.incidents.severidad import calcular_severidad
-from apps.maintenance.models import Mantenimiento
 from apps.organizations.models import Organizacion
 from apps.tickets.models import Ticket
 from apps.tickets.prioridad import calcular_prioridad
@@ -81,17 +80,6 @@ class Command(BaseCommand):
                 tecnico=laura,
                 cerrado_en=timezone.now(),
             )
-
-        # Mantenimientos: 4 hoy y 1 mañana
-        hoy = timezone.localtime().replace(minute=0, second=0, microsecond=0)
-        for h in (8, 10, 14, 16):
-            Mantenimiento.objects.create(
-                organizacion=org1, titulo=f"Mantenimiento {h}:00", fecha_programada=hoy.replace(hour=h),
-            )
-        Mantenimiento.objects.create(
-            organizacion=org2, titulo="Mantenimiento de mañana",
-            fecha_programada=hoy + timezone.timedelta(days=1),
-        )
 
         # Incidentes: 3 críticos activos (1 abierto sin técnico, 2 en progreso), 1 cerrado y 1 resuelto
         ahora = timezone.now()

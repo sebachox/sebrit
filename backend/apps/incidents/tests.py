@@ -645,6 +645,17 @@ class CorreccionSeveridadTests(BaseIncidentes):
         i = self.incidente()
         self.assertError(self.corregir(i, severidad="x", motivo="m"), "severidad", "Elige una severidad válida.")
 
+    def test_misma_severidad_se_rechaza_y_no_la_vuelve_manual(self):
+        i = self.incidente()
+        self.assertError(
+            self.corregir(i, severidad="media", motivo="m"),
+            "severidad",
+            "La severidad ya tiene ese valor. Elige otra para corregirla.",
+        )
+        i.refresh_from_db()
+        self.assertFalse(i.severidad_manual)
+        self.assertFalse(i.acciones.filter(tipo="severidad").exists())
+
     def test_cerrado_no_admite_correccion(self):
         i = self.incidente(estado="cerrado")
         self.assertError(self.corregir(i, severidad="alta", motivo="m"), "non_field_errors", MSG_CERRADO)

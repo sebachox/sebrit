@@ -1,0 +1,18 @@
+.conversacion li + li {
+  border-top: 1px solid var(--sb-borde);
+}
+
+.texto {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.datos dt {
+  font-weight: 400;
+  color: var(--bs-secondary-color);
+}
+
+.datos dd {
+  margin-bottom: 0.75rem;
+  overflow-wrap: anywhere;
+}

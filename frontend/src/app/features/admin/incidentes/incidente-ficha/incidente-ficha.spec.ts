@@ -351,6 +351,12 @@ describe('IncidenteFicha', () => {
     expect((el().querySelector('#motivo') as HTMLTextAreaElement).value).toBe('Afecta facturación');
   });
 
+  it('al resolver avisa que el cliente verá la solución en sus tickets', () => {
+    crear(incidente({ estado: 'en_progreso' }));
+    pulsar('Resolver');
+    expect(el().textContent).toContain('El cliente verá este texto en sus tickets asociados.');
+  });
+
   it('cambiar de estado cierra el panel abierto', () => {
     crear(incidente({ estado: 'en_progreso' }));
     pulsar('Resolver');

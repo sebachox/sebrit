@@ -470,6 +470,14 @@ class CorregirPrioridadTests(BaseAcciones):
     def test_prioridad_invalida(self):
         self.assertEqual(self.accion("prioridad", prioridad="urgente", motivo="x").status_code, 400)
 
+    def test_misma_prioridad_se_rechaza_y_no_la_vuelve_manual(self):
+        r = self.accion("prioridad", prioridad="baja", motivo="x")
+        self.assertEqual(r.status_code, 400, r.data)
+        self.assertEqual(r.data["prioridad"], ["La prioridad ya tiene ese valor. Elige otra para corregirla."])
+        self.ticket.refresh_from_db()
+        self.assertFalse(self.ticket.prioridad_manual)
+        self.assertFalse(self.eventos("prioridad").exists())
+
     def test_permisos(self):
         self.client.force_authenticate(self.cliente)
         self.assertEqual(self.accion("prioridad", prioridad="alta", motivo="x").status_code, 403)
@@ -505,6 +513,51 @@ class ComentariosTests(BaseAcciones):
         self.assertEqual(self.accion("comentarios", texto="x").status_code, 403)
         self.client.force_authenticate(None)
         self.assertEqual(self.accion("comentarios", texto="x").status_code, 401)
+
+
+class ComentariosVisiblesTests(BaseAcciones):
+    MSG = "Indica si el comentario es visible para el cliente."
+
+    def evento_de(self, autor, **datos):
+        return EventoTicket.objects.create(ticket=self.ticket, tipo="comentario", autor=autor, texto="x", **datos)
+
+    def eventos_del_detalle(self):
+        return self.client.get(url_ticket(self.ticket)).data["eventos"]
+
+    def test_por_defecto_es_interno(self):
+        r = self.accion("comentarios", texto="x")
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertIs(r.data["visible_cliente"], False)
+        self.assertFalse(self.eventos("comentario").get().visible_cliente)
+
+    def test_se_puede_marcar_visible(self):
+        r = self.accion("comentarios", texto="x", visible_cliente=True)
+        self.assertEqual(r.status_code, 201, r.data)
+        self.assertIs(r.data["visible_cliente"], True)
+        self.assertTrue(self.eventos("comentario").get().visible_cliente)
+
+    def test_valor_no_booleano_da_400(self):
+        for valor in ("si", 1, [], None):
+            r = self.accion("comentarios", texto="x", visible_cliente=valor)
+            self.assertEqual(r.status_code, 400, r.data)
+            self.assertEqual(r.data["visible_cliente"], [self.MSG])
+        self.assertFalse(self.eventos("comentario").exists())
+
+    def test_detalle_expone_visible_y_autor_es_cliente(self):
+        cliente = Usuario.objects.create_user("portal1", rol="cliente")
+        self.evento_de(cliente, visible_cliente=True)
+        self.evento_de(self.tecnico)
+        eventos = [e for e in self.eventos_del_detalle() if e["tipo"] == "comentario"]
+        self.assertEqual(
+            [(e["autor_es_cliente"], e["visible_cliente"]) for e in eventos],
+            [(True, True), (False, False)],
+        )
+
+    def test_autor_nulo_no_es_cliente(self):
+        self.evento_de(None)
+        evento = [e for e in self.eventos_del_detalle() if e["tipo"] == "comentario"][0]
+        self.assertIsNone(evento["autor"])
+        self.assertIs(evento["autor_es_cliente"], False)
 
 
 class ListaTicketsTests(APITestCase):

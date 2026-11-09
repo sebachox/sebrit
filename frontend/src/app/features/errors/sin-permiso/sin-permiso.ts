@@ -17,8 +17,10 @@ export class SinPermiso {
     return r ? ETIQUETA_ROL[r].toLowerCase() : null;
   });
 
-  /** El rol tiene un panel propio al que volver (admin y técnico). */
-  tienePanel = computed(() => this.auth.rutaInicio() !== '/sin-permiso');
+  esCliente = computed(() => this.auth.usuario()?.rol === 'cliente');
+
+  /** Solo el equipo tiene un panel seguro al que volver: el portal de un cliente puede ser justo lo bloqueado. */
+  tienePanel = computed(() => !this.esCliente() && this.auth.rutaInicio() !== '/sin-permiso');
 
   volver() {
     this.router.navigateByUrl(this.auth.rutaInicio());

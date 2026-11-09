@@ -61,6 +61,68 @@ describe('Layout', () => {
     );
   });
 
+  describe('barra plegable', () => {
+    const el = (f: ComponentFixture<Layout>) => f.nativeElement as HTMLElement;
+    const boton = (f: ComponentFixture<Layout>) =>
+      el(f).querySelector<HTMLButtonElement>('[data-prueba="plegar"]')!;
+
+    it('empieza expandida y el botón lo anuncia', () => {
+      const f = crear('admin');
+      expect(el(f).querySelector('.sidebar')!.classList).not.toContain('plegada');
+      expect(boton(f).getAttribute('aria-expanded')).toBe('true');
+      expect(boton(f).getAttribute('aria-label')).toBe('Contraer menú');
+    });
+
+    it('al pulsar se pliega y recuerda la elección', () => {
+      const f = crear('admin');
+      boton(f).click();
+      f.detectChanges();
+      expect(el(f).querySelector('.sidebar')!.classList).toContain('plegada');
+      expect(boton(f).getAttribute('aria-expanded')).toBe('false');
+      expect(boton(f).getAttribute('aria-label')).toBe('Expandir menú');
+      expect(localStorage.getItem('sebrit.sidebar')).toBe('plegado');
+    });
+
+    it('al pulsar otra vez se expande', () => {
+      const f = crear('admin');
+      boton(f).click();
+      boton(f).click();
+      f.detectChanges();
+      expect(el(f).querySelector('.sidebar')!.classList).not.toContain('plegada');
+      expect(localStorage.getItem('sebrit.sidebar')).toBe('expandido');
+    });
+
+    it('arranca plegada si así quedó', () => {
+      localStorage.setItem('sebrit.sidebar', 'plegado');
+      const f = crear('admin');
+      expect(el(f).querySelector('.sidebar')!.classList).toContain('plegada');
+    });
+
+    it('plegada, cada enlace muestra su nombre al pasar el mouse', () => {
+      localStorage.setItem('sebrit.sidebar', 'plegado');
+      const f = crear('admin');
+      expect(enlace(f, 'Tickets').getAttribute('title')).toBe('Tickets');
+    });
+
+    it('expandida, los enlaces no llevan título', () => {
+      const f = crear('admin');
+      expect(enlace(f, 'Tickets').hasAttribute('title')).toBeFalse();
+    });
+
+    it('plegada, un módulo bloqueado conserva el aviso', () => {
+      localStorage.setItem('sebrit.sidebar', 'plegado');
+      const f = crear('cliente');
+      expect(enlace(f, 'Dashboard').getAttribute('title')).toBe('Dashboard: solo administradores');
+    });
+  });
+
+  it('el nombre del navbar abre Mi perfil', () => {
+    const fixture = crear('tecnico');
+    const perfil = (fixture.nativeElement as HTMLElement).querySelector('.navbar a[href="/admin/perfil"]');
+    expect(perfil?.textContent).toContain('Laura Gómez');
+    expect(perfil?.getAttribute('aria-label')).toBe('Mi perfil');
+  });
+
   it('el navbar muestra el nombre y el rol', () => {
     const fixture = crear('tecnico');
     const navbar = (fixture.nativeElement as HTMLElement).querySelector('.navbar')?.textContent;
