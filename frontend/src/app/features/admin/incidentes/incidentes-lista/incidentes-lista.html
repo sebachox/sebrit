@@ -63,7 +63,7 @@
         <select id="severidad" class="form-select" (change)="cambiarSeveridad($any($event.target).value)">
           <option value="">Severidad</option>
           @for (s of severidades; track s.valor) {
-            <option [value]="s.valor">{{ s.texto }}</option>
+            <option [value]="s.valor" [selected]="severidad() === s.valor">{{ s.texto }}</option>
           }
         </select>
       </div>

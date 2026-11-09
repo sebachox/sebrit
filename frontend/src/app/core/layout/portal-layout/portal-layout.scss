@@ -1,0 +1,32 @@
+.barra {
+  background: var(--sb-superficie);
+  border-bottom: 1px solid var(--sb-borde);
+}
+
+.empresa {
+  color: var(--bs-secondary-color);
+  max-width: 40vw;
+}
+
+.nav-link.active {
+  color: var(--bs-primary);
+  font-weight: 600;
+}
+
+.perfil {
+  color: inherit;
+  text-decoration: none;
+  border-radius: var(--bs-border-radius);
+
+  &:hover,
+  &:focus-visible {
+    color: var(--bs-primary);
+  }
+}
+
+.contenido {
+  min-width: 0;
+  max-width: 1320px;
+  width: 100%;
+  margin-inline: auto;
+}

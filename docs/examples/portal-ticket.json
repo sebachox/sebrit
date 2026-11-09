@@ -1,0 +1,49 @@
+{
+  "id": 42,
+  "codigo": "TCK-0042",
+  "titulo": "No llegan los correos",
+  "categoria": "software",
+  "estado": "en_progreso",
+  "activo": { "id": 7, "nombre": "SRV-01" },
+  "tecnico": "Laura Gómez",
+  "creado_en": "2026-11-08T09:00:00-05:00",
+  "actualizado_en": "2026-11-08T09:40:00-05:00",
+  "descripcion": "Desde esta mañana no entran mensajes.",
+  "alcance": "toda_empresa",
+  "solucion": null,
+  "reportado_por": "Ana Ríos",
+  "resuelto_en": null,
+  "cerrado_en": null,
+  "eventos": [
+    {
+      "id": 101,
+      "tipo": "creacion",
+      "autor": "Ana Ríos",
+      "autor_es_cliente": true,
+      "texto": null,
+      "valor_anterior": null,
+      "valor_nuevo": null,
+      "fecha": "2026-11-08T09:00:00-05:00"
+    },
+    {
+      "id": 102,
+      "tipo": "estado",
+      "autor": "Laura Gómez",
+      "autor_es_cliente": false,
+      "texto": null,
+      "valor_anterior": "abierto",
+      "valor_nuevo": "en_progreso",
+      "fecha": "2026-11-08T09:30:00-05:00"
+    },
+    {
+      "id": 103,
+      "tipo": "comentario",
+      "autor": "Laura Gómez",
+      "autor_es_cliente": false,
+      "texto": "Estamos revisando el servidor de correo.",
+      "valor_anterior": null,
+      "valor_nuevo": null,
+      "fecha": "2026-11-08T09:40:00-05:00"
+    }
+  ]
+}

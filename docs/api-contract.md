@@ -43,6 +43,31 @@ Devuelve el usuario de la sesión, con la misma forma que `usuario` del login. 4
 | `nombre` | string | Nombre completo; si está vacío, el `username` |
 | `rol` | string | `admin`, `tecnico` o `cliente` |
 
+### `GET` y `PATCH /api/auth/perfil/` (autenticado, cualquier rol)
+
+Datos personales de quien tiene la sesión. 401 sin token; PUT, POST y DELETE dan 405.
+
+```json
+{
+  "id": 1,
+  "username": "ana",
+  "nombres": "Ana",
+  "apellidos": "Ruiz",
+  "nombre_completo": "Ana Ruiz",
+  "correo": "ana@ejemplo.com",
+  "rol": "admin",
+  "organizacion": null
+}
+```
+
+`nombres`, `apellidos` y `correo` son editables, opcionales y salen `null` si están vacíos. `organizacion` es `{ "id": entero, "nombre": string }` o `null`. `nombre_completo` es calculado (si no hay nombre, el `username`). `id`, `username`, `rol` y `organizacion` se ignoran al editar.
+
+### `POST /api/auth/perfil/clave/` (autenticado, cualquier rol)
+
+Recibe `{"clave_actual": "...", "clave_nueva": "..."}` y responde 204 sin cuerpo. 400 si la actual no es correcta, si la nueva es igual a la actual o si no cumple las reglas de contraseña; el error va en `clave_actual` o `clave_nueva`. 401 sin token; otros métodos dan 405.
+
+Los tokens ya emitidos siguen siendo válidos hasta vencer.
+
 ## Endpoint
 
 `GET /api/dashboard/admin/`
@@ -62,7 +87,7 @@ Ejemplo completo: [`docs/examples/dashboard-admin.json`](examples/dashboard-admi
 | `generado_en` | string | ISO 8601 con zona America/Bogota (`-05:00`) |
 | `resumen_operativo.clientes_activos` | entero | Organizaciones con `activa = true` |
 | `resumen_operativo.tickets_abiertos` | entero | Tickets en estado `abierto` o `en_progreso` |
-| `resumen_operativo.mantenimientos_hoy` | entero | Programados para la fecha de hoy en America/Bogota |
+| `resumen_operativo.activos_criticos` | entero | Servidores y equipos de red en estado `critico`, sin los dados de baja |
 | `resumen_operativo.incidentes_criticos` | entero | Incidentes activos con severidad `critica` |
 | `incidentes` | arreglo | Máximo 10 incidentes activos, del más reciente al más antiguo. Puede ser `[]` |
 | `incidentes[].id` | entero | |
@@ -83,6 +108,7 @@ Ejemplo completo: [`docs/examples/dashboard-admin.json`](examples/dashboard-admi
 - `servidores.total` = `operativos` + `advertencia` + `criticos` (igual para `redes`).
 - `backups.total` = `exitosos` + `fallidos` + `pendientes`.
 - `incidentes_criticos.total` = `abiertos` + `en_progreso` y es igual a `resumen_operativo.incidentes_criticos`.
+- `resumen_operativo.activos_criticos` = `servidores.criticos` + `redes.criticos`.
 - `sin_tecnico` es un subconjunto aparte: no suma al total.
 
 ## Enumeraciones
@@ -334,7 +360,7 @@ Cada evento: `id`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prior
 
 Total: 1 → `baja`; 2 → `media`; 3–4 → `alta`; 5–6 → `critica`. Se calcula al crear y al editar `alcance`, `categoria` o `activo`, salvo que `prioridad_manual` sea `true`.
 
-`POST /{id}/prioridad/` con `{"prioridad": "alta", "motivo": "..."}` la corrige a mano y marca `prioridad_manual`.
+`POST /{id}/prioridad/` con `{"prioridad": "alta", "motivo": "..."}` la corrige a mano y marca `prioridad_manual`. Enviar la prioridad que el ticket ya tiene da 400 en `prioridad` y no cambia nada.
 
 ## Flujo de estados
 
@@ -352,7 +378,7 @@ Un ticket `cerrado` solo admite reabrirse.
 
 ## Comentarios
 
-`POST /{id}/comentarios/` con `{"texto": "..."}` responde 201 con el evento creado.
+`POST /{id}/comentarios/` con `{"texto": "...", "visible_cliente": true}` responde 201 con el evento creado. `visible_cliente` es opcional y por defecto `false` (nota interna); otro tipo da 400. Cada evento expone `visible_cliente` y `autor_es_cliente`.
 
 ## Errores de validación (400)
 
@@ -439,7 +465,7 @@ Entrada:
 
 Total: 1 → `baja`; 2 → `media`; 3 → `alta`; 4–5 → `critica`. Se calcula al crear y al cambiar `impacto` o `activos`, salvo que `severidad_manual` sea `true`.
 
-`POST /{id}/severidad/` con `{"severidad": "alta", "motivo": "..."}` la corrige a mano y marca `severidad_manual`.
+`POST /{id}/severidad/` con `{"severidad": "alta", "motivo": "..."}` la corrige a mano y marca `severidad_manual`. Enviar la severidad que el incidente ya tiene da 400 en `severidad` y no cambia nada.
 
 ## Flujo de estados
 
@@ -494,3 +520,52 @@ Un incidente `cerrado` no se edita ni recibe acciones ni tickets hasta reabrirlo
 | `ticket` | `El ticket está cerrado.` |
 | `non_field_errors` | `El incidente está cerrado. Reábrelo para modificarlo.` |
 | `non_field_errors` | `El cuerpo de la petición no es válido.` |
+
+---
+
+# Usuarios de la empresa
+
+Cuentas `cliente` de una organización, gestionadas desde el panel interno. Admin: todo. Técnico: solo GET; escribir da 403. Cliente: 403. Sin token: 401. Organización inexistente: 404. Un `uid` que no sea un usuario `cliente` de esa organización da 404.
+
+| Método | Ruta | Respuesta |
+|---|---|---|
+| GET | `/api/organizaciones/{id}/usuarios/` | 200, `[{ id, username, nombres, apellidos, correo, activo }]` |
+| POST | `/api/organizaciones/{id}/usuarios/` | 201 con el usuario |
+| PATCH | `/api/organizaciones/{id}/usuarios/{uid}/` | 200 con el usuario |
+| POST | `/api/organizaciones/{id}/usuarios/{uid}/clave/` | 204 |
+
+POST recibe `username` y `clave_inicial`, y opcionales `nombres`, `apellidos`, `correo` y `activo`. El rol y la organización los fija el servidor. `username` es único sin distinguir mayúsculas y no se puede cambiar. PATCH admite `nombres`, `apellidos`, `correo` y `activo`. El endpoint de clave recibe `clave_nueva`. Las contraseñas cumplen las reglas de Django.
+
+---
+
+# Portal del cliente
+
+Recurso `/api/portal/`. Exige rol `cliente`, organización asignada y organización activa; si no, 403. Sin token, 401. La empresa siempre sale de la sesión: ningún endpoint acepta un id de organización. PUT, PATCH y DELETE dan 405.
+
+## `GET /api/portal/resumen/`
+
+Ejemplo: [`docs/examples/portal-resumen.json`](examples/portal-resumen.json). `tickets` cuenta `abiertos`, `en_progreso` y `resueltos`, sin los cerrados. Los activos dados de baja no cuentan. `incidentes_activos` son los `abierto` o `en_progreso`.
+
+## `GET /api/portal/activos/`
+
+`[{ id, nombre, tipo }]` de los activos no dados de baja de la empresa, por nombre.
+
+## `GET, POST /api/portal/tickets/`
+
+Lista paginada (20, máximo 100), del más reciente al más antiguo. Parámetros: `q` (código o título), `estado`, `abiertos=true`, `page`, `page_size`.
+
+Cada fila: `id`, `codigo`, `titulo`, `categoria`, `estado`, `activo` (`{ id, nombre }` o `null`), `tecnico` (nombre o `null`), `creado_en`, `actualizado_en`.
+
+POST recibe `titulo`, `descripcion`, `categoria`, `alcance` y `activo` (opcional, de la empresa y no dado de baja). Responde 201 con el detalle.
+
+## `GET /api/portal/tickets/{id}/`
+
+Ejemplo: [`docs/examples/portal-ticket.json`](examples/portal-ticket.json). Lo de la fila más `descripcion`, `alcance`, `solucion`, `reportado_por` (nombre o `null`), `resuelto_en`, `cerrado_en` y `eventos`. Un ticket de otra empresa o inexistente da 404.
+
+`eventos` trae en orden cronológico los de tipo `creacion` y `estado` y los `comentario` visibles. Cada uno: `id`, `tipo`, `autor` (nombre o `null`), `autor_es_cliente`, `texto`, `valor_anterior`, `valor_nuevo`, `fecha`. En los eventos `estado`, `texto` siempre es `null`.
+
+Nunca se exponen `prioridad`, `prioridad_manual`, `incidente`, los eventos `tecnico`, `prioridad` e `incidente` ni las notas internas.
+
+## `POST /api/portal/tickets/{id}/comentarios/`
+
+Recibe `texto`, siempre visible. Responde 201 con el evento. Texto vacío o ticket cerrado: 400.

@@ -23,12 +23,13 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
   const router = inject(Router);
 
+  const avisar403 = (error: unknown) => {
+    if (error instanceof HttpErrorResponse && error.status === 403) router.navigate(['/sin-permiso']);
+  };
+
   return next(conToken(req, auth.accessToken)).pipe(
     catchError((error: unknown) => {
-      if (error instanceof HttpErrorResponse && error.status === 403) {
-        router.navigate(['/sin-permiso']);
-        return throwError(() => error);
-      }
+      avisar403(error);
       if (!(error instanceof HttpErrorResponse) || error.status !== 401) {
         return throwError(() => error);
       }
@@ -47,7 +48,14 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
           auth.logout();
           return throwError(() => errorRefresco);
         }),
-        switchMap((nuevo) => next(conToken(req, nuevo))),
+        switchMap((nuevo) =>
+          next(conToken(req, nuevo)).pipe(
+            catchError((errorReintento: unknown) => {
+              avisar403(errorReintento);
+              return throwError(() => errorReintento);
+            }),
+          ),
+        ),
       );
     }),
   );

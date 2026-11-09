@@ -57,12 +57,23 @@ export class AuthService {
     this.router.navigate(['/login']);
   }
 
+  /** Refleja en la sesión un nombre recién editado en Mi perfil. */
+  actualizarNombre(nombre: string): void {
+    const usuario = this._usuario();
+    if (!usuario) return;
+    const actualizado = { ...usuario, nombre };
+    localStorage.setItem(CLAVE_USUARIO, JSON.stringify(actualizado));
+    this._usuario.set(actualizado);
+  }
+
   /** Ruta de inicio según el rol del usuario. */
   rutaInicio(): string {
     switch (this._usuario()?.rol) {
       case 'admin':
       case 'tecnico':
         return '/admin/dashboard';
+      case 'cliente':
+        return '/portal/inicio';
       default:
         return '/sin-permiso';
     }

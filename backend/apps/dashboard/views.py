@@ -5,7 +5,6 @@ from rest_framework.views import APIView
 
 from apps.assets.models import Activo, Backup
 from apps.incidents.models import Incidente
-from apps.maintenance.models import Mantenimiento
 from apps.organizations.models import Organizacion
 from apps.organizations.permissions import EsAdminOTecnicoLectura
 from apps.tickets.models import Ticket
@@ -13,12 +12,27 @@ from apps.tickets.models import Ticket
 ACTIVOS = ["abierto", "en_progreso"]
 
 
-def conteo_activos(tipo):
-    return Activo.objects.filter(tipo=tipo, de_baja=False).aggregate(
+def conteo_activos(tipo, organizacion=None):
+    activos = Activo.objects.filter(tipo=tipo, de_baja=False)
+    if organizacion is not None:
+        activos = activos.filter(organizacion=organizacion)
+    return activos.aggregate(
         total=Count("id"),
         operativos=Count("id", filter=Q(estado="operativo")),
         advertencia=Count("id", filter=Q(estado="advertencia")),
         criticos=Count("id", filter=Q(estado="critico")),
+    )
+
+
+def conteo_backups(organizacion=None):
+    backups = Backup.objects.all()
+    if organizacion is not None:
+        backups = backups.filter(organizacion=organizacion)
+    return backups.aggregate(
+        total=Count("id"),
+        exitosos=Count("id", filter=Q(estado="exitoso")),
+        fallidos=Count("id", filter=Q(estado="fallido")),
+        pendientes=Count("id", filter=Q(estado="pendiente")),
     )
 
 
@@ -51,8 +65,7 @@ class AdminDashboardView(APIView):
     permission_classes = [EsAdminOTecnicoLectura]
 
     def get(self, request):
-        hoy = timezone.localdate()
-        criticos = Incidente.objects.filter(severidad="critica", estado__in=ACTIVOS)
+        criticos =Incidente.objects.filter(severidad="critica", estado__in=ACTIVOS)
 
         incidentes = (
             Incidente.objects.filter(estado__in=ACTIVOS)
@@ -66,21 +79,14 @@ class AdminDashboardView(APIView):
                 "resumen_operativo": {
                     "clientes_activos": Organizacion.objects.filter(activa=True).count(),
                     "tickets_abiertos": Ticket.objects.filter(estado__in=ACTIVOS).count(),
-                    "mantenimientos_hoy": Mantenimiento.objects.filter(
-                        fecha_programada__date=hoy
-                    ).count(),
+                    "activos_criticos": Activo.objects.filter(de_baja=False, estado="critico").count(),
                     "incidentes_criticos": criticos.count(),
                 },
                 "incidentes": [serializar_incidente(i) for i in incidentes],
                 "infraestructura": {
                     "servidores": conteo_activos("servidor"),
                     "redes": conteo_activos("red"),
-                    "backups": Backup.objects.aggregate(
-                        total=Count("id"),
-                        exitosos=Count("id", filter=Q(estado="exitoso")),
-                        fallidos=Count("id", filter=Q(estado="fallido")),
-                        pendientes=Count("id", filter=Q(estado="pendiente")),
-                    ),
+                    "backups": conteo_backups(),
                     "incidentes_criticos": {
                         "total": criticos.count(),
                         "abiertos": criticos.filter(estado="abierto").count(),

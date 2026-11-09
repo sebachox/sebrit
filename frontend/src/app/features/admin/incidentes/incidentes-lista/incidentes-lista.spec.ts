@@ -61,6 +61,25 @@ describe('IncidentesLista', () => {
 
   const peticion = () => http.expectOne((r) => r.url === INCIDENTES);
 
+  describe('severidad en la URL', () => {
+    it('?severidad=critica filtra y deja el selector en Crítica', () => {
+      crear({ severidad: 'critica' });
+      const req = peticion();
+      expect(req.request.params.get('severidad')).toBe('critica');
+      expect(req.request.params.get('abiertos')).toBe('true');
+      req.flush({ count: 0, next: null, previous: null, results: [] });
+      fixture.detectChanges();
+      expect((el().querySelector('#severidad') as HTMLSelectElement).value).toBe('critica');
+    });
+
+    it('un valor desconocido se ignora', () => {
+      crear({ severidad: 'x' });
+      const req = peticion();
+      expect(req.request.params.has('severidad')).toBeFalse();
+      req.flush({ count: 0, next: null, previous: null, results: [] });
+    });
+  });
+
   const responder = (cuerpo: object, opciones?: { status: number; statusText: string }) => {
     peticion().flush(cuerpo, opciones);
     fixture.detectChanges();

@@ -1,0 +1,90 @@
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando el resumen...</p>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el resumen.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (resumen(); as r) {
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <h4 class="mb-0">{{ r.empresa.nombre }}</h4>
+    <a class="btn btn-primary" routerLink="/portal/tickets/nuevo"><i class="bi bi-plus-lg me-1" aria-hidden="true"></i>Abrir ticket</a>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-6 col-lg-4" data-prueba="tickets-abiertos">
+      <app-stat-card titulo="Tickets abiertos" [valor]="r.tickets.abiertos" icono="bi-ticket-perforated" color="info" ruta="/portal/tickets" />
+    </div>
+    <div class="col-6 col-lg-4" data-prueba="tickets-progreso">
+      <app-stat-card titulo="En progreso" [valor]="r.tickets.en_progreso" icono="bi-arrow-repeat" color="warning" ruta="/portal/tickets" />
+    </div>
+    <div class="col-12 col-lg-4" data-prueba="incidentes">
+      <app-stat-card titulo="Incidentes activos" [valor]="r.incidentes_activos" icono="bi-exclamation-triangle" color="danger" />
+    </div>
+  </div>
+
+  <section class="card shadow-sm mb-4" aria-labelledby="titulo-abiertos">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <h5 id="titulo-abiertos" class="fw-semibold fs-6 mb-0">Tus tickets abiertos</h5>
+      <a class="small" routerLink="/portal/tickets">Ver todos</a>
+    </div>
+    <ul class="list-group list-group-flush">
+      @for (t of tickets(); track t.id) {
+        <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
+          <a class="numerico fw-semibold text-body text-decoration-none" [routerLink]="['/portal/tickets', t.id]">{{ t.codigo }}</a>
+          <span class="flex-grow-1 text-break">{{ t.titulo }}</span>
+          <app-status-badge [valor]="t.estado" />
+          <small class="text-muted numerico">{{ t.creado_en | date: 'dd/MM/yyyy' }}</small>
+        </li>
+      } @empty {
+        <li class="list-group-item text-center text-muted py-4">No tienes tickets abiertos.</li>
+      }
+    </ul>
+  </section>
+
+  <h5 class="mb-3">Estado de tu infraestructura</h5>
+  <div class="row g-3">
+    <div class="col-md-4" data-prueba="servidores">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted"><i class="bi bi-hdd-rack me-1" aria-hidden="true"></i>Servidores</h6>
+          <div class="fs-3 fw-bold mb-2 numerico">{{ r.infraestructura.servidores.total }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge estado estado-ok">{{ r.infraestructura.servidores.operativos }} operativos</span>
+            <span class="badge estado estado-alto">{{ r.infraestructura.servidores.advertencia }} advertencia</span>
+            <span class="badge estado estado-critico">{{ r.infraestructura.servidores.criticos }} críticos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4" data-prueba="redes">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted"><i class="bi bi-diagram-3 me-1" aria-hidden="true"></i>Redes</h6>
+          <div class="fs-3 fw-bold mb-2 numerico">{{ r.infraestructura.redes.total }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge estado estado-ok">{{ r.infraestructura.redes.operativos }} operativos</span>
+            <span class="badge estado estado-alto">{{ r.infraestructura.redes.advertencia }} advertencia</span>
+            <span class="badge estado estado-critico">{{ r.infraestructura.redes.criticos }} críticos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4" data-prueba="backups">
+      <div class="card shadow-sm h-100">
+        <div class="card-body">
+          <h6 class="text-muted"><i class="bi bi-cloud-arrow-up me-1" aria-hidden="true"></i>Backups</h6>
+          <div class="fs-3 fw-bold mb-2 numerico">{{ r.infraestructura.backups.total }}</div>
+          <div class="d-flex flex-wrap gap-2">
+            <span class="badge estado estado-ok">{{ r.infraestructura.backups.exitosos }} exitosos</span>
+            <span class="badge estado estado-critico">{{ r.infraestructura.backups.fallidos }} fallidos</span>
+            <span class="badge estado estado-neutro">{{ r.infraestructura.backups.pendientes }} pendientes</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+}

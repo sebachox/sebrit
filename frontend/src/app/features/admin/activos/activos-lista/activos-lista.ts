@@ -44,7 +44,7 @@ export class ActivosLista implements OnInit, OnDestroy {
   q = signal('');
   organizacion = signal<number | null>(this.leerOrganizacion());
   tipo = signal<TipoActivo | null>(null);
-  filtroEstado = signal<EstadoActivo | null>(null);
+  filtroEstado = signal<EstadoActivo | null>(this.leerEstado());
   deBaja = signal(false);
   pagina = signal(1);
 
@@ -149,6 +149,11 @@ export class ActivosLista implements OnInit, OnDestroy {
   private leerOrganizacion(): number | null {
     const v = Number(this.route.snapshot.queryParamMap.get('organizacion'));
     return Number.isInteger(v) && v > 0 ? v : null;
+  }
+
+  private leerEstado(): EstadoActivo | null {
+    const v = this.route.snapshot.queryParamMap.get('estado');
+    return ESTADOS_ACTIVO.find((e) => e.valor === v)?.valor ?? null;
   }
 
   private filtros(): FiltrosActivos {

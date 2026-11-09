@@ -100,6 +100,7 @@
         <label for="solucion" class="form-label fw-semibold">¿Cómo se resolvió?</label>
         <textarea id="solucion" rows="3" class="form-control" [class.is-invalid]="solucionInvalida()" [value]="solucion()" (input)="solucion.set($any($event.target).value); solucionInvalida.set(false)"></textarea>
         <div class="invalid-feedback">Describe la solución para resolver el ticket.</div>
+        <p class="small text-muted mt-2 mb-0"><i class="bi bi-eye me-1" aria-hidden="true"></i>El cliente verá este texto.</p>
         <div class="d-flex justify-content-end gap-2 mt-3">
           <button type="button" class="btn btn-outline-secondary" [disabled]="ocupado()" (click)="resolviendo.set(false)">Cancelar</button>
           <button type="button" class="btn btn-primary" [disabled]="ocupado()" (click)="confirmarResolver()">Confirmar solución</button>
@@ -133,6 +134,9 @@
               <li [class.es-comentario]="e.tipo === 'comentario'">
                 <div class="small">
                   <span class="fw-semibold">{{ autor(e) }}</span>
+                  @if (marcaComentario(e); as m) {
+                    <span class="badge estado estado-{{ m.tono }} ms-1" data-prueba="marca">{{ m.texto }}</span>
+                  }
                   <span class="text-muted"> {{ descripcionEvento(e) }} · <span class="numerico">{{ e.fecha | date: 'dd/MM/yyyy HH:mm' }}</span></span>
                 </div>
                 @if (e.texto) {
@@ -145,7 +149,11 @@
           <div class="mt-3">
             <label for="comentario" class="visually-hidden">Comentario</label>
             <textarea id="comentario" rows="2" class="form-control" placeholder="Escribe un comentario..." [disabled]="bloqueado()" [value]="comentario()" (input)="comentario.set($any($event.target).value)"></textarea>
-            <div class="d-flex justify-content-end mt-2">
+            <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mt-2">
+              <div class="form-check mb-0">
+                <input id="visible-cliente" type="checkbox" class="form-check-input" [disabled]="bloqueado()" [checked]="visibleCliente()" (change)="visibleCliente.set($any($event.target).checked)" />
+                <label for="visible-cliente" class="form-check-label small">Visible para el cliente</label>
+              </div>
               <button type="button" class="btn btn-sm btn-outline-primary" [disabled]="bloqueado() || !comentario().trim()" (click)="comentar()">Comentar</button>
             </div>
           </div>

@@ -1,0 +1,116 @@
+<a routerLink="/portal/tickets" class="d-inline-flex align-items-center gap-1 small text-decoration-none text-body-secondary mb-3">
+  <i class="bi bi-arrow-left" aria-hidden="true"></i>Mis tickets
+</a>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status"><div class="spinner-border text-primary"></div></div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="alert alert-warning">
+    Ticket no encontrado. <a routerLink="/portal/tickets" class="alert-link">Volver a mis tickets</a>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el ticket.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (ticket(); as t) {
+  <div class="d-flex flex-wrap align-items-center gap-2 mb-3">
+    <h4 class="mb-0 text-break"><span class="numerico text-muted fw-normal me-2">{{ t.codigo }}</span>{{ t.titulo }}</h4>
+    <app-status-badge [valor]="t.estado" />
+  </div>
+
+  <div class="row g-4 align-items-start">
+    <div class="col-lg-8 d-grid gap-4">
+      <section class="card shadow-sm" aria-labelledby="titulo-descripcion">
+        <h5 id="titulo-descripcion" class="card-header fw-semibold fs-6">Descripción</h5>
+        <div class="card-body texto">{{ t.descripcion ?? '—' }}</div>
+      </section>
+
+      @if (t.solucion; as s) {
+        <section class="card shadow-sm" aria-labelledby="titulo-solucion" data-prueba="solucion">
+          <h5 id="titulo-solucion" class="card-header fw-semibold fs-6">Solución</h5>
+          <div class="card-body texto">{{ s }}</div>
+        </section>
+      }
+
+      <section class="card shadow-sm" aria-labelledby="titulo-conversacion">
+        <h5 id="titulo-conversacion" class="card-header fw-semibold fs-6">Conversación</h5>
+        <div class="card-body">
+          <ul class="list-unstyled mb-0 conversacion">
+            @for (e of t.eventos; track e.id) {
+              <li class="py-2" data-prueba="evento">
+                <div class="small">
+                  <span class="fw-semibold">{{ e.autor ?? 'Sistema' }}</span>
+                  @if (esEquipo(e)) {
+                    <span class="badge estado estado-info ms-1">Equipo SEBRIT</span>
+                  }
+                  <span class="text-muted"> {{ descripcion(e) }} · <span class="numerico">{{ e.fecha | date: 'dd/MM/yyyy HH:mm' }}</span></span>
+                </div>
+                @if (e.tipo === 'comentario' && e.texto) {
+                  <div class="texto mt-1">{{ e.texto }}</div>
+                }
+              </li>
+            } @empty {
+              <li class="text-muted py-2">Todavía no hay mensajes.</li>
+            }
+          </ul>
+
+          @if (cerrado()) {
+            <div class="alert alert-secondary mt-3 mb-0">
+              Este ticket está cerrado. Si el problema volvió, abre uno nuevo.
+              <a class="alert-link" routerLink="/portal/tickets/nuevo">Abrir ticket</a>
+            </div>
+          } @else {
+            <div class="mt-3">
+              @if (errorComentario(); as e) {
+                <div class="alert alert-danger py-2" role="alert">{{ e }}</div>
+              }
+              @if (t.estado === 'resuelto') {
+                <p class="small text-muted mb-2">Si el problema continúa, escríbenos aquí.</p>
+              }
+              <label for="comentario" class="visually-hidden">Comentario</label>
+              <textarea id="comentario" rows="3" class="form-control" placeholder="Escribe un mensaje al equipo..." [value]="comentario()" (input)="comentario.set($any($event.target).value)"></textarea>
+              <div class="d-flex justify-content-end mt-2">
+                <button type="button" class="btn btn-primary btn-sm" data-prueba="comentar" [disabled]="!puedeEnviar()" (click)="comentar()">
+                  @if (enviando()) {
+                    <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Enviando...
+                  } @else {
+                    Comentar
+                  }
+                </button>
+              </div>
+            </div>
+          }
+        </div>
+      </section>
+    </div>
+
+    <aside class="col-lg-4">
+      <div class="card shadow-sm">
+        <h5 class="card-header fw-semibold fs-6">Detalles</h5>
+        <dl class="card-body mb-0 datos">
+          <dt class="small">Categoría</dt>
+          <dd>{{ nombreCategoria[t.categoria] }}</dd>
+          <dt class="small">¿A quién afecta?</dt>
+          <dd>{{ nombreAlcance[t.alcance] }}</dd>
+          <dt class="small">Equipo relacionado</dt>
+          <dd>{{ t.activo?.nombre ?? '—' }}</dd>
+          <dt class="small">Técnico</dt>
+          <dd>{{ t.tecnico ?? 'Sin asignar' }}</dd>
+          <dt class="small">Reportado por</dt>
+          <dd>{{ t.reportado_por ?? '—' }}</dd>
+          <dt class="small">Abierto el</dt>
+          <dd class="numerico">{{ t.creado_en | date: 'dd/MM/yyyy HH:mm' }}</dd>
+          @if (t.resuelto_en) {
+            <dt class="small">Resuelto el</dt>
+            <dd class="numerico">{{ t.resuelto_en | date: 'dd/MM/yyyy HH:mm' }}</dd>
+          }
+          @if (t.cerrado_en) {
+            <dt class="small">Cerrado el</dt>
+            <dd class="numerico mb-0">{{ t.cerrado_en | date: 'dd/MM/yyyy HH:mm' }}</dd>
+          }
+        </dl>
+      </div>
+    </aside>
+  </div>
+}

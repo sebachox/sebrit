@@ -28,12 +28,40 @@ describe('AdminDashboard', () => {
     expect(component).toBeTruthy();
   });
 
+  const conteo = { total: 0, operativos: 0, advertencia: 0, criticos: 0 };
+  const respuesta = (incidentes: object[]) => ({
+    generado_en: '2026-11-08T10:00:00-05:00',
+    resumen_operativo: { clientes_activos: 1, tickets_abiertos: 0, activos_criticos: 7, incidentes_criticos: 1 },
+    incidentes,
+    infraestructura: {
+      servidores: conteo,
+      redes: conteo,
+      backups: { total: 0, exitosos: 0, fallidos: 0, pendientes: 0 },
+      incidentes_criticos: { total: 1, abiertos: 1, en_progreso: 0, sin_tecnico: 1 },
+    },
+  });
+
+  it('muestra activos críticos y ya no muestra mantenimientos', () => {
+    http.expectOne(`${API_URL}/dashboard/admin/`).flush(respuesta([]));
+    fixture.detectChanges();
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(texto).toContain('Activos críticos');
+    expect(texto).not.toContain('Mantenimientos');
+    const tarjeta = (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/activos?estado=critico"]');
+    expect(tarjeta?.textContent).toContain('7');
+  });
+
+  it('cada tarjeta enlaza a su módulo', () => {
+    http.expectOne(`${API_URL}/dashboard/admin/`).flush(respuesta([]));
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    expect(el.querySelector('a[href="/admin/clientes"]')?.textContent).toContain('Clientes activos');
+    expect(el.querySelector('a[href="/admin/tickets"]')?.textContent).toContain('Tickets abiertos');
+    expect(el.querySelector('a[href="/admin/incidentes?severidad=critica"]')?.textContent).toContain('Incidentes críticos');
+  });
+
   it('el código de un incidente abre su ficha', () => {
-    const conteo = { total: 0, operativos: 0, advertencia: 0, criticos: 0 };
-    http.expectOne(`${API_URL}/dashboard/admin/`).flush({
-      generado_en: '2026-11-08T10:00:00-05:00',
-      resumen_operativo: { clientes_activos: 1, tickets_abiertos: 0, mantenimientos_hoy: 0, incidentes_criticos: 1 },
-      incidentes: [
+    http.expectOne(`${API_URL}/dashboard/admin/`).flush(respuesta([
         {
           id: 12,
           codigo: 'INC-0012',
@@ -44,14 +72,7 @@ describe('AdminDashboard', () => {
           tecnico_asignado: null,
           ultima_accion: null,
         },
-      ],
-      infraestructura: {
-        servidores: conteo,
-        redes: conteo,
-        backups: { total: 0, exitosos: 0, fallidos: 0, pendientes: 0 },
-        incidentes_criticos: { total: 1, abiertos: 1, en_progreso: 0, sin_tecnico: 1 },
-      },
-    });
+    ]));
     fixture.detectChanges();
     const enlace = (fixture.nativeElement as HTMLElement).querySelector('a[href="/admin/incidentes/12"]');
     expect(enlace?.textContent).toContain('INC-0012');

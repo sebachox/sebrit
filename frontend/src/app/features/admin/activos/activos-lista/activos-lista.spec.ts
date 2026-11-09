@@ -87,6 +87,22 @@ describe('ActivosLista', () => {
     expect((el().querySelector('#cliente') as HTMLSelectElement).value).toBe('4');
   });
 
+  it('con ?estado=critico filtra y deja el selector en Crítico', () => {
+    crear({ estado: 'critico' });
+    const req = http.expectOne((r) => r.url === ACTIVOS);
+    expect(req.request.params.get('estado')).toBe('critico');
+    req.flush(pagina([]));
+    fixture.detectChanges();
+    expect((el().querySelector('#estado') as HTMLSelectElement).value).toBe('critico');
+  });
+
+  it('con un ?estado desconocido no filtra', () => {
+    crear({ estado: 'x' });
+    const req = http.expectOne((r) => r.url === ACTIVOS);
+    expect(req.request.params.has('estado')).toBeFalse();
+    req.flush(pagina([]));
+  });
+
   it('con ?organizacion de un cliente inactivo, el selector lo muestra', () => {
     crear({ organizacion: '9' });
     http.expectOne((r) => r.url === ACTIVOS).flush(pagina([]));

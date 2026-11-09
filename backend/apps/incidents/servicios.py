@@ -138,6 +138,8 @@ def corregir_severidad(incidente, severidad, motivo, autor):
     _exigir_no_cerrado(incidente)
     if not isinstance(severidad, str) or severidad not in Incidente.Severidad.values:
         raise ValidationError({"severidad": ["Elige una severidad válida."]})
+    if severidad == incidente.severidad:
+        raise ValidationError({"severidad": ["La severidad ya tiene ese valor. Elige otra para corregirla."]})
     motivo = _texto(motivo)
     if not motivo:
         raise ValidationError({"motivo": ["Explica por qué cambias la severidad."]})

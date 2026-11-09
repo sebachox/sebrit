@@ -1,0 +1,120 @@
+<h4 class="mb-3">Mi perfil</h4>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando tu perfil...</p>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar tu perfil.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (perfil(); as p) {
+  <div class="row g-4 align-items-start">
+    <section class="col-lg-7" aria-labelledby="titulo-datos">
+      <div class="card shadow-sm">
+        <h5 id="titulo-datos" class="card-header fw-semibold fs-6">Datos personales</h5>
+        <div class="card-body p-4">
+          <dl class="row g-3 mb-1" data-prueba="solo-lectura">
+            <div class="col-sm-4">
+              <dt class="small text-muted fw-normal">Usuario</dt>
+              <dd class="mb-0 fw-semibold text-break">{{ p.username }}</dd>
+            </div>
+            <div class="col-sm-4">
+              <dt class="small text-muted fw-normal">Rol</dt>
+              <dd class="mb-0 fw-semibold">{{ etiquetaRol[p.rol] }}</dd>
+            </div>
+            <div class="col-sm-4">
+              <dt class="small text-muted fw-normal">Organización</dt>
+              <dd class="mb-0 fw-semibold text-break">{{ p.organizacion?.nombre ?? '—' }}</dd>
+            </div>
+          </dl>
+          <p class="small text-muted mb-4">Estos tres datos los administra un administrador.</p>
+
+          <form id="form-datos" [formGroup]="formDatos" (ngSubmit)="guardarDatos()" (input)="datosGuardados.set(false)" novalidate>
+            @if (errorDatos(); as e) {
+              <div class="alert alert-danger py-2" role="alert">{{ e }}</div>
+            }
+            @if (datosGuardados()) {
+              <div class="alert alert-success py-2" role="status">Datos guardados.</div>
+            }
+
+            <div class="row g-3">
+              <div class="col-sm-6">
+                <label for="nombres" class="form-label">Nombres</label>
+                <input id="nombres" type="text" class="form-control" formControlName="nombres" autocomplete="given-name" [class.is-invalid]="invalido(formDatos.controls.nombres)" />
+                <div class="invalid-feedback">{{ mensaje(formDatos.controls.nombres, 'nombres') }}</div>
+              </div>
+              <div class="col-sm-6">
+                <label for="apellidos" class="form-label">Apellidos</label>
+                <input id="apellidos" type="text" class="form-control" formControlName="apellidos" autocomplete="family-name" [class.is-invalid]="invalido(formDatos.controls.apellidos)" />
+                <div class="invalid-feedback">{{ mensaje(formDatos.controls.apellidos, 'apellidos') }}</div>
+              </div>
+              <div class="col-12">
+                <label for="correo" class="form-label">Correo</label>
+                <input id="correo" type="email" class="form-control" formControlName="correo" autocomplete="email" [class.is-invalid]="invalido(formDatos.controls.correo)" />
+                <div class="invalid-feedback">{{ mensaje(formDatos.controls.correo, 'correo') }}</div>
+              </div>
+            </div>
+
+            <div class="d-flex justify-content-end mt-3">
+              <button type="submit" class="btn btn-primary" [disabled]="enviandoDatos()">
+                @if (enviandoDatos()) {
+                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Guardando...
+                } @else {
+                  <i class="bi bi-check-lg me-1" aria-hidden="true"></i>Guardar cambios
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+
+    <section class="col-lg-5" aria-labelledby="titulo-clave">
+      <div class="card shadow-sm">
+        <h5 id="titulo-clave" class="card-header fw-semibold fs-6">Cambiar contraseña</h5>
+        <div class="card-body p-4">
+          <form id="form-clave" [formGroup]="formClave" (ngSubmit)="cambiarClave()" (input)="claveCambiada.set(false)" novalidate>
+            @if (errorClave(); as e) {
+              <div class="alert alert-danger py-2" role="alert">{{ e }}</div>
+            }
+            @if (claveCambiada()) {
+              <div class="alert alert-success py-2" role="status">Contraseña actualizada.</div>
+            }
+
+            <div class="mb-3">
+              <label for="clave_actual" class="form-label">Contraseña actual</label>
+              <input id="clave_actual" type="password" class="form-control" formControlName="clave_actual" autocomplete="current-password" [class.is-invalid]="invalido(formClave.controls.clave_actual)" />
+              <div class="invalid-feedback">{{ mensaje(formClave.controls.clave_actual, 'clave_actual') }}</div>
+            </div>
+            <div class="mb-3">
+              <label for="clave_nueva" class="form-label">Nueva contraseña</label>
+              <input id="clave_nueva" type="password" class="form-control" formControlName="clave_nueva" autocomplete="new-password" aria-describedby="ayuda-clave" [class.is-invalid]="invalido(formClave.controls.clave_nueva)" />
+              <div class="invalid-feedback">{{ mensaje(formClave.controls.clave_nueva, 'clave_nueva') }}</div>
+              <div id="ayuda-clave" class="form-text">Mínimo 8 caracteres. No puede ser solo números ni una contraseña común.</div>
+            </div>
+            <div class="mb-3">
+              <label for="repetir" class="form-label">Repite la nueva contraseña</label>
+              <input id="repetir" type="password" class="form-control" formControlName="repetir" autocomplete="new-password" [class.is-invalid]="invalido(formClave.controls.repetir)" />
+              <div class="invalid-feedback">{{ mensaje(formClave.controls.repetir, 'repetir') }}</div>
+            </div>
+
+            <p class="small text-muted">Las sesiones abiertas en otros dispositivos siguen activas hasta que venzan.</p>
+
+            <div class="d-flex justify-content-end">
+              <button type="submit" class="btn btn-primary" [disabled]="enviandoClave()">
+                @if (enviandoClave()) {
+                  <span class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>Cambiando...
+                } @else {
+                  <i class="bi bi-key me-1" aria-hidden="true"></i>Cambiar contraseña
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </section>
+  </div>
+}
