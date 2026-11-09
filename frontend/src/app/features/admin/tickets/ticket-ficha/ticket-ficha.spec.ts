@@ -16,6 +16,8 @@ const evento = (e: Partial<EventoTicket> = {}): EventoTicket => ({
   texto: null,
   valor_anterior: null,
   valor_nuevo: null,
+  visible_cliente: false,
+  autor_es_cliente: false,
   fecha: '2026-11-08T10:00:00-05:00',
   ...e,
 });
@@ -191,12 +193,73 @@ describe('TicketFicha', () => {
     expect(el().textContent).toContain('Corregida a mano');
   });
 
+  describe('comentarios visibles al cliente', () => {
+    const casilla = () => el().querySelector('#visible-cliente') as HTMLInputElement;
+    const marcar = () => {
+      casilla().checked = true;
+      casilla().dispatchEvent(new Event('change'));
+      fixture.detectChanges();
+    };
+    const marcaDe = (fila: number) =>
+      el().querySelectorAll('.linea-tiempo li')[fila].querySelector('[data-prueba="marca"]')?.textContent?.trim();
+
+    it('la casilla empieza desmarcada', () => {
+      crear();
+      expect(casilla().checked).toBeFalse();
+      expect(el().textContent).toContain('Visible para el cliente');
+    });
+
+    it('marcada envía visible_cliente verdadero y vuelve a desmarcarse', () => {
+      crear();
+      escribir('#comentario', 'Ya revisamos');
+      marcar();
+      boton('Comentar')!.click();
+      const req = http.expectOne(`${URL}comentarios/`);
+      expect(req.request.body).toEqual({ texto: 'Ya revisamos', visible_cliente: true });
+      req.flush(evento({ id: 2, tipo: 'comentario', texto: 'Ya revisamos', visible_cliente: true }));
+      fixture.detectChanges();
+      expect(casilla().checked).toBeFalse();
+    });
+
+    it('si falla el envío conserva la casilla', () => {
+      crear();
+      escribir('#comentario', 'Ya revisamos');
+      marcar();
+      boton('Comentar')!.click();
+      http.expectOne(`${URL}comentarios/`).flush({}, { status: 500, statusText: 'Error' });
+      fixture.detectChanges();
+      expect(casilla().checked).toBeTrue();
+    });
+
+    it('cada comentario muestra su marca y los demás eventos no', () => {
+      crear(
+        ticket({
+          eventos: [
+            evento(),
+            evento({ id: 2, tipo: 'comentario', texto: 'a' }),
+            evento({ id: 3, tipo: 'comentario', texto: 'b', visible_cliente: true }),
+            evento({ id: 4, tipo: 'comentario', texto: 'c', visible_cliente: true, autor_es_cliente: true }),
+          ],
+        }),
+      );
+      expect(marcaDe(0)).toBeUndefined();
+      expect(marcaDe(1)).toBe('Nota interna');
+      expect(marcaDe(2)).toBe('Visible al cliente');
+      expect(marcaDe(3)).toBe('Cliente');
+    });
+
+    it('en un ticket cerrado la casilla queda deshabilitada', () => {
+      crear(ticket({ estado: 'cerrado' }));
+      expect(casilla().disabled).toBeTrue();
+    });
+  });
+
   it('comentar agrega el evento a la línea de tiempo', () => {
     crear();
     escribir('#comentario', 'Llamé al cliente');
     boton('Comentar')!.click();
     const req = http.expectOne(`${URL}comentarios/`);
-    expect(req.request.body).toEqual({ texto: 'Llamé al cliente' });
+    expect(req.request.body).toEqual({ texto: 'Llamé al cliente', visible_cliente: false });
     req.flush(evento({ id: 2, tipo: 'comentario', texto: 'Llamé al cliente', autor: { id: 9, nombre: 'Yo' } }));
     fixture.detectChanges();
     expect(el().querySelector('.linea-tiempo')?.textContent).toContain('Llamé al cliente');

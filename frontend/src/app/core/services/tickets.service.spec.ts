@@ -41,7 +41,7 @@ describe('TicketsService', () => {
     expect(http.expectOne(`${BASE}3/prioridad/`).request.body).toEqual({ prioridad: 'alta', motivo: 'Motivo' });
 
     service.comentar(3, 'Hola').subscribe();
-    expect(http.expectOne(`${BASE}3/comentarios/`).request.body).toEqual({ texto: 'Hola' });
+    expect(http.expectOne(`${BASE}3/comentarios/`).request.body).toEqual({ texto: 'Hola', visible_cliente: false });
   });
 
   it('tecnicos consulta /tecnicos/', () => {

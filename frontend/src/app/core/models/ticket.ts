@@ -57,6 +57,8 @@ export interface EventoTicket {
   texto: string | null;
   valor_anterior: string | null;
   valor_nuevo: string | null;
+  visible_cliente: boolean;
+  autor_es_cliente: boolean;
   fecha: string;
 }
 
