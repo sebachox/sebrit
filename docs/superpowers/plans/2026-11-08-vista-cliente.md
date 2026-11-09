@@ -33,7 +33,7 @@
 
 ### Tarea 1: Comentarios visibles al cliente en el backend
 
-**Files:** Modify `backend/apps/tickets/models.py`, `servicios.py`, `serializers.py`, `views.py`, `tests.py`, `backend/apps/incidents/serializers.py` solo si importa; Create migración `tickets/0006_*`.
+**Files:** Modify `backend/apps/tickets/models.py`, `servicios.py`, `serializers.py`, `views.py`, `tests.py`; Create migración `tickets/0006_*`.
 
 **Interfaces:** Produces `EventoTicket.visible_cliente: bool`; `comentar(ticket, texto, autor, visible_cliente=False)`; `autor_es_cliente(evento) -> bool` en `apps/tickets/servicios.py`.
 
@@ -47,7 +47,7 @@
 
 **Files:** Create `backend/apps/portal/{__init__,apps,permissions,views,serializers,tests}.py`; Modify `backend/config/settings.py` (`apps.portal`), `backend/config/urls.py`.
 
-**Interfaces:** Produces `EsClienteDelPortal`; clase de pruebas `BasePortal` con `org_a`, `org_b` (activas), `cliente_a`, `cliente_b`, `tecnico`, `admin`, helper `entrar(usuario)`. `conteo_activos` del dashboard recibe un queryset o se escribe una variante filtrada sin cambiar su resultado.
+**Interfaces:** Produces `EsClienteDelPortal`; clase de pruebas `BasePortal` con `org_a`, `org_b` (activas), `cliente_a`, `cliente_b`, `tecnico`, `admin`, helper `entrar(usuario)`. `conteo_activos(tipo, organizacion=None)` en `apps/dashboard/views.py` filtra por empresa cuando la recibe; sin ella, su resultado no cambia.
 
 - [ ] **Paso 1: Pruebas** `PermisoPortalTests` sobre `/api/portal/resumen/` y `/api/portal/activos/`: sin token 401; admin 403; técnico 403; cliente sin organización 403; cliente con empresa inactiva 403; cliente 200. `test_desactivar_empresa_tiene_efecto_inmediato` y `test_mover_de_empresa_tiene_efecto_inmediato` (misma sesión, cambia la base, cambia la respuesta).
 - [ ] **Paso 2: Pruebas** `ResumenTests`: claves exactas `{"generado_en","empresa","tickets","incidentes_activos","infraestructura"}`; `tickets` con `{"abiertos","en_progreso","resueltos"}` sin contar cerrados; infraestructura sin dados de baja; datos de `org_b` no cuentan. `ActivosPortalTests`: `[{id,nombre,tipo}]` exactos, ordenados por nombre, sin dados de baja ni de otra empresa; POST 405.
@@ -165,7 +165,7 @@
 
 ### Tarea 12: Verificación y documentación
 
-**Files:** Modify `CLAUDE.md`, `backend/apps/dashboard/management/commands/seed_demo.py` si hace falta un usuario cliente sin contraseña para la demo.
+**Files:** Modify `CLAUDE.md`.
 
 - [ ] **Paso 1:** Suites completas de backend y frontend, `npx ng build` y `makemigrations --check`. Esperado: OK y solo el aviso de presupuesto conocido.
 - [ ] **Paso 2:** Flujo real con dos usuarios temporales de empresas distintas: admin crea usuario; cliente entra, abre ticket, comenta; técnico responde con nota interna y con comentario visible; el cliente solo ve el visible; intentar leer el ticket de la otra empresa da 404. Borrar los datos temporales al terminar.
