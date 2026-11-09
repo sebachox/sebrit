@@ -4,7 +4,7 @@
 
 ## 1. Qué es SEBRIT
 
-SaaS de **gestión de infraestructura tecnológica para múltiples empresas clientes**. El personal de SEBRIT (administradores y técnicos) gestiona clientes, activos (servidores, redes, backups), tickets, incidentes y mantenimientos. Más adelante los clientes tendrán un portal con acceso solo a los datos de su propia empresa.
+SaaS de **gestión de infraestructura tecnológica para múltiples empresas clientes**. El personal de SEBRIT (administradores y técnicos) gestiona clientes, activos (servidores, redes, backups), tickets e incidentes. Más adelante los clientes tendrán un portal con acceso solo a los datos de su propia empresa.
 
 Principio clave: **la autorización se hace en el backend**. Ocultar opciones en Angular no sustituye los permisos de Django.
 
@@ -17,11 +17,11 @@ Principio clave: **la autorización se hace en el backend**. Ocultar opciones en
 | 03 | Infraestructura y activos | Hecho (inventario de activos y registro manual de backups; admin y técnico) |
 | 04 | Tickets y soporte | Hecho (prioridad automática, flujo de estados y línea de tiempo; admin y técnico). El portal para que el cliente abra tickets va con la vista del cliente |
 | 05 | Incidentes | Hecho (interrupciones del servicio: tiempos, activos, bitácora, causa raíz, severidad automática y vínculo con tickets; admin y técnico) |
-| 06 | Mantenimientos | Solo modelo base |
+| 06 | Mantenimientos | Descartado (2026-11-08): no se construye. El modelo y su tabla quedan sin uso |
 | 07 | Reportes y SLA | Pendiente (las reglas de SLA no están definidas) |
 | 08 | Monitoreo y alertas (integraciones externas) | Pendiente, módulo posterior |
 
-Transversal: usuarios, roles, permisos, autenticación y auditoría. Más adelante: dashboard del técnico y del cliente (no están en el Sprint 1).
+Transversal: usuarios, roles, permisos, autenticación y auditoría. El técnico usa el mismo dashboard del admin, con sus permisos. Más adelante: dashboard del cliente.
 
 ## 2. Equipo y flujo de trabajo
 
@@ -92,7 +92,7 @@ sebrit/
 │       ├── assets/          # Activo, Backup, API /api/activos/ y /api/backups/
 │       ├── tickets/         # Ticket, EventoTicket, regla de prioridad, API /api/tickets/
 │       ├── incidents/       # Incidente, AccionIncidente, regla de severidad, API /api/incidentes/
-│       ├── maintenance/     # Mantenimiento
+│       ├── maintenance/     # Mantenimiento (sin uso: módulo descartado)
 │       └── dashboard/       # AdminDashboardView, seed_demo, tests
 ├── frontend/
 │   ├── .claude/skills/      # impeccable, frontend-design
@@ -101,7 +101,7 @@ sebrit/
 │   └── src/app/
 │       ├── core/            # auth/permisos.ts, config/api.ts, models, services, interceptors, guards, layout
 │       ├── shared/components/   # stat-card, status-badge
-│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, auth/login, errors/sin-permiso
+│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, admin/perfil, auth/login, errors/sin-permiso
 ├── docs/
 │   ├── api-contract.md      # fuente de verdad del contrato de la API
 │   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json
@@ -143,7 +143,7 @@ cd frontend && npx ng build
 
 Variables de `.env`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` (=`db`), `POSTGRES_PORT`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`.
 
-Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 organizaciones con NIT, ciudad y plan (una inactiva), 25 servidores y 15 equipos de red, 20 backups, 28 tickets abiertos y 5 cerrados, 5 incidentes (3 críticos activos, uno sin técnico, uno resuelto y uno cerrado), 5 mantenimientos (4 de hoy). Los números se parecen al JSON de ejemplo pero no son iguales (por ejemplo 2 clientes activos, no 12).
+Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 organizaciones con NIT, ciudad y plan (una inactiva), 25 servidores y 15 equipos de red, 20 backups, 28 tickets abiertos y 5 cerrados, 5 incidentes (3 críticos activos, uno sin técnico, uno resuelto y uno cerrado). Los números se parecen al JSON de ejemplo pero no son iguales (por ejemplo 2 clientes activos, no 12).
 
 ### Usuarios en la base local de Seb
 
@@ -205,6 +205,8 @@ El admin de Django (`accounts/admin.py`) permite elegir rol y organización al c
 | POST | `/api/auth/login/` | Público. Recibe `username` y `password`; devuelve `access`, `refresh` y `usuario` (`id`, `username`, `nombre`, `rol`) |
 | POST | `/api/auth/refresh/` | Público. Recibe `refresh`, devuelve un nuevo `access` |
 | GET | `/api/auth/me/` | JWT. Devuelve el `usuario` de la sesión |
+| GET, PATCH | `/api/auth/perfil/` | JWT, cualquier rol. Datos personales propios; solo se editan `nombres`, `apellidos` y `correo`. PUT, POST y DELETE 405 |
+| POST | `/api/auth/perfil/clave/` | JWT, cualquier rol. Cambia la contraseña propia con `clave_actual` y `clave_nueva`; 204. Los tokens ya emitidos siguen válidos hasta vencer |
 | GET | `/api/dashboard/admin/` | JWT, admin o técnico. 401 sin token, 403 para cliente |
 | GET | `/api/organizaciones/` | admin y técnico. Paginada (20, máx. 100); `q`, `activa`, `plan`, `ordering` |
 | GET | `/api/organizaciones/{id}/` | admin y técnico. Incluye `resumen` |
@@ -226,7 +228,7 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 - Un incidente o ticket está **activo** si su estado es `abierto` o `en_progreso`.
 - `clientes_activos`: organizaciones con `activa = True`.
 - `tickets_abiertos`: tickets activos (los incidentes son un modelo aparte y no cuentan aquí).
-- `mantenimientos_hoy`: `fecha_programada__date` igual a hoy en America/Bogota.
+- `activos_criticos`: activos en estado `critico`, sin los dados de baja (igual a `servidores.criticos` + `redes.criticos`).
 - `incidentes_criticos`: incidentes activos con severidad `critica`.
 - `incidentes`: máximo 10 activos, del más reciente al más antiguo.
 - Infraestructura sale del `estado` de cada `Activo` y de los `Backup`; no hay monitoreo real todavía. **Los activos dados de baja no cuentan** (ni en el dashboard ni en `resumen.activos` de la ficha de cliente).
@@ -247,8 +249,8 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 
 ### Pruebas
 
-- `apps/dashboard/tests.py` (8): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico, `ultima_accion` solo de tipo `accion`.
-- `apps/accounts/tests.py` (5): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200.
+- `apps/dashboard/tests.py` (9): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico, `ultima_accion` solo de tipo `accion`.
+- `apps/accounts/tests.py` (27): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200, perfil (ver, editar, campos de solo lectura, validaciones) y cambio de contraseña.
 - `apps/organizations/tests.py` (33): modelo y `PROTECT`, seed, permisos por rol y método, validaciones, `resumen`, nulos, búsqueda, filtros, orden y paginación.
 - `apps/tickets/tests.py` (63): regla de prioridad, migración de códigos, seed, permisos, crear/editar, recálculo, eventos, flujo de estados, corrección, comentarios, filtros, orden y consultas sin N+1.
 - `apps/assets/tests.py` (47): modelo, baja, conteos sin dados de baja, seed, permisos de activos y backups, validaciones (nombre por cliente, IP, cliente fijo, baja, fecha futura, tamaño), datos derivados, filtros, orden, `ultimo_backup` sin N+1 y fechas en hora local.
@@ -265,7 +267,7 @@ Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-
 GET /api/dashboard/admin/
 {
   generado_en: string ISO 8601 (-05:00),
-  resumen_operativo: { clientes_activos, tickets_abiertos, mantenimientos_hoy, incidentes_criticos },
+  resumen_operativo: { clientes_activos, tickets_abiertos, activos_criticos, incidentes_criticos },
   incidentes: [ {
       id, codigo, titulo,
       empresa: { id, nombre },
@@ -314,8 +316,9 @@ Estilo de consola de monitoreo con **dos temas**: oscuro (por defecto) y claro. 
 | Pantalla | Ruta | Datos |
 |---|---|---|
 | Login (panel de marca con diagrama de red + formulario) | `/login` | `POST /api/auth/login/` |
-| Layout administrativo (sidebar; navbar con nombre del usuario y "Salir") | contenedor de `/admin/...` | Usuario de la sesión |
-| Dashboard admin: 4 tarjetas, tabla de incidentes, indicadores de servidores, redes, backups e incidentes críticos | `/admin/dashboard` | `GET /api/dashboard/admin/` |
+| Layout administrativo (sidebar plegable, recordada en `sebrit.sidebar`; navbar con enlace a Mi perfil y "Salir") | contenedor de `/admin/...` | Usuario de la sesión |
+| Dashboard admin: 4 tarjetas enlazadas a su módulo, tabla de incidentes, indicadores de servidores, redes, backups e incidentes críticos | `/admin/dashboard` | `GET /api/dashboard/admin/` |
+| Mi perfil: datos personales y cambio de contraseña (toda sesión; no usa `PERMISOS`) | `/admin/perfil` | `/api/auth/perfil/` y `/clave/` |
 | Sin permiso (nombre y rol del usuario, botón "Ingresar con otra cuenta") | `/sin-permiso` | Usuario de la sesión |
 | Clientes: lista con búsqueda, filtros y paginación | `/admin/clientes` | `GET /api/organizaciones/` |
 | Clientes: ficha con resumen y desactivar/reactivar | `/admin/clientes/:id` | `GET`/`PATCH /api/organizaciones/{id}/` |
@@ -380,8 +383,8 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 
 ## 11. Qué sigue después del Sprint 1
 
-1. Dashboard del técnico y del cliente (mismos endpoints con datos filtrados por rol y organización).
-2. ~~CRUD de clientes~~ (módulo 02), ~~activos y backups~~ (módulo 03), ~~tickets~~ (módulo 04) e ~~incidentes~~ (módulo 05) hechos; siguen los mantenimientos (módulo 06).
+1. Dashboard del cliente (datos filtrados por organización). El técnico no tendrá dashboard propio: usa el del admin con sus permisos.
+2. ~~CRUD de clientes~~ (módulo 02), ~~activos y backups~~ (módulo 03), ~~tickets~~ (módulo 04) e ~~incidentes~~ (módulo 05) hechos; los mantenimientos (módulo 06) se descartaron.
 3. Aislamiento por organización en el backend (un cliente nunca ve datos de otra empresa), con pruebas con dos organizaciones.
 4. Reportes y SLA cuando se definan las reglas de negocio.
 5. Monitoreo y alertas con integraciones externas.
@@ -417,6 +420,5 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 | `Cannot start ChromeHeadless` en `ng test` | No hay Chrome: usar `CHROME_BIN` apuntando a Edge (ver sección 6) |
 | Error de CORS | El origen debe ser exactamente `http://localhost:4200`; reiniciar el backend tras cambiar settings |
 | `Found 0 test(s)` | El `tests.py` quedó vacío: debe contener las clases de prueba |
-| `mantenimientos_hoy` da menos de lo esperado | El seed envejece: reiniciar la base y volver a correr `seed_demo` |
 
 Al cambiar el modelo de usuario o reiniciar la base, cada desarrollador debe correr: `docker compose down -v`, `docker compose up --build -d`, `migrate`, `createsuperuser` y `seed_demo`.
