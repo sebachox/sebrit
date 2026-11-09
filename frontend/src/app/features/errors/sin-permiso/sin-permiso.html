@@ -21,8 +21,12 @@
           </p>
         }
         <p class="text-muted mb-4">
-          Esta sección solo está disponible para administradores. Si necesitas acceso,
-          pide a un administrador que revise tu cuenta.
+          @if (esCliente()) {
+            Tu acceso al portal no está disponible. Si crees que es un error, comunícate con el equipo de SEBRIT.
+          } @else {
+            Esta sección solo está disponible para administradores. Si necesitas acceso,
+            pide a un administrador que revise tu cuenta.
+          }
         </p>
 
         @if (tienePanel()) {

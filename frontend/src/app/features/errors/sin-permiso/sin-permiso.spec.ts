@@ -54,6 +54,14 @@ describe('SinPermiso', () => {
 });
 
 describe('SinPermiso para un cliente', () => {
+  it('le explica que el portal no está disponible', () => {
+    const fixture = TestBed.createComponent(SinPermiso);
+    fixture.detectChanges();
+    const texto = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(texto).toContain('Tu acceso al portal no está disponible.');
+    expect(texto).not.toContain('solo está disponible para administradores');
+  });
+
   beforeEach(async () => {
     localStorage.clear();
     localStorage.setItem('sebrit.access', 'a1');
