@@ -9,7 +9,7 @@ from apps.dashboard.views import AdminDashboardView
 from apps.incidents.views import IncidenteViewSet
 from apps.organizations.views import OrganizacionViewSet
 from apps.portal.views import ActivosView as ActivosPortalView
-from apps.portal.views import ResumenView
+from apps.portal.views import ResumenView, TicketPortalViewSet
 from apps.tickets.views import TicketViewSet
 
 router = DefaultRouter(trailing_slash=True)
@@ -19,6 +19,7 @@ router.register("activos", ActivoViewSet, basename="activo")
 router.register("backups", BackupViewSet, basename="backup")
 router.register("tickets", TicketViewSet, basename="ticket")
 router.register("incidentes", IncidenteViewSet, basename="incidente")
+router.register("portal/tickets", TicketPortalViewSet, basename="portal-ticket")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
