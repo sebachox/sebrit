@@ -1,7 +1,9 @@
 import { Routes } from '@angular/router';
 import { authGuard, invitadoGuard } from './core/guards/auth.guard';
 import { inicioGuard, permisoGuard } from './core/guards/permiso.guard';
+import { equipoGuard, portalGuard } from './core/guards/portal.guard';
 import { Layout } from './core/layout/layout/layout';
+import { PortalLayout } from './core/layout/portal-layout/portal-layout';
 
 export const routes: Routes = [
   {
@@ -14,6 +16,37 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () =>
       import('./features/errors/sin-permiso/sin-permiso').then((m) => m.SinPermiso),
+  },
+  {
+    path: 'portal',
+    component: PortalLayout,
+    canActivate: [authGuard, portalGuard],
+    children: [
+      { path: '', pathMatch: 'full', redirectTo: 'inicio' },
+      {
+        path: 'inicio',
+        loadComponent: () => import('./features/portal/inicio/inicio').then((m) => m.PortalInicio),
+      },
+      {
+        path: 'tickets',
+        loadComponent: () =>
+          import('./features/portal/tickets-lista/tickets-lista').then((m) => m.PortalTicketsLista),
+      },
+      {
+        path: 'tickets/nuevo',
+        loadComponent: () =>
+          import('./features/portal/ticket-nuevo/ticket-nuevo').then((m) => m.PortalTicketNuevo),
+      },
+      {
+        path: 'tickets/:id',
+        loadComponent: () =>
+          import('./features/portal/ticket-ficha/ticket-ficha').then((m) => m.PortalTicketFicha),
+      },
+      {
+        path: 'perfil',
+        loadComponent: () => import('./features/admin/perfil/perfil').then((m) => m.PerfilPagina),
+      },
+    ],
   },
   {
     path: '',
@@ -142,6 +175,7 @@ export const routes: Routes = [
       },
       {
         path: 'admin/perfil',
+        canActivate: [equipoGuard],
         loadComponent: () => import('./features/admin/perfil/perfil').then((m) => m.PerfilPagina),
       },
       { path: '', pathMatch: 'full', canActivate: [inicioGuard], children: [] },
