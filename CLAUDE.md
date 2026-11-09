@@ -4,7 +4,7 @@
 
 ## 1. Qué es SEBRIT
 
-SaaS de **gestión de infraestructura tecnológica para múltiples empresas clientes**. El personal de SEBRIT (administradores y técnicos) gestiona clientes, activos (servidores, redes, backups), tickets e incidentes. Más adelante los clientes tendrán un portal con acceso solo a los datos de su propia empresa.
+SaaS de **gestión de infraestructura tecnológica para múltiples empresas clientes**. El personal de SEBRIT (administradores y técnicos) gestiona clientes, activos (servidores, redes, backups), tickets e incidentes. Los clientes tienen un portal con acceso solo a los datos de su propia empresa.
 
 Principio clave: **la autorización se hace en el backend**. Ocultar opciones en Angular no sustituye los permisos de Django.
 
@@ -18,10 +18,11 @@ Principio clave: **la autorización se hace en el backend**. Ocultar opciones en
 | 04 | Tickets y soporte | Hecho (prioridad automática, flujo de estados y línea de tiempo; admin y técnico). El portal para que el cliente abra tickets va con la vista del cliente |
 | 05 | Incidentes | Hecho (interrupciones del servicio: tiempos, activos, bitácora, causa raíz, severidad automática y vínculo con tickets; admin y técnico) |
 | 06 | Mantenimientos | Descartado (2026-11-08): no se construye. El modelo y su tabla quedan sin uso |
+| — | Vista del cliente (portal) | Hecho (inicio con resumen y tickets: abrir, seguir y comentar; aislado por organización). Usuarios gestionados desde la ficha del cliente |
 | 07 | Reportes y SLA | Pendiente (las reglas de SLA no están definidas) |
 | 08 | Monitoreo y alertas (integraciones externas) | Pendiente, módulo posterior |
 
-Transversal: usuarios, roles, permisos, autenticación y auditoría. El técnico usa el mismo dashboard del admin, con sus permisos. Más adelante: dashboard del cliente.
+Transversal: usuarios, roles, permisos, autenticación y auditoría. El técnico usa el mismo dashboard del admin, con sus permisos. El cliente tiene su portal en `/portal`.
 
 ## 2. Equipo y flujo de trabajo
 
@@ -93,7 +94,8 @@ sebrit/
 │       ├── tickets/         # Ticket, EventoTicket, regla de prioridad, API /api/tickets/
 │       ├── incidents/       # Incidente, AccionIncidente, regla de severidad, API /api/incidentes/
 │       ├── maintenance/     # Mantenimiento (sin uso: módulo descartado)
-│       └── dashboard/       # AdminDashboardView, seed_demo, tests
+│       ├── dashboard/       # AdminDashboardView, seed_demo, tests
+│       └── portal/          # API /api/portal/ del cliente (sin modelos)
 ├── frontend/
 │   ├── .claude/skills/      # impeccable, frontend-design
 │   ├── Dockerfile
@@ -101,10 +103,10 @@ sebrit/
 │   └── src/app/
 │       ├── core/            # auth/permisos.ts, config/api.ts, models, services, interceptors, guards, layout
 │       ├── shared/components/   # stat-card, status-badge
-│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, admin/perfil, auth/login, errors/sin-permiso
+│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, admin/perfil, portal (inicio, tickets), auth/login, errors/sin-permiso
 ├── docs/
 │   ├── api-contract.md      # fuente de verdad del contrato de la API
-│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json
+│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json, portal-resumen.json, portal-ticket.json
 │   └── superpowers/         # specs/ y plans/ de cada módulo
 ├── docker-compose.yml
 ├── .env.example
@@ -187,7 +189,7 @@ Conexión: host `localhost`, puerto `5433`, base y usuario de `POSTGRES_DB` / `P
 | `Activo` (assets) | `organizacion` (fija al crear), `tipo` (`servidor`, `red`), `nombre` (único por cliente, sin mayúsculas), `estado` (`operativo`, `advertencia`, `critico`), `hostname`, `ip`, `sistema_operativo`, `fabricante`, `modelo`, `numero_serie`, `ubicacion`, `notas`, `de_baja`, `fecha_baja` (automática), `creado_en`, `actualizado_en` |
 | `Backup` (assets) | `activo` (`PROTECT`; obligatorio en la API), `organizacion` (se toma del activo), `estado` (`exitoso`, `fallido`, `pendiente`), `tipo` (`completo`, `incremental`, `diferencial`), `fecha` (no futura), `tamano_gb`, `notas`, `registrado_por` (automático), `creado_en` |
 | `Ticket` | `codigo` (`TCK-0001`, automático), `organizacion` (fija al crear), `titulo`, `descripcion`, `categoria` (`hardware`, `software`, `red`, `seguridad`, `accesos`, `otro`), `alcance` (`un_usuario`, `varios_usuarios`, `toda_empresa`), `activo` (opcional), `incidente` (opcional, `SET_NULL`), `prioridad` (`baja`, `media`, `alta`, `critica`), `prioridad_manual`, `estado`, `tecnico`, `reportado_por`, `solucion`, `creado_en`, `actualizado_en`, `resuelto_en`, `cerrado_en` |
-| `EventoTicket` | `ticket`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prioridad`, `incidente`), `autor`, `texto`, `valor_anterior`, `valor_nuevo`, `fecha`. Es la línea de tiempo del ticket |
+| `EventoTicket` | `ticket`, `tipo` (`creacion`, `comentario`, `estado`, `tecnico`, `prioridad`, `incidente`), `autor`, `texto`, `valor_anterior`, `valor_nuevo`, `visible_cliente` (por defecto falso: nota interna), `fecha`. Es la línea de tiempo del ticket |
 | `Incidente` | `codigo` (`INC-0001`, automático; si ya existe toma el siguiente libre), `organizacion` (fija al crear), `titulo`, `descripcion`, `impacto` (`degradado`, `parcial`, `total`), `activos` (M2M), `severidad`, `severidad_manual`, `estado`, `tecnico` (**puede ser null**), `reportado_por`, `solucion`, `causa_raiz`, `fecha_origen` (la escribe el usuario), `creado_en` (la API lo expone como `fecha_deteccion`), `fecha_fin` (automática al resolver), `cerrado_en`, `actualizado_en`. `duracion_minutos` es calculado |
 | `AccionIncidente` | `incidente` (`related_name="acciones"`), `tipo` (`creacion`, `accion`, `estado`, `tecnico`, `severidad`, `ticket`), `autor`, `descripcion`, `valor_anterior`, `valor_nuevo`, `fecha`. Es la bitácora; la `ultima_accion` del dashboard es la más reciente de tipo `accion` |
 | `Mantenimiento` | `organizacion`, `titulo`, `fecha_programada`, `estado` (`programado`, `en_curso`, `completado`) |
@@ -220,8 +222,14 @@ El admin de Django (`accounts/admin.py`) permite elegir rol y organización al c
 | POST | `/api/incidentes/{id}/estado/`, `/severidad/`, `/acciones/`, `/tickets/` | Admin y técnico. Flujo de estados, corrección con motivo, bitácora y asociar tickets |
 | DELETE | `/api/incidentes/{id}/tickets/{ticket_id}/` | Admin y técnico. Quita el ticket del incidente |
 | GET | `/api/tecnicos/` | Admin y técnico. `[{id, nombre}]` de usuarios activos admin o técnico |
+| GET, POST | `/api/organizaciones/{id}/usuarios/` | Admin; técnico solo GET. Cuentas `cliente` de la empresa |
+| PATCH | `/api/organizaciones/{id}/usuarios/{uid}/` | Solo admin. `nombres`, `apellidos`, `correo`, `activo` |
+| POST | `/api/organizaciones/{id}/usuarios/{uid}/clave/` | Solo admin. Define una contraseña nueva; 204 |
+| GET | `/api/portal/resumen/`, `/api/portal/activos/` | Cliente de empresa activa. Resumen en números y activos para elegir al abrir un ticket |
+| GET, POST | `/api/portal/tickets/`, `/{id}/` | Cliente de empresa activa. Lista: `q`, `estado`, `abiertos`. Ticket ajeno: 404. PUT, PATCH y DELETE 405 |
+| POST | `/api/portal/tickets/{id}/comentarios/` | Cliente de empresa activa. Siempre visible; cerrado 400 |
 
-El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. `EsAdminOTecnico` (en `apps/assets/permissions.py`) da acceso completo a ambos; la usan activos, backups, tickets e incidentes (los técnicos levantan el inventario). Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
+El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega el claim `rol` al token. `EsAdminOTecnicoLectura` (en `apps/organizations/permissions.py`) da todo al admin y solo lectura al técnico; la usan el dashboard y organizaciones. `EsAdminOTecnico` (en `apps/assets/permissions.py`) da acceso completo a ambos; la usan activos, backups, tickets e incidentes (los técnicos levantan el inventario). `EsClienteDelPortal` (en `apps/portal/permissions.py`) exige rol `cliente`, organización asignada y organización activa. Los permisos de Django por usuario no se usan en la API; si más adelante hacen falta, preferir grupos o clases de permiso por `rol`.
 
 ### Reglas de cálculo del dashboard
 
@@ -239,6 +247,13 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 - **Estados** (`apps/tickets/servicios.py`): `abierto` ↔ `en_progreso` (exige técnico); `en_progreso` → `resuelto` (exige solución); `resuelto` → `cerrado`; `resuelto`/`cerrado` → `abierto` (reabrir). Un ticket cerrado solo admite reabrirse. Los tickets no se borran.
 - Cada cambio deja un `EventoTicket` con autor y fecha.
 
+### Reglas del portal del cliente
+
+- La empresa siempre sale de `request.user.organizacion`; ningún endpoint del portal acepta un id de organización. Los serializers de `apps/portal` son listas blancas.
+- El cliente ve todos los tickets de su empresa. Nunca ve `prioridad`, `prioridad_manual`, `incidente`, las notas internas ni los eventos `tecnico`, `prioridad` e `incidente`. En los eventos `estado` el `texto` sale `null` (puede citar un incidente; la solución va en `solucion`).
+- El cliente no cambia estados. Puede comentar salvo en tickets cerrados.
+- Los comentarios del equipo son internos salvo que se marque `visible_cliente`.
+
 ### Reglas de incidentes
 
 - Un incidente es la interrupción de un servicio; un ticket es una solicitud de soporte. Un ticket puede escalarse a incidente o asociarse a uno (máximo uno por ticket).
@@ -250,18 +265,20 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 ### Pruebas
 
 - `apps/dashboard/tests.py` (9): sin token 401, técnico 200 y sin escritura, cliente 403, admin 200 con las claves del contrato, conteos con un incidente sin técnico, `ultima_accion` solo de tipo `accion`.
-- `apps/accounts/tests.py` (27): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200, perfil (ver, editar, campos de solo lectura, validaciones) y cambio de contraseña.
+- `apps/accounts/tests.py` (53): login válido con `usuario`, clave incorrecta 401, el token del login abre el dashboard, `/me` sin token 401 y con token 200, perfil (ver, editar, campos de solo lectura, validaciones), cambio de contraseña y usuarios de la empresa.
 - `apps/organizations/tests.py` (33): modelo y `PROTECT`, seed, permisos por rol y método, validaciones, `resumen`, nulos, búsqueda, filtros, orden y paginación.
-- `apps/tickets/tests.py` (63): regla de prioridad, migración de códigos, seed, permisos, crear/editar, recálculo, eventos, flujo de estados, corrección, comentarios, filtros, orden y consultas sin N+1.
+- `apps/tickets/tests.py` (69): regla de prioridad, migración de códigos, seed, permisos, crear/editar, recálculo, eventos, flujo de estados, corrección, comentarios, filtros, orden y consultas sin N+1.
 - `apps/assets/tests.py` (47): modelo, baja, conteos sin dados de baja, seed, permisos de activos y backups, validaciones (nombre por cliente, IP, cliente fijo, baja, fecha futura, tamaño), datos derivados, filtros, orden, `ultimo_backup` sin N+1 y fechas en hora local.
 
 - `apps/incidents/tests.py` (107): regla de severidad, código automático, migración de datos, seed, permisos, crear/editar, recálculo, flujo de estados, corrección, bitácora, resolución en cascada, asociar y escalar, filtros, orden y consultas sin N+1.
+
+- `apps/portal/tests.py` (54): permisos, efecto inmediato de desactivar o mover, resumen, listas blancas, crear, línea de tiempo filtrada, comentarios y aislamiento con dos empresas.
 
 Todo endpoint nuevo debe traer pruebas de permisos (401 / 403 / 200).
 
 ## 8. Contrato de la API
 
-Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`, `incidente.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
+Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`, `incidente.json`, `portal-resumen.json`, `portal-ticket.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
 
 ```
 GET /api/dashboard/admin/
@@ -319,9 +336,13 @@ Estilo de consola de monitoreo con **dos temas**: oscuro (por defecto) y claro. 
 | Layout administrativo (sidebar plegable, recordada en `sebrit.sidebar`; navbar con enlace a Mi perfil y "Salir") | contenedor de `/admin/...` | Usuario de la sesión |
 | Dashboard admin: 4 tarjetas enlazadas a su módulo, tabla de incidentes, indicadores de servidores, redes, backups e incidentes críticos | `/admin/dashboard` | `GET /api/dashboard/admin/` |
 | Mi perfil: datos personales y cambio de contraseña (toda sesión; no usa `PERMISOS`) | `/admin/perfil` | `/api/auth/perfil/` y `/clave/` |
+| Portal del cliente: layout con barra superior | contenedor de `/portal/...` | `GET /api/portal/resumen/` |
+| Portal: inicio con resumen y últimos tickets abiertos | `/portal/inicio` | `/api/portal/resumen/` y `/tickets/` |
+| Portal: mis tickets, abrir ticket y ficha con conversación | `/portal/tickets`, `/portal/tickets/nuevo`, `/portal/tickets/:id` | `/api/portal/tickets/` y `/activos/` |
+| Portal: Mi perfil (misma pantalla del panel) | `/portal/perfil` | `/api/auth/perfil/` |
 | Sin permiso (nombre y rol del usuario, botón "Ingresar con otra cuenta") | `/sin-permiso` | Usuario de la sesión |
 | Clientes: lista con búsqueda, filtros y paginación | `/admin/clientes` | `GET /api/organizaciones/` |
-| Clientes: ficha con resumen y desactivar/reactivar | `/admin/clientes/:id` | `GET`/`PATCH /api/organizaciones/{id}/` |
+| Clientes: ficha con resumen, desactivar/reactivar y usuarios del portal | `/admin/clientes/:id` | `GET`/`PATCH /api/organizaciones/{id}/`, `/usuarios/` |
 | Clientes: formulario crear/editar (solo admin) | `/admin/clientes/nuevo`, `/admin/clientes/:id/editar` | `POST`/`PATCH` |
 | Activos: lista (acepta `?organizacion=`; la tarjeta Activos de la ficha de cliente enlaza aquí) | `/admin/activos` | `GET /api/activos/` |
 | Activos: ficha con cambio de estado, baja/reactivar e historial de backups (registrar backup en la misma página) | `/admin/activos/:id` | `GET`/`PATCH /api/activos/{id}/`, `/api/backups/?activo=` |
@@ -351,9 +372,9 @@ Al agregar un módulo: una fila en `PERMISOS`, un enlace en `Layout.enlaces` y `
 
 ### Autenticación en el frontend (implementada)
 
-- `AuthService` (`core/services/auth.service.ts`): guarda en `localStorage` `sebrit.access`, `sebrit.refresh` y `sebrit.usuario`; expone `usuario()` y `autenticado()` como signals; `logout()` borra todo y redirige a `/login`; `puede(modulo, accion)`; `rutaInicio()` devuelve `/admin/dashboard` para `admin` y `tecnico`, y `/sin-permiso` para `cliente`.
+- `AuthService` (`core/services/auth.service.ts`): guarda en `localStorage` `sebrit.access`, `sebrit.refresh` y `sebrit.usuario`; expone `usuario()` y `autenticado()` como signals; `logout()` borra todo y redirige a `/login`; `puede(modulo, accion)`; `rutaInicio()` devuelve `/admin/dashboard` para `admin` y `tecnico`, y `/portal/inicio` para `cliente`.
 - `authInterceptor`: añade `Authorization: Bearer <token>` **solo** a peticiones a `API_URL` (excepto login y refresh). Ante 401 intenta **un** refresh compartido y reintenta; si falla, cierra sesión. Ante 403 redirige a `/sin-permiso`.
-- `authGuard`: sin sesión redirige a `/login?volver=<ruta>`. `invitadoGuard`: con sesión, `/login` redirige a `rutaInicio()`. `permisoGuard(modulo, accion)`: sin permiso redirige a `/sin-permiso`. `inicioGuard`: la raíz del panel va a `rutaInicio()`.
+- `authGuard`: sin sesión redirige a `/login?volver=<ruta>`. `invitadoGuard`: con sesión, `/login` redirige a `rutaInicio()`. `permisoGuard(modulo, accion)`: sin permiso redirige a `/sin-permiso`. `inicioGuard`: la raíz del panel va a `rutaInicio()`. `portalGuard`: `/portal` es solo para clientes. `equipoGuard`: `/admin/perfil` envía al cliente a `/portal/perfil`.
 
 ## 10. Estado del Sprint 1
 
@@ -383,9 +404,9 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 
 ## 11. Qué sigue después del Sprint 1
 
-1. Dashboard del cliente (datos filtrados por organización). El técnico no tendrá dashboard propio: usa el del admin con sus permisos.
+1. ~~Vista del cliente~~ hecha. El técnico no tendrá dashboard propio: usa el del admin con sus permisos.
 2. ~~CRUD de clientes~~ (módulo 02), ~~activos y backups~~ (módulo 03), ~~tickets~~ (módulo 04) e ~~incidentes~~ (módulo 05) hechos; los mantenimientos (módulo 06) se descartaron.
-3. Aislamiento por organización en el backend (un cliente nunca ve datos de otra empresa), con pruebas con dos organizaciones.
+3. ~~Aislamiento por organización en el backend~~ hecho en el portal. Si se amplía el portal (activos, backups, incidentes), decidir qué datos internos no debe ver.
 4. Reportes y SLA cuando se definan las reglas de negocio.
 5. Monitoreo y alertas con integraciones externas.
 6. CI con GitHub Actions (pruebas en cada PR). Cuando se agregue, exigir aprobación para workflows de forks (repo público).
@@ -413,7 +434,7 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 | `could not translate host name "db"` | El backend no está en la misma red que la base: levantar solo con `docker compose up`, sin contenedores sueltos |
 | `InconsistentMigrationHistory` | La base tiene migraciones del usuario por defecto: `docker compose down -v` y migrar de nuevo |
 | El frontend no encuentra Bootstrap | Falta `bootstrap` en `package.json` o un volumen viejo: `docker compose run --rm --no-deps frontend npm install bootstrap` y luego `down -v` y `up --build` |
-| Un usuario válido termina en `/sin-permiso` | Su `rol` es `cliente` (o una ruta exige otro permiso): editarlo en `/admin/` |
+| Un usuario válido termina en `/sin-permiso` | Es un cliente sin organización o de una empresa inactiva, o una ruta exige otro permiso: revisarlo en `/admin/` o en la ficha del cliente |
 | Al editar un cliente antiguo pide NIT | Las organizaciones creadas antes del módulo 02 no tienen NIT; hay que completarlo para guardar |
 | Sesión cerrada tras un rato | El refresh token venció o es inválido: iniciar sesión de nuevo |
 | `InsecureKeyLengthWarning` en las pruebas | `DJANGO_SECRET_KEY` tiene menos de 32 caracteres: cambiarla en `.env` (cierra las sesiones abiertas) |
