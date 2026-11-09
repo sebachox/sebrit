@@ -5,7 +5,6 @@ from rest_framework.views import APIView
 
 from apps.assets.models import Activo, Backup
 from apps.incidents.models import Incidente
-from apps.maintenance.models import Mantenimiento
 from apps.organizations.models import Organizacion
 from apps.organizations.permissions import EsAdminOTecnicoLectura
 from apps.tickets.models import Ticket
@@ -51,8 +50,7 @@ class AdminDashboardView(APIView):
     permission_classes = [EsAdminOTecnicoLectura]
 
     def get(self, request):
-        hoy = timezone.localdate()
-        criticos = Incidente.objects.filter(severidad="critica", estado__in=ACTIVOS)
+        criticos =Incidente.objects.filter(severidad="critica", estado__in=ACTIVOS)
 
         incidentes = (
             Incidente.objects.filter(estado__in=ACTIVOS)
@@ -66,9 +64,7 @@ class AdminDashboardView(APIView):
                 "resumen_operativo": {
                     "clientes_activos": Organizacion.objects.filter(activa=True).count(),
                     "tickets_abiertos": Ticket.objects.filter(estado__in=ACTIVOS).count(),
-                    "mantenimientos_hoy": Mantenimiento.objects.filter(
-                        fecha_programada__date=hoy
-                    ).count(),
+                    "activos_criticos": Activo.objects.filter(de_baja=False, estado="critico").count(),
                     "incidentes_criticos": criticos.count(),
                 },
                 "incidentes": [serializar_incidente(i) for i in incidentes],

@@ -42,7 +42,23 @@ class DashboardAdminTests(APITestCase):
         )
         self.assertEqual(
             set(r.data["resumen_operativo"]),
-            {"clientes_activos", "tickets_abiertos", "mantenimientos_hoy", "incidentes_criticos"},
+            {"clientes_activos", "tickets_abiertos", "activos_criticos", "incidentes_criticos"},
+        )
+
+    def test_activos_criticos_suma_servidores_y_redes_sin_dados_de_baja(self):
+        org = Organizacion.objects.create(nombre="Org")
+        Activo.objects.create(organizacion=org, tipo="servidor", nombre="S1", estado="critico")
+        Activo.objects.create(organizacion=org, tipo="red", nombre="R1", estado="critico")
+        Activo.objects.create(organizacion=org, tipo="servidor", nombre="S2", estado="operativo")
+        Activo.objects.create(organizacion=org, tipo="servidor", nombre="S3", estado="critico", de_baja=True)
+
+        self.client.force_authenticate(self.admin)
+        d = self.client.get(URL).data
+
+        self.assertEqual(d["resumen_operativo"]["activos_criticos"], 2)
+        self.assertEqual(
+            d["resumen_operativo"]["activos_criticos"],
+            d["infraestructura"]["servidores"]["criticos"] + d["infraestructura"]["redes"]["criticos"],
         )
 
     def test_conteos_y_incidente_sin_tecnico(self):

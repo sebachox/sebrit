@@ -43,6 +43,31 @@ Devuelve el usuario de la sesión, con la misma forma que `usuario` del login. 4
 | `nombre` | string | Nombre completo; si está vacío, el `username` |
 | `rol` | string | `admin`, `tecnico` o `cliente` |
 
+### `GET` y `PATCH /api/auth/perfil/` (autenticado, cualquier rol)
+
+Datos personales de quien tiene la sesión. 401 sin token; PUT, POST y DELETE dan 405.
+
+```json
+{
+  "id": 1,
+  "username": "ana",
+  "nombres": "Ana",
+  "apellidos": "Ruiz",
+  "nombre_completo": "Ana Ruiz",
+  "correo": "ana@ejemplo.com",
+  "rol": "admin",
+  "organizacion": null
+}
+```
+
+`nombres`, `apellidos` y `correo` son editables, opcionales y salen `null` si están vacíos. `organizacion` es `{ "id": entero, "nombre": string }` o `null`. `nombre_completo` es calculado (si no hay nombre, el `username`). `id`, `username`, `rol` y `organizacion` se ignoran al editar.
+
+### `POST /api/auth/perfil/clave/` (autenticado, cualquier rol)
+
+Recibe `{"clave_actual": "...", "clave_nueva": "..."}` y responde 204 sin cuerpo. 400 si la actual no es correcta, si la nueva es igual a la actual o si no cumple las reglas de contraseña; el error va en `clave_actual` o `clave_nueva`. 401 sin token; otros métodos dan 405.
+
+Los tokens ya emitidos siguen siendo válidos hasta vencer.
+
 ## Endpoint
 
 `GET /api/dashboard/admin/`
@@ -62,7 +87,7 @@ Ejemplo completo: [`docs/examples/dashboard-admin.json`](examples/dashboard-admi
 | `generado_en` | string | ISO 8601 con zona America/Bogota (`-05:00`) |
 | `resumen_operativo.clientes_activos` | entero | Organizaciones con `activa = true` |
 | `resumen_operativo.tickets_abiertos` | entero | Tickets en estado `abierto` o `en_progreso` |
-| `resumen_operativo.mantenimientos_hoy` | entero | Programados para la fecha de hoy en America/Bogota |
+| `resumen_operativo.activos_criticos` | entero | Servidores y equipos de red en estado `critico`, sin los dados de baja |
 | `resumen_operativo.incidentes_criticos` | entero | Incidentes activos con severidad `critica` |
 | `incidentes` | arreglo | Máximo 10 incidentes activos, del más reciente al más antiguo. Puede ser `[]` |
 | `incidentes[].id` | entero | |
@@ -83,6 +108,7 @@ Ejemplo completo: [`docs/examples/dashboard-admin.json`](examples/dashboard-admi
 - `servidores.total` = `operativos` + `advertencia` + `criticos` (igual para `redes`).
 - `backups.total` = `exitosos` + `fallidos` + `pendientes`.
 - `incidentes_criticos.total` = `abiertos` + `en_progreso` y es igual a `resumen_operativo.incidentes_criticos`.
+- `resumen_operativo.activos_criticos` = `servidores.criticos` + `redes.criticos`.
 - `sin_tecnico` es un subconjunto aparte: no suma al total.
 
 ## Enumeraciones
