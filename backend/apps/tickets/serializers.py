@@ -31,6 +31,8 @@ class ConReferenciasMixin:
         data["organizacion"] = referencia(instance.organizacion)
         data["activo"] = referencia(instance.activo)
         data["tecnico"] = referencia_usuario(instance.tecnico)
+        i = instance.incidente
+        data["incidente"] = {"id": i.id, "codigo": i.codigo} if i else None
         return data
 
 
@@ -39,7 +41,7 @@ class TicketListaSerializer(ConReferenciasMixin, serializers.ModelSerializer):
         model = Ticket
         fields = [
             "id", "codigo", "titulo", "organizacion", "categoria", "prioridad",
-            "prioridad_manual", "estado", "tecnico", "activo", "creado_en",
+            "prioridad_manual", "estado", "tecnico", "activo", "incidente", "creado_en",
         ]
 
 
@@ -61,11 +63,11 @@ class TicketDetalleSerializer(ConReferenciasMixin, VacioComoNullMixin, serialize
         model = Ticket
         fields = [
             "id", "codigo", "organizacion", "titulo", "descripcion", "categoria", "alcance",
-            "activo", "prioridad", "prioridad_manual", "estado", "tecnico", "reportado_por",
+            "activo", "prioridad", "prioridad_manual", "estado", "tecnico", "reportado_por", "incidente",
             "solucion", "creado_en", "actualizado_en", "resuelto_en", "cerrado_en",
         ]
         read_only_fields = [
-            "codigo", "prioridad", "prioridad_manual", "estado", "reportado_por", "solucion",
+            "codigo", "prioridad", "prioridad_manual", "estado", "reportado_por", "incidente", "solucion",
             "creado_en", "actualizado_en", "resuelto_en", "cerrado_en",
         ]
 

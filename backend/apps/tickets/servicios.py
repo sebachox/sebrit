@@ -48,7 +48,9 @@ def recalcular_prioridad(ticket, autor):
 
 
 def _texto(valor):
-    return str(valor or "").strip()
+    texto = str(valor or "")
+    # PostgreSQL no admite el carácter NUL: se trata como un texto no válido.
+    return "" if "\x00" in texto else texto.strip()
 
 
 def _exigir_no_cerrado(ticket):

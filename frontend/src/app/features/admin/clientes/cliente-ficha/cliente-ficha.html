@@ -114,7 +114,9 @@
       </a>
     </div>
     <div class="col-6 col-lg-3">
-      <app-stat-card titulo="Incidentes activos" [valor]="o.resumen.incidentes_activos" icono="bi-exclamation-triangle" color="danger" />
+      <a class="enlace-tarjeta" [routerLink]="['/admin/incidentes']" [queryParams]="{ organizacion: o.id }" title="Ver los incidentes de este cliente">
+        <app-stat-card titulo="Incidentes activos" [valor]="o.resumen.incidentes_activos" icono="bi-exclamation-triangle" color="danger" />
+      </a>
     </div>
     <div class="col-6 col-lg-3">
       <app-stat-card titulo="Usuarios" [valor]="o.resumen.usuarios" icono="bi-people" color="secondary" />

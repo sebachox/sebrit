@@ -34,6 +34,13 @@ describe('Layout', () => {
     expect(enlace(fixture, 'Clientes').getAttribute('href')).toBe('/admin/clientes');
   });
 
+  it('Incidentes aparece después de Tickets', () => {
+    const fixture = crear('tecnico');
+    const textos = fixture.componentInstance.enlaces.map((e) => e.texto);
+    expect(textos.indexOf('Incidentes')).toBe(textos.indexOf('Tickets') + 1);
+    expect(enlace(fixture, 'Incidentes').getAttribute('href')).toBe('/admin/incidentes');
+  });
+
   it('un módulo sin permiso aparece bloqueado y sin enlace', () => {
     const fixture = crear('cliente');
     const dashboard = enlace(fixture, 'Dashboard');
