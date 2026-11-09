@@ -3,7 +3,16 @@ from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from apps.accounts.views import CambiarClaveView, LoginView, PerfilView, TecnicosView, UsuarioActualView
+from apps.accounts.views import (
+    CambiarClaveView,
+    ClaveUsuarioEmpresaView,
+    LoginView,
+    PerfilView,
+    TecnicosView,
+    UsuarioActualView,
+    UsuarioEmpresaView,
+    UsuariosEmpresaView,
+)
 from apps.assets.views import ActivoViewSet, BackupViewSet
 from apps.dashboard.views import AdminDashboardView
 from apps.incidents.views import IncidenteViewSet
@@ -30,6 +39,9 @@ urlpatterns = [
     path("api/auth/perfil/clave/", CambiarClaveView.as_view()),
     path("api/dashboard/admin/", AdminDashboardView.as_view()),
     path("api/tecnicos/", TecnicosView.as_view()),
+    path("api/organizaciones/<int:org_id>/usuarios/", UsuariosEmpresaView.as_view()),
+    path("api/organizaciones/<int:org_id>/usuarios/<int:uid>/", UsuarioEmpresaView.as_view()),
+    path("api/organizaciones/<int:org_id>/usuarios/<int:uid>/clave/", ClaveUsuarioEmpresaView.as_view()),
     path("api/portal/resumen/", ResumenView.as_view()),
     path("api/portal/activos/", ActivosPortalView.as_view()),
     path("api/", include(router.urls)),
