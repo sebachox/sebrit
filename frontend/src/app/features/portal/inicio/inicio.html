@@ -50,7 +50,7 @@
     <div class="col-md-4" data-prueba="servidores">
       <div class="card shadow-sm h-100">
         <div class="card-body">
-          <h6 class="text-muted"><i class="bi bi-hdd-rack me-1" aria-hidden="true"></i>Servidores</h6>
+          <h6><a class="enlace-titulo" routerLink="/portal/activos" [queryParams]="{ tipo: 'servidor' }"><i class="bi bi-hdd-rack me-1" aria-hidden="true"></i>Servidores</a></h6>
           <div class="fs-3 fw-bold mb-2 numerico">{{ r.infraestructura.servidores.total }}</div>
           <div class="d-flex flex-wrap gap-2">
             <span class="badge estado estado-ok">{{ r.infraestructura.servidores.operativos }} operativos</span>
@@ -63,7 +63,7 @@
     <div class="col-md-4" data-prueba="redes">
       <div class="card shadow-sm h-100">
         <div class="card-body">
-          <h6 class="text-muted"><i class="bi bi-diagram-3 me-1" aria-hidden="true"></i>Redes</h6>
+          <h6><a class="enlace-titulo" routerLink="/portal/activos" [queryParams]="{ tipo: 'red' }"><i class="bi bi-diagram-3 me-1" aria-hidden="true"></i>Redes</a></h6>
           <div class="fs-3 fw-bold mb-2 numerico">{{ r.infraestructura.redes.total }}</div>
           <div class="d-flex flex-wrap gap-2">
             <span class="badge estado estado-ok">{{ r.infraestructura.redes.operativos }} operativos</span>
@@ -76,7 +76,7 @@
     <div class="col-md-4" data-prueba="backups">
       <div class="card shadow-sm h-100">
         <div class="card-body">
-          <h6 class="text-muted"><i class="bi bi-cloud-arrow-up me-1" aria-hidden="true"></i>Backups</h6>
+          <h6><a class="enlace-titulo" routerLink="/portal/backups"><i class="bi bi-cloud-arrow-up me-1" aria-hidden="true"></i>Backups</a></h6>
           <div class="fs-3 fw-bold mb-2 numerico">{{ r.infraestructura.backups.total }}</div>
           <div class="d-flex flex-wrap gap-2">
             <span class="badge estado estado-ok">{{ r.infraestructura.backups.exitosos }} exitosos</span>

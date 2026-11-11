@@ -38,6 +38,25 @@ export const routes: Routes = [
           import('./features/portal/ticket-nuevo/ticket-nuevo').then((m) => m.PortalTicketNuevo),
       },
       {
+        path: 'activos',
+        loadComponent: () =>
+          import('./features/portal/activos-lista/activos-lista').then((m) => m.PortalActivosLista),
+      },
+      {
+        path: 'activos/:id',
+        loadComponent: () =>
+          import('./features/portal/activo-ficha/activo-ficha').then((m) => m.PortalActivoFicha),
+      },
+      {
+        path: 'backups',
+        loadComponent: () =>
+          import('./features/portal/backups-lista/backups-lista').then((m) => m.PortalBackupsLista),
+      },
+      {
+        path: 'empresa',
+        loadComponent: () => import('./features/portal/empresa/empresa').then((m) => m.PortalEmpresa),
+      },
+      {
         path: 'tickets/:id',
         loadComponent: () =>
           import('./features/portal/ticket-ficha/ticket-ficha').then((m) => m.PortalTicketFicha),

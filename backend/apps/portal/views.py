@@ -1,5 +1,4 @@
 from django.db.models import Count, Q
-from django.db.models.functions import Lower
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -7,7 +6,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.assets.models import Activo
+from apps.assets.models import Activo, Backup
+from apps.assets.views import ORDENES_ACTIVOS, con_ultimo_backup, fecha_param
 from apps.dashboard.views import ACTIVOS, conteo_activos, conteo_backups
 from apps.incidents.models import Incidente
 from apps.incidents.views import cuerpo
@@ -17,6 +17,10 @@ from apps.tickets.servicios import comentar
 
 from .permissions import EsClienteDelPortal
 from .serializers import (
+    ActivoPortalDetalleSerializer,
+    ActivoPortalListaSerializer,
+    BackupPortalSerializer,
+    EmpresaPortalSerializer,
     EventoPortalSerializer,
     TicketPortalCrearSerializer,
     TicketPortalDetalleSerializer,
@@ -50,18 +54,11 @@ class ResumenView(APIView):
         )
 
 
-class ActivosView(APIView):
-    """Solo lo necesario para elegir un activo al abrir un ticket."""
-
+class EmpresaView(APIView):
     permission_classes = [EsClienteDelPortal]
 
     def get(self, request):
-        activos = (
-            Activo.objects.filter(organizacion=request.user.organizacion, de_baja=False)
-            .order_by(Lower("nombre"), "id")
-            .values("id", "nombre", "tipo")
-        )
-        return Response(list(activos))
+        return Response(EmpresaPortalSerializer(request.user.organizacion).data)
 
 
 class TicketPortalViewSet(
@@ -109,3 +106,66 @@ class TicketPortalViewSet(
             raise ValidationError({"non_field_errors": [MSG_CERRADO]})
         evento = comentar(ticket, cuerpo(request).get("texto"), request.user, visible_cliente=True)
         return Response(EventoPortalSerializer(evento).data, status=status.HTTP_201_CREATED)
+
+
+class ActivoPortalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Inventario de la empresa, solo lectura. La ficha abre también los dados de baja."""
+
+    permission_classes = [EsClienteDelPortal]
+    pagination_class = PaginacionEstandar
+    http_method_names = ["get", "head", "options"]
+    lookup_value_regex = r"\d{1,18}"
+
+    def get_serializer_class(self):
+        return ActivoPortalListaSerializer if self.action == "list" else ActivoPortalDetalleSerializer
+
+    def get_queryset(self):
+        qs = con_ultimo_backup(Activo.objects.filter(organizacion=self.request.user.organizacion))
+        if self.action != "list":
+            return qs
+
+        p = self.request.query_params
+        qs = qs.filter(de_baja=False)
+        q = p.get("q", "").replace("\x00", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(nombre__icontains=q) | Q(ubicacion__icontains=q) | Q(fabricante__icontains=q) | Q(modelo__icontains=q)
+            )
+        if p.get("tipo") in Activo.Tipo.values:
+            qs = qs.filter(tipo=p["tipo"])
+        if p.get("estado") in Activo.Estado.values:
+            qs = qs.filter(estado=p["estado"])
+        orden = "estado" if p.get("ordering") == "estado" else "nombre"
+        return qs.order_by(*ORDENES_ACTIVOS[orden], "id")
+
+
+class BackupPortalViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Backups de la empresa, solo lectura y sin ficha propia."""
+
+    permission_classes = [EsClienteDelPortal]
+    pagination_class = PaginacionEstandar
+    serializer_class = BackupPortalSerializer
+    http_method_names = ["get", "head", "options"]
+
+    def get_queryset(self):
+        qs = Backup.objects.filter(organizacion=self.request.user.organizacion).select_related("activo")
+        p = self.request.query_params
+
+        if "activo" in p:
+            # Un activo ajeno, inexistente o inválido responde igual: lista vacía.
+            valor = p["activo"]
+            if not (valor.isdecimal() and len(valor) <= 18):
+                return qs.none()
+            qs = qs.filter(activo_id=int(valor))
+        if p.get("estado") in Backup.Estado.values:
+            qs = qs.filter(estado=p["estado"])
+        if p.get("tipo") in Backup.Tipo.values:
+            qs = qs.filter(tipo=p["tipo"])
+
+        # __date usa TIME_ZONE (America/Bogota): los días son en hora local.
+        desde, hasta = fecha_param(p.get("desde")), fecha_param(p.get("hasta"))
+        if desde:
+            qs = qs.filter(fecha__date__gte=desde)
+        if hasta:
+            qs = qs.filter(fecha__date__lte=hasta)
+        return qs.order_by("-fecha", "-id")

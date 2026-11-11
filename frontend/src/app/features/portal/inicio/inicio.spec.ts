@@ -91,6 +91,13 @@ describe('PortalInicio', () => {
     expect(texto('backups')).toContain('1 fallidos');
   });
 
+  it('servidores, redes y backups enlazan a sus listas filtradas', () => {
+    responder();
+    expect(el().querySelector('[data-prueba="servidores"] a[href="/portal/activos?tipo=servidor"]')).not.toBeNull();
+    expect(el().querySelector('[data-prueba="redes"] a[href="/portal/activos?tipo=red"]')).not.toBeNull();
+    expect(el().querySelector('[data-prueba="backups"] a[href="/portal/backups"]')).not.toBeNull();
+  });
+
   it('los tickets enlazan a su ficha', () => {
     responder();
     expect(el().querySelector('a[href="/portal/tickets/42"]')?.textContent).toContain('TCK-0042');

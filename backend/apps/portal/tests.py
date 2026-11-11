@@ -14,6 +14,7 @@ from apps.tickets.prioridad import calcular_prioridad
 
 RESUMEN = "/api/portal/resumen/"
 ACTIVOS = "/api/portal/activos/"
+EMPRESA = "/api/portal/empresa/"
 TICKETS = "/api/portal/tickets/"
 
 CLAVES_FILA = {
@@ -47,36 +48,37 @@ class BasePortal(APITestCase):
 
     def entrar_con_token(self, usuario):
         """Token real: cada petición vuelve a cargar al usuario desde la base."""
+        self.client.force_authenticate(None)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(usuario)}")
 
 
 class PermisoPortalTests(BasePortal):
-    URLS = (RESUMEN, ACTIVOS)
+    URLS = (RESUMEN, ACTIVOS, EMPRESA)
 
     def estados(self):
         return [self.client.get(u).status_code for u in self.URLS]
 
     def test_sin_token_da_401(self):
-        self.assertEqual(self.estados(), [401, 401])
+        self.assertEqual(self.estados(), [401] * len(self.URLS))
 
     def test_personal_interno_da_403(self):
         for usuario in (self.admin, self.tecnico):
             self.entrar(usuario)
-            self.assertEqual(self.estados(), [403, 403])
+            self.assertEqual(self.estados(), [403] * len(self.URLS))
 
     def test_cliente_sin_organizacion_da_403(self):
         self.entrar(Usuario.objects.create_user("solo", rol="cliente"))
-        self.assertEqual(self.estados(), [403, 403])
+        self.assertEqual(self.estados(), [403] * len(self.URLS))
 
     def test_cliente_de_empresa_inactiva_da_403(self):
         self.org_a.activa = False
         self.org_a.save()
         self.entrar(self.cliente_a)
-        self.assertEqual(self.estados(), [403, 403])
+        self.assertEqual(self.estados(), [403] * len(self.URLS))
 
     def test_cliente_da_200(self):
         self.entrar(self.cliente_a)
-        self.assertEqual(self.estados(), [200, 200])
+        self.assertEqual(self.estados(), [200] * len(self.URLS))
 
     def test_desactivar_empresa_tiene_efecto_inmediato(self):
         self.entrar_con_token(self.cliente_a)
@@ -94,6 +96,7 @@ class PermisoPortalTests(BasePortal):
         self.entrar(self.cliente_a)
         self.assertEqual(self.client.post(RESUMEN, {}, format="json").status_code, 405)
         self.assertEqual(self.client.post(ACTIVOS, {}, format="json").status_code, 405)
+        self.assertEqual(self.client.post(EMPRESA, {}, format="json").status_code, 405)
 
 
 class ResumenTests(BasePortal):
@@ -141,24 +144,129 @@ class ResumenTests(BasePortal):
         self.assertEqual(d["infraestructura"]["backups"]["fallidos"], 0)
 
 
+CLAVES_FILA_ACTIVO = {"id", "nombre", "tipo", "estado", "ubicacion", "ultimo_backup"}
+CLAVES_FICHA_ACTIVO = CLAVES_FILA_ACTIVO | {
+    "fabricante", "modelo", "sistema_operativo", "numero_serie", "de_baja", "fecha_baja",
+}
+
+
 class ActivosPortalTests(BasePortal):
-    def test_solo_id_nombre_y_tipo_de_la_empresa_ordenados(self):
-        b = Activo.objects.create(organizacion=self.org_a, tipo="red", nombre="beta", ip="10.0.0.1", notas="secreto")
-        a = Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="Alfa")
-        Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="Baja", de_baja=True)
-        Activo.objects.create(organizacion=self.org_b, tipo="servidor", nombre="Ajeno")
+    def setUp(self):
+        super().setUp()
         self.entrar(self.cliente_a)
-        self.assertEqual(
-            self.client.get(ACTIVOS).data,
-            [
-                {"id": a.id, "nombre": "Alfa", "tipo": "servidor"},
-                {"id": b.id, "nombre": "beta", "tipo": "red"},
-            ],
-        )
+
+    def activo(self, nombre="SRV-01", org=None, **datos):
+        datos.setdefault("tipo", "servidor")
+        return Activo.objects.create(organizacion=org or self.org_a, nombre=nombre, **datos)
+
+    def filas(self, consulta=""):
+        return self.client.get(f"{ACTIVOS}{consulta}").data["results"]
+
+    def ficha(self, activo):
+        return self.client.get(f"{ACTIVOS}{activo.pk}/")
+
+    def test_permisos_de_lista_y_ficha(self):
+        a = self.activo()
+        for usuario, esperado in ((None, 401), (self.tecnico, 403), (self.admin, 403), (self.cliente_a, 200)):
+            self.client.force_authenticate(usuario)
+            self.assertEqual(self.client.get(ACTIVOS).status_code, esperado)
+            self.assertEqual(self.ficha(a).status_code, esperado)
+
+    def test_claves_exactas_sin_datos_sensibles(self):
+        a = self.activo(ip="10.0.0.1", hostname="db-prod", notas="clave: 1234", ubicacion="Rack 2")
+        fila, ficha = self.filas()[0], self.ficha(a).data
+        self.assertEqual(set(fila), CLAVES_FILA_ACTIVO)
+        self.assertEqual(set(ficha), CLAVES_FICHA_ACTIVO)
+        texto = json.dumps([fila, ficha], default=str)
+        for secreto in ("10.0.0.1", "db-prod", "1234"):
+            self.assertNotIn(secreto, texto)
+
+    def test_vacios_salen_null(self):
+        d = self.ficha(self.activo()).data
+        for campo in ("ubicacion", "fabricante", "modelo", "sistema_operativo", "numero_serie", "ultimo_backup"):
+            self.assertIsNone(d[campo], campo)
+
+    def test_lista_sin_dados_de_baja_ni_ajenos_y_por_nombre(self):
+        b = self.activo("beta")
+        a = self.activo("Alfa", tipo="red")
+        self.activo("Baja", de_baja=True)
+        self.activo("Ajeno", org=self.org_b)
+        self.assertEqual([f["id"] for f in self.filas()], [a.id, b.id])
+
+    def test_ordering_estado_pone_criticos_primero(self):
+        ok = self.activo("A", estado="operativo")
+        crit = self.activo("B", estado="critico")
+        adv = self.activo("C", estado="advertencia")
+        self.assertEqual([f["id"] for f in self.filas("?ordering=estado")], [crit.id, adv.id, ok.id])
+
+    def test_filtros(self):
+        a = self.activo("Correo", ubicacion="Sede norte", fabricante="Dell", modelo="R740", estado="critico")
+        b = self.activo("Switch", tipo="red", estado="operativo")
+        ids = lambda consulta: {f["id"] for f in self.filas(consulta)}
+        for consulta in ("?q=corr", "?q=norte", "?q=dell", "?q=r740"):
+            self.assertEqual(ids(consulta), {a.id}, consulta)
+        self.assertEqual(ids("?tipo=red"), {b.id})
+        self.assertEqual(ids("?estado=critico"), {a.id})
+        self.assertEqual(ids("?tipo=x&estado=y"), {a.id, b.id})
+
+    def test_ultimo_backup(self):
+        a = self.activo()
+        Backup.objects.create(organizacion=self.org_a, activo=a, estado="exitoso", fecha="2026-11-01T10:00:00-05:00")
+        Backup.objects.create(organizacion=self.org_a, activo=a, estado="fallido", fecha="2026-11-05T10:00:00-05:00")
+        ub = self.filas()[0]["ultimo_backup"]
+        self.assertEqual(set(ub), {"fecha", "estado"})
+        self.assertEqual(ub["estado"], "fallido")
+        self.assertTrue(ub["fecha"].startswith("2026-11-05T10:00:00-05:00"))
+        self.assertEqual(self.ficha(a).data["ultimo_backup"]["estado"], "fallido")
+
+    def test_ficha_de_un_dado_de_baja_abre_marcada(self):
+        a = self.activo(de_baja=True)
+        r = self.ficha(a)
+        self.assertEqual(r.status_code, 200)
+        self.assertIs(r.data["de_baja"], True)
+        self.assertIsNotNone(r.data["fecha_baja"])
+
+    def test_ajeno_e_ids_raros_dan_404(self):
+        ajeno = self.activo(org=self.org_b)
+        self.assertEqual(self.ficha(ajeno).status_code, 404)
+        for pk in ("abc", "9" * 400, "-1"):
+            self.assertEqual(self.client.get(f"{ACTIVOS}{pk}/").status_code, 404, pk)
+
+    def test_paginada_hasta_100(self):
+        for n in range(3):
+            self.activo(f"A{n}")
+        r = self.client.get(f"{ACTIVOS}?page_size=2").data
+        self.assertEqual((r["count"], len(r["results"])), (3, 2))
+        self.assertEqual(len(self.client.get(f"{ACTIVOS}?page_size=100").data["results"]), 3)
 
     def test_sin_activos_da_lista_vacia(self):
-        self.entrar(self.cliente_a)
-        self.assertEqual(self.client.get(ACTIVOS).data, [])
+        self.assertEqual(self.client.get(ACTIVOS).data["results"], [])
+
+    def test_entradas_anomalas_no_fallan(self):
+        self.activo()
+        for consulta in ("?q=%00", "?ordering=x", "?page_size=x", "?tipo=%00"):
+            self.assertEqual(self.client.get(f"{ACTIVOS}{consulta}").status_code, 200, consulta)
+        self.assertEqual(self.client.get(f"{ACTIVOS}?page=x").status_code, 404)
+
+    def test_solo_lectura(self):
+        a = self.activo()
+        self.assertEqual(self.client.post(ACTIVOS, {}, format="json").status_code, 405)
+        self.assertEqual(self.client.patch(f"{ACTIVOS}{a.pk}/", {}, format="json").status_code, 405)
+        self.assertEqual(self.client.delete(f"{ACTIVOS}{a.pk}/").status_code, 405)
+
+    def test_lista_sin_n_mas_1(self):
+        def consultas():
+            with CaptureQueriesContext(connection) as c:
+                self.client.get(ACTIVOS)
+            return len(c)
+
+        a = self.activo("A0")
+        Backup.objects.create(organizacion=self.org_a, activo=a, estado="exitoso")
+        una = consultas()
+        for n in range(1, 5):
+            b = self.activo(f"A{n}")
+            Backup.objects.create(organizacion=self.org_a, activo=b, estado="exitoso")
+        self.assertEqual(consultas(), una)
 
 
 class BaseTicketsPortal(BasePortal):
@@ -506,3 +614,150 @@ class AislamientoTests(BaseTicketsPortal):
         for metodo, ruta in rutas:
             r = getattr(self.client, metodo)(ruta, {}, format="json") if metodo == "post" else self.client.get(ruta)
             self.assertEqual(r.status_code, 403, ruta)
+
+
+CLAVES_EMPRESA = {
+    "id", "nombre", "nit", "sector", "telefono", "correo", "direccion", "ciudad",
+    "contacto_nombre", "contacto_cargo", "contacto_correo", "contacto_telefono",
+    "plan", "fecha_inicio_contrato", "fecha_fin_contrato",
+}
+
+
+class EmpresaPortalTests(BasePortal):
+    def setUp(self):
+        super().setUp()
+        self.entrar(self.cliente_a)
+
+    def test_claves_exactas_y_datos_propios(self):
+        Organizacion.objects.filter(pk=self.org_a.pk).update(
+            ciudad="Pasto", plan="premium", contacto_nombre="Ana", fecha_inicio_contrato="2026-01-15"
+        )
+        self.entrar_con_token(self.cliente_a)
+        d = self.client.get(EMPRESA).data
+        self.assertEqual(set(d), CLAVES_EMPRESA)
+        self.assertEqual((d["id"], d["nombre"], d["nit"]), (self.org_a.id, "Empresa A", "900000001"))
+        self.assertEqual((d["ciudad"], d["plan"], d["contacto_nombre"]), ("Pasto", "premium", "Ana"))
+        self.assertEqual(d["fecha_inicio_contrato"], "2026-01-15")
+
+    def test_vacios_salen_null(self):
+        d = self.client.get(EMPRESA).data
+        for campo in ("sector", "telefono", "correo", "direccion", "contacto_cargo", "fecha_fin_contrato"):
+            self.assertIsNone(d[campo], campo)
+
+    def test_no_expone_datos_internos(self):
+        d = self.client.get(EMPRESA).data
+        for campo in ("activa", "creado_en", "actualizado_en", "resumen"):
+            self.assertNotIn(campo, d)
+
+    def test_otra_empresa_ve_la_suya(self):
+        self.entrar(self.cliente_b)
+        self.assertEqual(self.client.get(EMPRESA).data["nombre"], "Empresa B")
+
+
+BACKUPS = "/api/portal/backups/"
+CLAVES_BACKUP = {"id", "activo", "tipo", "estado", "fecha", "tamano_gb"}
+
+
+class BackupsPortalTests(BasePortal):
+    def setUp(self):
+        super().setUp()
+        self.entrar(self.cliente_a)
+        self.srv = Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="SRV-01")
+        self.red = Activo.objects.create(organizacion=self.org_a, tipo="red", nombre="NET-01")
+        self.ajeno = Activo.objects.create(organizacion=self.org_b, tipo="servidor", nombre="SRV-B")
+
+    def backup(self, activo=None, **datos):
+        activo = activo or self.srv
+        return Backup.objects.create(organizacion=activo.organizacion, activo=activo, **datos)
+
+    def filas(self, consulta=""):
+        return self.client.get(f"{BACKUPS}{consulta}").data["results"]
+
+    def ids(self, consulta=""):
+        return [f["id"] for f in self.filas(consulta)]
+
+    def test_permisos(self):
+        for usuario, esperado in ((None, 401), (self.tecnico, 403), (self.admin, 403), (self.cliente_a, 200)):
+            self.client.force_authenticate(usuario)
+            self.assertEqual(self.client.get(BACKUPS).status_code, esperado)
+
+    def test_empresa_inactiva_da_403(self):
+        Organizacion.objects.filter(pk=self.org_a.pk).update(activa=False)
+        self.entrar_con_token(self.cliente_a)
+        self.assertEqual(self.client.get(BACKUPS).status_code, 403)
+
+    def test_claves_exactas_sin_datos_internos(self):
+        self.backup(estado="exitoso", tipo="completo", tamano_gb="12.50", notas="ruta secreta", registrado_por=self.tecnico)
+        fila = self.filas()[0]
+        self.assertEqual(set(fila), CLAVES_BACKUP)
+        self.assertEqual(fila["activo"], {"id": self.srv.id, "nombre": "SRV-01"})
+        self.assertNotIn("ruta secreta", json.dumps(fila, default=str))
+
+    def test_vacios_salen_null(self):
+        self.backup(estado="pendiente")
+        fila = self.filas()[0]
+        self.assertIsNone(fila["tipo"])
+        self.assertIsNone(fila["tamano_gb"])
+
+    def test_solo_de_la_empresa_y_del_mas_reciente(self):
+        viejo = self.backup(fecha="2026-11-01T10:00:00-05:00")
+        nuevo = self.backup(self.red, fecha="2026-11-05T10:00:00-05:00")
+        self.backup(self.ajeno)
+        self.assertEqual(self.ids(), [nuevo.id, viejo.id])
+
+    def test_backup_antiguo_sin_activo_sale_con_activo_null(self):
+        b = Backup.objects.create(organizacion=self.org_a, activo=None, estado="exitoso")
+        fila = next(f for f in self.filas() if f["id"] == b.id)
+        self.assertIsNone(fila["activo"])
+
+    def test_incluye_backups_de_activos_dados_de_baja(self):
+        baja = Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="Viejo", de_baja=True)
+        b = self.backup(baja)
+        self.assertIn(b.id, self.ids())
+
+    def test_filtros(self):
+        a = self.backup(estado="fallido", tipo="completo", fecha="2026-11-03T23:30:00-05:00")
+        b = self.backup(self.red, estado="exitoso", tipo="incremental", fecha="2026-11-04T08:00:00-05:00")
+        self.assertEqual(self.ids("?estado=fallido"), [a.id])
+        self.assertEqual(self.ids("?tipo=incremental"), [b.id])
+        self.assertEqual(self.ids(f"?activo={self.red.id}"), [b.id])
+        # Las fechas son días en hora de Bogotá: 23:30 del 3 sigue siendo el 3.
+        self.assertEqual(self.ids("?desde=2026-11-04"), [b.id])
+        self.assertEqual(self.ids("?hasta=2026-11-03"), [a.id])
+
+    def test_activo_ajeno_inexistente_o_raro_da_lista_vacia(self):
+        self.backup()
+        self.backup(self.ajeno)
+        for valor in (str(self.ajeno.id), "99999", "x", "9" * 400, "%00"):
+            r = self.client.get(f"{BACKUPS}?activo={valor}")
+            self.assertEqual(r.status_code, 200, valor)
+            self.assertEqual(r.data["results"], [], valor)
+
+    def test_fechas_invalidas_o_al_reves_no_fallan(self):
+        self.backup(fecha="2026-11-03T10:00:00-05:00")
+        self.assertEqual(len(self.filas("?desde=x&hasta=2026-13-45")), 1)
+        r = self.client.get(f"{BACKUPS}?desde=2026-11-10&hasta=2026-11-01")
+        self.assertEqual((r.status_code, r.data["results"]), (200, []))
+
+    def test_entradas_anomalas_no_fallan(self):
+        self.backup()
+        for consulta in ("?estado=%00", "?tipo=x", "?page_size=x"):
+            self.assertEqual(self.client.get(f"{BACKUPS}{consulta}").status_code, 200, consulta)
+        self.assertEqual(self.client.get(f"{BACKUPS}?page=x").status_code, 404)
+
+    def test_solo_lectura_y_sin_ficha(self):
+        b = self.backup()
+        self.assertEqual(self.client.post(BACKUPS, {}, format="json").status_code, 405)
+        self.assertEqual(self.client.get(f"{BACKUPS}{b.id}/").status_code, 404)
+
+    def test_lista_sin_n_mas_1(self):
+        def consultas():
+            with CaptureQueriesContext(connection) as c:
+                self.client.get(BACKUPS)
+            return len(c)
+
+        self.backup()
+        una = consultas()
+        for _ in range(4):
+            self.backup(self.red)
+        self.assertEqual(consultas(), una)
