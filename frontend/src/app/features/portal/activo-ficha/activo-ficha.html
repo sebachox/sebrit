@@ -1,0 +1,118 @@
+<a routerLink="/portal/activos" class="d-inline-flex align-items-center gap-1 small text-decoration-none text-body-secondary mb-3">
+  <i class="bi bi-arrow-left" aria-hidden="true"></i>Mis activos
+</a>
+
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status"><div class="spinner-border text-primary"></div></div>
+} @else if (estado() === 'no_encontrado') {
+  <div class="alert alert-warning">
+    Activo no encontrado. <a routerLink="/portal/activos" class="alert-link">Volver a mis activos</a>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudo cargar el activo.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (activo(); as a) {
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-3">
+    <div class="d-flex flex-wrap align-items-center gap-2">
+      <h4 class="mb-0 text-break">{{ a.nombre }}</h4>
+      <app-status-badge [valor]="a.estado" />
+    </div>
+    @if (!a.de_baja) {
+      <a class="btn btn-outline-primary" routerLink="/portal/tickets/nuevo" [queryParams]="{ activo: a.id }">
+        <i class="bi bi-ticket-perforated me-1" aria-hidden="true"></i>Abrir ticket sobre este equipo
+      </a>
+    }
+  </div>
+
+  @if (a.de_baja) {
+    <div class="alert alert-secondary">
+      Este equipo está dado de baja
+      @if (a.fecha_baja) {
+        desde el <span class="numerico">{{ a.fecha_baja | date: 'dd/MM/yyyy' }}</span>
+      }. Su historial se conserva.
+    </div>
+  }
+
+  <div class="row g-4 align-items-start">
+    <aside class="col-lg-4">
+      <section class="card shadow-sm border-0" aria-label="Datos del equipo">
+        <div class="card-header fw-semibold">Datos del equipo</div>
+        <dl class="card-body mb-0">
+          <dt class="text-muted small fw-normal">Tipo</dt>
+          <dd class="mb-3">{{ nombreTipo[a.tipo] }}</dd>
+          @for (c of datosEquipo; track c.clave) {
+            <dt class="text-muted small fw-normal">{{ c.etiqueta }}</dt>
+            <dd class="mb-3 text-break">
+              @if (a[c.clave]; as v) { {{ v }} } @else { <span class="text-muted" data-vacio>—</span> }
+            </dd>
+          }
+          <dt class="text-muted small fw-normal">Último backup</dt>
+          <dd class="mb-0">
+            @if (a.ultimo_backup; as ub) {
+              <span class="numerico me-2">{{ ub.fecha | date: 'dd/MM/yyyy HH:mm' }}</span>
+              <app-status-badge [valor]="ub.estado" />
+            } @else {
+              <span class="text-muted">Sin backups</span>
+            }
+          </dd>
+        </dl>
+      </section>
+    </aside>
+
+    <section class="col-lg-8" data-prueba="historial" aria-labelledby="titulo-historial">
+      <div class="card shadow-sm border-0">
+        <h5 id="titulo-historial" class="card-header fw-semibold fs-6">Historial de backups</h5>
+        @if (estadoHistorial() === 'cargando') {
+          <div class="text-center py-4" role="status"><div class="spinner-border spinner-border-sm text-primary"></div></div>
+        } @else if (estadoHistorial() === 'error') {
+          <div class="card-body">
+            <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+              <span>No se pudo cargar el historial.</span>
+              <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargarHistorial()">Reintentar</button>
+            </div>
+          </div>
+        } @else if (historial(); as h) {
+          @if (h.results.length === 0) {
+            <div class="card-body text-center text-muted py-4">Este equipo aún no tiene backups registrados.</div>
+          } @else {
+            <div class="table-responsive">
+              <table class="table align-middle mb-0">
+                <thead>
+                  <tr>
+                    <th>Fecha</th>
+                    <th>Tipo</th>
+                    <th>Estado</th>
+                    <th class="text-end">Tamaño</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (b of h.results; track b.id) {
+                    <tr>
+                      <td class="numerico text-nowrap">{{ b.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
+                      <td>@if (b.tipo) { {{ nombreTipoBackup[b.tipo] }} } @else { <span class="text-muted" data-vacio>—</span> }</td>
+                      <td><app-status-badge [valor]="b.estado" /></td>
+                      <td class="text-end numerico">@if (b.tamano_gb !== null) { {{ b.tamano_gb | number: '1.0-2' }} GB } @else { <span class="text-muted" data-vacio>—</span> }</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+            @if (totalPaginas() > 1) {
+              <div class="card-body border-top d-flex justify-content-end align-items-center gap-2">
+                <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)" aria-label="Página anterior">
+                  <i class="bi bi-chevron-left" aria-hidden="true"></i>
+                </button>
+                <span class="small numerico">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-prueba="siguiente" [disabled]="pagina() >= totalPaginas()" (click)="irAPagina(pagina() + 1)" aria-label="Página siguiente">
+                  <i class="bi bi-chevron-right" aria-hidden="true"></i>
+                </button>
+              </div>
+            }
+          }
+        }
+      </div>
+    </section>
+  </div>
+}

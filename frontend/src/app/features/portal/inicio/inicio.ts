@@ -11,6 +11,10 @@ import { StatusBadge } from '../../../shared/components/status-badge/status-badg
   selector: 'app-portal-inicio',
   imports: [DatePipe, RouterLink, StatCard, StatusBadge],
   templateUrl: './inicio.html',
+  styles: `
+    .enlace-titulo { color: var(--bs-secondary-color); text-decoration: none; }
+    .enlace-titulo:hover, .enlace-titulo:focus-visible { color: var(--bs-primary); }
+  `,
 })
 export class PortalInicio implements OnInit {
   private portal = inject(PortalService);

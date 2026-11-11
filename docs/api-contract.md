@@ -546,9 +546,25 @@ Recurso `/api/portal/`. Exige rol `cliente`, organización asignada y organizaci
 
 Ejemplo: [`docs/examples/portal-resumen.json`](examples/portal-resumen.json). `tickets` cuenta `abiertos`, `en_progreso` y `resueltos`, sin los cerrados. Los activos dados de baja no cuentan. `incidentes_activos` son los `abierto` o `en_progreso`.
 
-## `GET /api/portal/activos/`
+## `GET /api/portal/empresa/`
 
-`[{ id, nombre, tipo }]` de los activos no dados de baja de la empresa, por nombre.
+`id`, `nombre`, `nit`, `sector`, `telefono`, `correo`, `direccion`, `ciudad`, `contacto_nombre`, `contacto_cargo`, `contacto_correo`, `contacto_telefono`, `plan`, `fecha_inicio_contrato`, `fecha_fin_contrato`. Vacíos en `null`. Solo lectura.
+
+## `GET /api/portal/activos/` y `/{id}/`
+
+Lista paginada (20, máximo 100) de los activos no dados de baja. Parámetros: `q` (nombre, ubicación, fabricante o modelo), `tipo`, `estado`, `ordering` (`nombre` por defecto; `estado` = críticos primero), `page`, `page_size`.
+
+Cada fila: `id`, `nombre`, `tipo`, `estado`, `ubicacion`, `ultimo_backup` (`{ fecha, estado }` o `null`).
+
+La ficha (ejemplo: [`docs/examples/portal-activo.json`](examples/portal-activo.json)) agrega `fabricante`, `modelo`, `sistema_operativo`, `numero_serie`, `de_baja` y `fecha_baja`, y abre también los dados de baja de la empresa. Ajeno o inexistente: 404.
+
+Nunca se exponen `ip`, `hostname` ni `notas`. El selector de "Abrir ticket" pide `page_size=100`.
+
+## `GET /api/portal/backups/`
+
+Lista paginada, del más reciente al más antiguo, incluidos los de activos dados de baja. Parámetros: `activo`, `estado`, `tipo`, `desde`, `hasta` (días en hora de Bogotá), `page`, `page_size`. Un `activo` ajeno, inexistente o inválido devuelve la lista vacía.
+
+Cada fila: `id`, `activo` (`{ id, nombre }`, o `null` en backups antiguos registrados sin activo), `tipo` (o `null`), `estado`, `fecha`, `tamano_gb` (o `null`). Nunca se exponen `notas` ni `registrado_por`. No hay ficha de backup.
 
 ## `GET, POST /api/portal/tickets/`
 

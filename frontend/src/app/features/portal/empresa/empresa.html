@@ -1,0 +1,55 @@
+@if (estado() === 'cargando') {
+  <div class="text-center py-5" role="status">
+    <div class="spinner-border text-primary"></div>
+    <p class="mt-2 text-muted">Cargando los datos de tu empresa...</p>
+  </div>
+} @else if (estado() === 'error') {
+  <div class="alert alert-danger d-flex align-items-center justify-content-between">
+    <span>No se pudieron cargar los datos de tu empresa.</span>
+    <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+  </div>
+} @else if (empresa(); as e) {
+  <h4 class="mb-3">{{ e.nombre }}</h4>
+
+  <div class="row g-3">
+    @for (b of bloques; track b.titulo) {
+      <div class="col-lg-4">
+        <section class="card shadow-sm border-0 h-100" [attr.aria-label]="b.titulo">
+          <div class="card-header fw-semibold">
+            <i class="bi {{ b.icono }} me-2 text-muted" aria-hidden="true"></i>{{ b.titulo }}
+          </div>
+          <dl class="card-body mb-0">
+            @for (c of b.campos; track c.clave) {
+              <dt class="text-muted small fw-normal">{{ c.etiqueta }}</dt>
+              <dd class="mb-3 text-break">
+                @if (valor(e, c.clave); as v) {
+                  @switch (c.tipo) {
+                    @case ('correo') {
+                      <a [href]="'mailto:' + v">{{ v }}</a>
+                    }
+                    @case ('fecha') {
+                      <span class="numerico">{{ v | date: 'dd/MM/yyyy' : 'UTC' }}</span>
+                    }
+                    @case ('plan') {
+                      <app-status-badge [valor]="v" />
+                    }
+                    @default {
+                      {{ v }}
+                    }
+                  }
+                } @else {
+                  <span class="text-muted" data-vacio>—</span>
+                }
+              </dd>
+            }
+          </dl>
+        </section>
+      </div>
+    }
+  </div>
+
+  <p class="text-muted small mt-3 mb-0">
+    <i class="bi bi-info-circle me-1" aria-hidden="true"></i>¿Algún dato está mal?
+    <a routerLink="/portal/tickets/nuevo">Abre un ticket</a> y lo corregimos.
+  </p>
+}
