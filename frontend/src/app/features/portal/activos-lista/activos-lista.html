@@ -1,0 +1,116 @@
+<h4 class="mb-3">
+  Mis activos
+  @if (datos(); as d) {
+    <span class="text-muted fw-normal fs-6 ms-1 numerico">{{ d.count }}</span>
+  }
+</h4>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body border-bottom">
+    <div class="row g-2">
+      <div class="col-12 col-md-6">
+        <label for="buscar" class="visually-hidden">Buscar activos</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+          <input
+            id="buscar"
+            type="search"
+            class="form-control"
+            placeholder="Buscar por nombre, ubicación o modelo"
+            autocomplete="off"
+            [value]="q()"
+            (input)="alEscribir($any($event.target).value)"
+            (keydown.enter)="aplicarBusqueda($any($event.target).value)"
+          />
+        </div>
+      </div>
+      <div class="col-6 col-md-3">
+        <label for="tipo" class="visually-hidden">Tipo</label>
+        <select id="tipo" class="form-select" (change)="cambiarTipo($any($event.target).value)">
+          <option value="">Todos los tipos</option>
+          @for (t of tipos; track t.valor) {
+            <option [value]="t.valor" [selected]="tipo() === t.valor">{{ t.texto }}</option>
+          }
+        </select>
+      </div>
+      <div class="col-6 col-md-3">
+        <label for="estado" class="visually-hidden">Estado</label>
+        <select id="estado" class="form-select" (change)="cambiarEstado($any($event.target).value)">
+          <option value="">Todos los estados</option>
+          @for (e of estados; track e.valor) {
+            <option [value]="e.valor" [selected]="filtroEstado() === e.valor">{{ e.texto }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
+  @if (estado() === 'cargando') {
+    <div class="text-center py-5" role="status"><div class="spinner-border text-primary"></div></div>
+  } @else if (estado() === 'error') {
+    <div class="card-body">
+      <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+        <span>No se pudieron cargar tus activos.</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+      </div>
+    </div>
+  } @else if (datos(); as d) {
+    @if (d.results.length === 0) {
+      <div class="card-body text-center py-5">
+        @if (hayFiltros()) {
+          <h5 class="mb-1">Sin resultados</h5>
+          <p class="text-muted mb-0">Prueba con otra búsqueda u otro filtro.</p>
+        } @else {
+          <p class="text-muted mb-0">Tu empresa aún no tiene activos registrados.</p>
+        }
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Tipo</th>
+              <th>Estado</th>
+              <th>Ubicación</th>
+              <th>Último backup</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of d.results; track a.id) {
+              <tr>
+                <td><a class="fw-semibold text-body text-decoration-none" [routerLink]="['/portal/activos', a.id]">{{ a.nombre }}</a></td>
+                <td>{{ nombreTipo[a.tipo] }}</td>
+                <td><app-status-badge [valor]="a.estado" /></td>
+                <td>{{ a.ubicacion ?? '—' }}</td>
+                <td class="text-nowrap">
+                  @if (a.ultimo_backup; as ub) {
+                    <span class="numerico small me-2">{{ ub.fecha | date: 'dd/MM/yyyy' }}</span>
+                    <app-status-badge [valor]="ub.estado" />
+                  } @else {
+                    <span class="text-muted small">Sin backups</span>
+                  }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPaginas() > 1) {
+        <div class="card-body border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <small class="text-muted numerico">Mostrando {{ desde() }}–{{ hasta() }} de {{ d.count }}</small>
+          <nav aria-label="Paginación de activos" class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)" aria-label="Página anterior">
+              <i class="bi bi-chevron-left" aria-hidden="true"></i>
+            </button>
+            <span class="small numerico">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-prueba="siguiente" [disabled]="pagina() >= totalPaginas()" (click)="irAPagina(pagina() + 1)" aria-label="Página siguiente">
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+          </nav>
+        </div>
+      }
+    }
+  }
+</div>
