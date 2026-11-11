@@ -137,3 +137,32 @@ class EmpresaPortalSerializer(VacioComoNullMixin, serializers.ModelSerializer):
             "contacto_nombre", "contacto_cargo", "contacto_correo", "contacto_telefono",
             "plan", "fecha_inicio_contrato", "fecha_fin_contrato",
         ]
+
+
+def ultimo_backup_portal(activo):
+    """Usa las anotaciones ub_* de con_ultimo_backup; sin id ni datos internos."""
+    if activo.ub_fecha is None:
+        return None
+    return {"fecha": serializers.DateTimeField().to_representation(activo.ub_fecha), "estado": activo.ub_estado}
+
+
+class ActivoPortalListaSerializer(VacioComoNullMixin, serializers.ModelSerializer):
+    texto_opcional = ["ubicacion"]
+
+    ultimo_backup = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Activo
+        fields = ["id", "nombre", "tipo", "estado", "ubicacion", "ultimo_backup"]
+
+    def get_ultimo_backup(self, activo):
+        return ultimo_backup_portal(activo)
+
+
+class ActivoPortalDetalleSerializer(ActivoPortalListaSerializer):
+    texto_opcional = ["ubicacion", "fabricante", "modelo", "sistema_operativo", "numero_serie"]
+
+    class Meta(ActivoPortalListaSerializer.Meta):
+        fields = ActivoPortalListaSerializer.Meta.fields + [
+            "fabricante", "modelo", "sistema_operativo", "numero_serie", "de_baja", "fecha_baja",
+        ]

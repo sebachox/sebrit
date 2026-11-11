@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from apps.assets.models import Activo
+from apps.assets.views import ORDENES_ACTIVOS, con_ultimo_backup
 from apps.dashboard.views import ACTIVOS, conteo_activos, conteo_backups
 from apps.incidents.models import Incidente
 from apps.incidents.views import cuerpo
@@ -17,6 +18,8 @@ from apps.tickets.servicios import comentar
 
 from .permissions import EsClienteDelPortal
 from .serializers import (
+    ActivoPortalDetalleSerializer,
+    ActivoPortalListaSerializer,
     EmpresaPortalSerializer,
     EventoPortalSerializer,
     TicketPortalCrearSerializer,
@@ -56,20 +59,6 @@ class EmpresaView(APIView):
 
     def get(self, request):
         return Response(EmpresaPortalSerializer(request.user.organizacion).data)
-
-
-class ActivosView(APIView):
-    """Solo lo necesario para elegir un activo al abrir un ticket."""
-
-    permission_classes = [EsClienteDelPortal]
-
-    def get(self, request):
-        activos = (
-            Activo.objects.filter(organizacion=request.user.organizacion, de_baja=False)
-            .order_by(Lower("nombre"), "id")
-            .values("id", "nombre", "tipo")
-        )
-        return Response(list(activos))
 
 
 class TicketPortalViewSet(
@@ -117,3 +106,34 @@ class TicketPortalViewSet(
             raise ValidationError({"non_field_errors": [MSG_CERRADO]})
         evento = comentar(ticket, cuerpo(request).get("texto"), request.user, visible_cliente=True)
         return Response(EventoPortalSerializer(evento).data, status=status.HTTP_201_CREATED)
+
+
+class ActivoPortalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Inventario de la empresa, solo lectura. La ficha abre también los dados de baja."""
+
+    permission_classes = [EsClienteDelPortal]
+    pagination_class = PaginacionEstandar
+    http_method_names = ["get", "head", "options"]
+    lookup_value_regex = r"\d{1,18}"
+
+    def get_serializer_class(self):
+        return ActivoPortalListaSerializer if self.action == "list" else ActivoPortalDetalleSerializer
+
+    def get_queryset(self):
+        qs = con_ultimo_backup(Activo.objects.filter(organizacion=self.request.user.organizacion))
+        if self.action != "list":
+            return qs
+
+        p = self.request.query_params
+        qs = qs.filter(de_baja=False)
+        q = p.get("q", "").replace("\x00", "").strip()
+        if q:
+            qs = qs.filter(
+                Q(nombre__icontains=q) | Q(ubicacion__icontains=q) | Q(fabricante__icontains=q) | Q(modelo__icontains=q)
+            )
+        if p.get("tipo") in Activo.Tipo.values:
+            qs = qs.filter(tipo=p["tipo"])
+        if p.get("estado") in Activo.Estado.values:
+            qs = qs.filter(estado=p["estado"])
+        orden = "estado" if p.get("ordering") == "estado" else "nombre"
+        return qs.order_by(*ORDENES_ACTIVOS[orden], "id")
