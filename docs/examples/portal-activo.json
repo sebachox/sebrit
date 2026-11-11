@@ -1,0 +1,14 @@
+{
+  "id": 7,
+  "nombre": "SRV-01",
+  "tipo": "servidor",
+  "estado": "operativo",
+  "ubicacion": "Rack 2, sede norte",
+  "ultimo_backup": { "fecha": "2026-11-10T23:00:00-05:00", "estado": "exitoso" },
+  "fabricante": "Dell",
+  "modelo": "PowerEdge R740",
+  "sistema_operativo": "Ubuntu Server 24.04",
+  "numero_serie": "CN0ABC123",
+  "de_baja": false,
+  "fecha_baja": null
+}

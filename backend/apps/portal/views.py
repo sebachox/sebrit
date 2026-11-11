@@ -1,5 +1,4 @@
 from django.db.models import Count, Q
-from django.db.models.functions import Lower
 from django.utils import timezone
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
@@ -7,8 +6,8 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from apps.assets.models import Activo
-from apps.assets.views import ORDENES_ACTIVOS, con_ultimo_backup
+from apps.assets.models import Activo, Backup
+from apps.assets.views import ORDENES_ACTIVOS, con_ultimo_backup, fecha_param
 from apps.dashboard.views import ACTIVOS, conteo_activos, conteo_backups
 from apps.incidents.models import Incidente
 from apps.incidents.views import cuerpo
@@ -20,6 +19,7 @@ from .permissions import EsClienteDelPortal
 from .serializers import (
     ActivoPortalDetalleSerializer,
     ActivoPortalListaSerializer,
+    BackupPortalSerializer,
     EmpresaPortalSerializer,
     EventoPortalSerializer,
     TicketPortalCrearSerializer,
@@ -137,3 +137,35 @@ class ActivoPortalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, view
             qs = qs.filter(estado=p["estado"])
         orden = "estado" if p.get("ordering") == "estado" else "nombre"
         return qs.order_by(*ORDENES_ACTIVOS[orden], "id")
+
+
+class BackupPortalViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
+    """Backups de la empresa, solo lectura y sin ficha propia."""
+
+    permission_classes = [EsClienteDelPortal]
+    pagination_class = PaginacionEstandar
+    serializer_class = BackupPortalSerializer
+    http_method_names = ["get", "head", "options"]
+
+    def get_queryset(self):
+        qs = Backup.objects.filter(organizacion=self.request.user.organizacion).select_related("activo")
+        p = self.request.query_params
+
+        if "activo" in p:
+            # Un activo ajeno, inexistente o inválido responde igual: lista vacía.
+            valor = p["activo"]
+            if not (valor.isdecimal() and len(valor) <= 18):
+                return qs.none()
+            qs = qs.filter(activo_id=int(valor))
+        if p.get("estado") in Backup.Estado.values:
+            qs = qs.filter(estado=p["estado"])
+        if p.get("tipo") in Backup.Tipo.values:
+            qs = qs.filter(tipo=p["tipo"])
+
+        # __date usa TIME_ZONE (America/Bogota): los días son en hora local.
+        desde, hasta = fecha_param(p.get("desde")), fecha_param(p.get("hasta"))
+        if desde:
+            qs = qs.filter(fecha__date__gte=desde)
+        if hasta:
+            qs = qs.filter(fecha__date__lte=hasta)
+        return qs.order_by("-fecha", "-id")

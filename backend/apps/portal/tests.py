@@ -652,3 +652,107 @@ class EmpresaPortalTests(BasePortal):
     def test_otra_empresa_ve_la_suya(self):
         self.entrar(self.cliente_b)
         self.assertEqual(self.client.get(EMPRESA).data["nombre"], "Empresa B")
+
+
+BACKUPS = "/api/portal/backups/"
+CLAVES_BACKUP = {"id", "activo", "tipo", "estado", "fecha", "tamano_gb"}
+
+
+class BackupsPortalTests(BasePortal):
+    def setUp(self):
+        super().setUp()
+        self.entrar(self.cliente_a)
+        self.srv = Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="SRV-01")
+        self.red = Activo.objects.create(organizacion=self.org_a, tipo="red", nombre="NET-01")
+        self.ajeno = Activo.objects.create(organizacion=self.org_b, tipo="servidor", nombre="SRV-B")
+
+    def backup(self, activo=None, **datos):
+        activo = activo or self.srv
+        return Backup.objects.create(organizacion=activo.organizacion, activo=activo, **datos)
+
+    def filas(self, consulta=""):
+        return self.client.get(f"{BACKUPS}{consulta}").data["results"]
+
+    def ids(self, consulta=""):
+        return [f["id"] for f in self.filas(consulta)]
+
+    def test_permisos(self):
+        for usuario, esperado in ((None, 401), (self.tecnico, 403), (self.admin, 403), (self.cliente_a, 200)):
+            self.client.force_authenticate(usuario)
+            self.assertEqual(self.client.get(BACKUPS).status_code, esperado)
+
+    def test_empresa_inactiva_da_403(self):
+        Organizacion.objects.filter(pk=self.org_a.pk).update(activa=False)
+        self.entrar_con_token(self.cliente_a)
+        self.assertEqual(self.client.get(BACKUPS).status_code, 403)
+
+    def test_claves_exactas_sin_datos_internos(self):
+        self.backup(estado="exitoso", tipo="completo", tamano_gb="12.50", notas="ruta secreta", registrado_por=self.tecnico)
+        fila = self.filas()[0]
+        self.assertEqual(set(fila), CLAVES_BACKUP)
+        self.assertEqual(fila["activo"], {"id": self.srv.id, "nombre": "SRV-01"})
+        self.assertNotIn("ruta secreta", json.dumps(fila, default=str))
+
+    def test_vacios_salen_null(self):
+        self.backup(estado="pendiente")
+        fila = self.filas()[0]
+        self.assertIsNone(fila["tipo"])
+        self.assertIsNone(fila["tamano_gb"])
+
+    def test_solo_de_la_empresa_y_del_mas_reciente(self):
+        viejo = self.backup(fecha="2026-11-01T10:00:00-05:00")
+        nuevo = self.backup(self.red, fecha="2026-11-05T10:00:00-05:00")
+        self.backup(self.ajeno)
+        self.assertEqual(self.ids(), [nuevo.id, viejo.id])
+
+    def test_incluye_backups_de_activos_dados_de_baja(self):
+        baja = Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="Viejo", de_baja=True)
+        b = self.backup(baja)
+        self.assertIn(b.id, self.ids())
+
+    def test_filtros(self):
+        a = self.backup(estado="fallido", tipo="completo", fecha="2026-11-03T23:30:00-05:00")
+        b = self.backup(self.red, estado="exitoso", tipo="incremental", fecha="2026-11-04T08:00:00-05:00")
+        self.assertEqual(self.ids("?estado=fallido"), [a.id])
+        self.assertEqual(self.ids("?tipo=incremental"), [b.id])
+        self.assertEqual(self.ids(f"?activo={self.red.id}"), [b.id])
+        # Las fechas son días en hora de Bogotá: 23:30 del 3 sigue siendo el 3.
+        self.assertEqual(self.ids("?desde=2026-11-04"), [b.id])
+        self.assertEqual(self.ids("?hasta=2026-11-03"), [a.id])
+
+    def test_activo_ajeno_inexistente_o_raro_da_lista_vacia(self):
+        self.backup()
+        self.backup(self.ajeno)
+        for valor in (str(self.ajeno.id), "99999", "x", "9" * 400, "%00"):
+            r = self.client.get(f"{BACKUPS}?activo={valor}")
+            self.assertEqual(r.status_code, 200, valor)
+            self.assertEqual(r.data["results"], [], valor)
+
+    def test_fechas_invalidas_o_al_reves_no_fallan(self):
+        self.backup(fecha="2026-11-03T10:00:00-05:00")
+        self.assertEqual(len(self.filas("?desde=x&hasta=2026-13-45")), 1)
+        r = self.client.get(f"{BACKUPS}?desde=2026-11-10&hasta=2026-11-01")
+        self.assertEqual((r.status_code, r.data["results"]), (200, []))
+
+    def test_entradas_anomalas_no_fallan(self):
+        self.backup()
+        for consulta in ("?estado=%00", "?tipo=x", "?page_size=x"):
+            self.assertEqual(self.client.get(f"{BACKUPS}{consulta}").status_code, 200, consulta)
+        self.assertEqual(self.client.get(f"{BACKUPS}?page=x").status_code, 404)
+
+    def test_solo_lectura_y_sin_ficha(self):
+        b = self.backup()
+        self.assertEqual(self.client.post(BACKUPS, {}, format="json").status_code, 405)
+        self.assertEqual(self.client.get(f"{BACKUPS}{b.id}/").status_code, 404)
+
+    def test_lista_sin_n_mas_1(self):
+        def consultas():
+            with CaptureQueriesContext(connection) as c:
+                self.client.get(BACKUPS)
+            return len(c)
+
+        self.backup()
+        una = consultas()
+        for _ in range(4):
+            self.backup(self.red)
+        self.assertEqual(consultas(), una)

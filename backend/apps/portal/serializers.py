@@ -4,7 +4,7 @@ from django.db import transaction
 from django.db.models import Q
 from rest_framework import serializers
 
-from apps.assets.models import Activo
+from apps.assets.models import Activo, Backup
 from apps.assets.serializers import referencia
 from apps.incidents.serializers import errores
 from apps.organizations.models import Organizacion
@@ -166,3 +166,16 @@ class ActivoPortalDetalleSerializer(ActivoPortalListaSerializer):
         fields = ActivoPortalListaSerializer.Meta.fields + [
             "fabricante", "modelo", "sistema_operativo", "numero_serie", "de_baja", "fecha_baja",
         ]
+
+
+class BackupPortalSerializer(VacioComoNullMixin, serializers.ModelSerializer):
+    texto_opcional = ["tipo"]
+
+    activo = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Backup
+        fields = ["id", "activo", "tipo", "estado", "fecha", "tamano_gb"]
+
+    def get_activo(self, backup):
+        return referencia(backup.activo)

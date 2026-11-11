@@ -17,7 +17,7 @@ from apps.assets.views import ActivoViewSet, BackupViewSet
 from apps.dashboard.views import AdminDashboardView
 from apps.incidents.views import IncidenteViewSet
 from apps.organizations.views import OrganizacionViewSet
-from apps.portal.views import ActivoPortalViewSet, EmpresaView, ResumenView, TicketPortalViewSet
+from apps.portal.views import ActivoPortalViewSet, BackupPortalViewSet, EmpresaView, ResumenView, TicketPortalViewSet
 from apps.tickets.views import TicketViewSet
 
 router = DefaultRouter(trailing_slash=True)
@@ -29,6 +29,7 @@ router.register("tickets", TicketViewSet, basename="ticket")
 router.register("incidentes", IncidenteViewSet, basename="incidente")
 router.register("portal/tickets", TicketPortalViewSet, basename="portal-ticket")
 router.register("portal/activos", ActivoPortalViewSet, basename="portal-activo")
+router.register("portal/backups", BackupPortalViewSet, basename="portal-backup")
 
 urlpatterns = [
     path("admin/", admin.site.urls),
