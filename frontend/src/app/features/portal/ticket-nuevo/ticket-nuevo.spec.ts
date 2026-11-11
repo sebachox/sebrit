@@ -1,12 +1,15 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Router, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { API_URL } from '../../../core/config/api';
 import { PortalTicketNuevo } from './ticket-nuevo';
 
 const TICKETS = `${API_URL}/portal/tickets/`;
 const ACTIVOS = `${API_URL}/portal/activos/`;
+
+const activo = { id: 7, nombre: 'SRV-01', tipo: 'servidor', estado: 'operativo', ubicacion: null, ultimo_backup: null };
+const paginaActivos = { count: 1, next: null, previous: null, results: [activo] };
 
 describe('PortalTicketNuevo', () => {
   let fixture: ComponentFixture<PortalTicketNuevo>;
@@ -26,7 +29,7 @@ describe('PortalTicketNuevo', () => {
   afterEach(() => http.verify());
 
   const conActivos = () => {
-    http.expectOne(ACTIVOS).flush([{ id: 7, nombre: 'SRV-01', tipo: 'servidor' }]);
+    http.expectOne((r) => r.url === ACTIVOS).flush(paginaActivos);
     fixture.detectChanges();
   };
   function escribir(id: string, valor: string) {
@@ -121,7 +124,7 @@ describe('PortalTicketNuevo', () => {
   });
 
   it('si fallan los activos el formulario sigue funcionando', () => {
-    http.expectOne(ACTIVOS).flush({}, { status: 500, statusText: 'Error' });
+    http.expectOne((r) => r.url === ACTIVOS).flush({}, { status: 500, statusText: 'Error' });
     fixture.detectChanges();
     expect(el().querySelector('#activo')).toBeNull();
     llenar();
@@ -132,14 +135,49 @@ describe('PortalTicketNuevo', () => {
   });
 
   it('sin activos no muestra el selector', () => {
-    http.expectOne(ACTIVOS).flush([]);
+    http.expectOne((r) => r.url === ACTIVOS).flush({ count: 0, next: null, previous: null, results: [] });
     fixture.detectChanges();
     expect(el().querySelector('#activo')).toBeNull();
+  });
+
+  it('pide hasta 100 activos para el selector', () => {
+    const req = http.expectOne((r) => r.url === ACTIVOS);
+    expect(req.request.params.get('page_size')).toBe('100');
+    req.flush(paginaActivos);
   });
 
   it('no pide prioridad ni técnico', () => {
     conActivos();
     expect(el().querySelector('#prioridad')).toBeNull();
     expect(el().querySelector('#tecnico')).toBeNull();
+  });
+});
+
+
+describe('PortalTicketNuevo con ?activo=', () => {
+  function crearCon(activo: string) {
+    TestBed.configureTestingModule({
+      imports: [PortalTicketNuevo],
+      providers: [
+        provideRouter([]),
+        provideHttpClient(),
+        provideHttpClientTesting(),
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap({ activo }) } } },
+      ],
+    });
+    const fixture = TestBed.createComponent(PortalTicketNuevo);
+    const http = TestBed.inject(HttpTestingController);
+    fixture.detectChanges();
+    http.expectOne((r) => r.url === ACTIVOS).flush(paginaActivos);
+    fixture.detectChanges();
+    return (fixture.nativeElement as HTMLElement).querySelector('#activo') as HTMLSelectElement;
+  }
+
+  it('deja elegido el activo si está en la lista', () => {
+    expect(crearCon('7').value).toBe('7');
+  });
+
+  it('un activo que no está en la lista deja el campo vacío', () => {
+    expect(crearCon('99').value).toBe('');
   });
 });

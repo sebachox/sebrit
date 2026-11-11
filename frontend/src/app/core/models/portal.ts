@@ -1,6 +1,8 @@
 import { ConteoActivos, ConteoBackups } from './dashboard-admin';
 import { AlcanceTicket, CategoriaTicket, EstadoTicket } from './ticket';
-import { Referencia, TipoActivo } from './activo';
+import { EstadoActivo, EstadoBackup, Referencia, TipoActivo } from './activo';
+import { TipoBackup } from './backup';
+import { Plan } from './organizacion';
 
 export const ALCANCES_PORTAL: { valor: AlcanceTicket; texto: string }[] = [
   { valor: 'un_usuario', texto: 'Solo a mí' },
@@ -20,10 +22,67 @@ export interface ResumenPortal {
   };
 }
 
-export interface ActivoPortal {
+export interface EmpresaPortal {
+  id: number;
+  nombre: string;
+  nit: string | null;
+  sector: string | null;
+  telefono: string | null;
+  correo: string | null;
+  direccion: string | null;
+  ciudad: string | null;
+  contacto_nombre: string | null;
+  contacto_cargo: string | null;
+  contacto_correo: string | null;
+  contacto_telefono: string | null;
+  plan: Plan | null;
+  fecha_inicio_contrato: string | null;
+  fecha_fin_contrato: string | null;
+}
+
+export interface ActivoPortalResumido {
   id: number;
   nombre: string;
   tipo: TipoActivo;
+  estado: EstadoActivo;
+  ubicacion: string | null;
+  ultimo_backup: { fecha: string; estado: EstadoBackup } | null;
+}
+
+export interface ActivoPortalDetalle extends ActivoPortalResumido {
+  fabricante: string | null;
+  modelo: string | null;
+  sistema_operativo: string | null;
+  numero_serie: string | null;
+  de_baja: boolean;
+  fecha_baja: string | null;
+}
+
+export interface BackupPortal {
+  id: number;
+  activo: Referencia;
+  tipo: TipoBackup | null;
+  estado: EstadoBackup;
+  fecha: string;
+  tamano_gb: string | number | null;
+}
+
+export interface FiltrosActivosPortal {
+  q?: string;
+  tipo?: TipoActivo | null;
+  estado?: EstadoActivo | null;
+  ordering?: 'nombre' | 'estado' | null;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface FiltrosBackupsPortal {
+  activo?: number | null;
+  estado?: EstadoBackup | null;
+  tipo?: TipoBackup | null;
+  desde?: string | null;
+  hasta?: string | null;
+  page?: number;
 }
 
 export interface TicketPortalResumido {

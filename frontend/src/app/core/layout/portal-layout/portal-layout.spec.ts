@@ -44,6 +44,13 @@ describe('PortalLayout', () => {
     expect(el().querySelector('a[href="/portal/tickets"]')?.textContent).toContain('Mis tickets');
   });
 
+  it('enlaza a activos, backups y mi empresa', () => {
+    conEmpresa();
+    expect(el().querySelector('.nav-link[href="/portal/activos"]')?.textContent).toContain('Mis activos');
+    expect(el().querySelector('.nav-link[href="/portal/backups"]')?.textContent).toContain('Backups');
+    expect(el().querySelector('.nav-link[href="/portal/empresa"]')?.textContent).toContain('Mi empresa');
+  });
+
   it('muestra el nombre de la empresa', () => {
     conEmpresa();
     expect(el().querySelector('.navbar')?.textContent).toContain('Metropolis 21');

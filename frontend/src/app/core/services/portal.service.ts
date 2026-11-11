@@ -4,8 +4,13 @@ import { Observable } from 'rxjs';
 import { API_URL } from '../config/api';
 import { Paginado } from '../models/organizacion';
 import {
-  ActivoPortal,
+  ActivoPortalDetalle,
+  ActivoPortalResumido,
+  BackupPortal,
+  EmpresaPortal,
   EventoPortal,
+  FiltrosActivosPortal,
+  FiltrosBackupsPortal,
   FiltrosPortal,
   ResumenPortal,
   TicketPortal,
@@ -23,8 +28,34 @@ export class PortalService {
     return this.http.get<ResumenPortal>(`${BASE}/resumen/`);
   }
 
-  activos(): Observable<ActivoPortal[]> {
-    return this.http.get<ActivoPortal[]>(`${BASE}/activos/`);
+  empresa(): Observable<EmpresaPortal> {
+    return this.http.get<EmpresaPortal>(`${BASE}/empresa/`);
+  }
+
+  listarActivos(f: FiltrosActivosPortal): Observable<Paginado<ActivoPortalResumido>> {
+    let params = new HttpParams();
+    if (f.q) params = params.set('q', f.q);
+    if (f.tipo) params = params.set('tipo', f.tipo);
+    if (f.estado) params = params.set('estado', f.estado);
+    if (f.ordering) params = params.set('ordering', f.ordering);
+    if (f.page && f.page > 1) params = params.set('page', f.page);
+    if (f.pageSize) params = params.set('page_size', f.pageSize);
+    return this.http.get<Paginado<ActivoPortalResumido>>(`${BASE}/activos/`, { params });
+  }
+
+  obtenerActivo(id: number): Observable<ActivoPortalDetalle> {
+    return this.http.get<ActivoPortalDetalle>(`${BASE}/activos/${id}/`);
+  }
+
+  listarBackups(f: FiltrosBackupsPortal): Observable<Paginado<BackupPortal>> {
+    let params = new HttpParams();
+    if (f.activo) params = params.set('activo', f.activo);
+    if (f.estado) params = params.set('estado', f.estado);
+    if (f.tipo) params = params.set('tipo', f.tipo);
+    if (f.desde) params = params.set('desde', f.desde);
+    if (f.hasta) params = params.set('hasta', f.hasta);
+    if (f.page && f.page > 1) params = params.set('page', f.page);
+    return this.http.get<Paginado<BackupPortal>>(`${BASE}/backups/`, { params });
   }
 
   listarTickets(f: FiltrosPortal): Observable<Paginado<TicketPortalResumido>> {

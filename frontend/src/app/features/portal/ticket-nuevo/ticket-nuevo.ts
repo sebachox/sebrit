@@ -1,8 +1,8 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, inject, signal } from '@angular/core';
 import { NonNullableFormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router, RouterLink } from '@angular/router';
-import { ALCANCES_PORTAL, ActivoPortal } from '../../../core/models/portal';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { ALCANCES_PORTAL, ActivoPortalResumido } from '../../../core/models/portal';
 import { AlcanceTicket, CATEGORIAS, CategoriaTicket } from '../../../core/models/ticket';
 import { PortalService } from '../../../core/services/portal.service';
 
@@ -27,11 +27,12 @@ const conTexto = Validators.pattern(/\S/);
 export class PortalTicketNuevo implements OnInit {
   private portal = inject(PortalService);
   private router = inject(Router);
+  private route = inject(ActivatedRoute);
 
   readonly categorias = CATEGORIAS;
   readonly alcances = ALCANCES_PORTAL;
 
-  activos = signal<ActivoPortal[]>([]);
+  activos = signal<ActivoPortalResumido[]>([]);
   enviando = signal(false);
   errorGeneral = signal<string | null>(null);
 
@@ -45,8 +46,15 @@ export class PortalTicketNuevo implements OnInit {
 
   ngOnInit() {
     // El activo es opcional: si la lista falla, el ticket se puede abrir igual.
-    this.portal.activos().subscribe({
-      next: (a) => this.activos.set(a),
+    this.portal.listarActivos({ pageSize: 100 }).subscribe({
+      next: (p) => {
+        this.activos.set(p.results);
+        // Desde la ficha de un activo llega ?activo=<id>: se elige solo si es uno de la lista.
+        const pedido = this.route.snapshot.queryParamMap.get('activo');
+        if (pedido && p.results.some((a) => String(a.id) === pedido)) {
+          this.form.controls.activo.setValue(pedido);
+        }
+      },
       error: () => this.activos.set([]),
     });
   }
