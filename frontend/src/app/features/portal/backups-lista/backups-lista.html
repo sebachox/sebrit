@@ -83,7 +83,13 @@
             @for (b of d.results; track b.id) {
               <tr>
                 <td class="numerico text-nowrap">{{ b.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
-                <td><a class="text-body text-decoration-none fw-semibold" [routerLink]="['/portal/activos', b.activo.id]">{{ b.activo.nombre }}</a></td>
+                <td>
+                  @if (b.activo; as a) {
+                    <a class="text-body text-decoration-none fw-semibold" [routerLink]="['/portal/activos', a.id]">{{ a.nombre }}</a>
+                  } @else {
+                    <span class="text-muted">Sin activo</span>
+                  }
+                </td>
                 <td>@if (b.tipo) { {{ nombreTipo[b.tipo] }} } @else { <span class="text-muted" data-vacio>—</span> }</td>
                 <td><app-status-badge [valor]="b.estado" /></td>
                 <td class="text-end numerico">@if (b.tamano_gb !== null) { {{ b.tamano_gb | number: '1.0-2' }} GB } @else { <span class="text-muted" data-vacio>—</span> }</td>

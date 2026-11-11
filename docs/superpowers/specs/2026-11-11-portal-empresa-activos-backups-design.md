@@ -48,7 +48,7 @@ Lo de la fila más `fabricante`, `modelo`, `sistema_operativo`, `numero_serie`, 
 
 Paginada, del más reciente al más antiguo. Parámetros: `activo`, `estado`, `tipo`, `desde`, `hasta` (fechas en hora de Bogotá, como en la API interna), `page`, `page_size`. Un `activo` de otra empresa devuelve una lista vacía, igual que uno inexistente.
 
-Cada fila: `id`, `activo` (`{id, nombre}`), `tipo`, `estado`, `fecha`, `tamano_gb`.
+Cada fila: `id`, `activo` (`{id, nombre}`, o `null` en backups antiguos sin activo), `tipo`, `estado`, `fecha`, `tamano_gb`.
 
 ## Frontend
 

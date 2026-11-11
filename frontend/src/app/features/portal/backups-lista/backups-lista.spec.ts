@@ -72,6 +72,15 @@ describe('PortalBackupsLista', () => {
     expect(el().querySelectorAll('tbody [data-vacio]').length).toBe(2);
   });
 
+  it('un backup antiguo sin activo se muestra sin enlace y no corta la tabla', () => {
+    cargar([backup({ id: 1, activo: null }), backup({ id: 2 })]);
+    const filas = el().querySelectorAll('tbody tr');
+    expect(filas.length).toBe(2);
+    expect(filas[0].textContent).toContain('Sin activo');
+    expect(filas[0].querySelector('a')).toBeNull();
+    expect(filas[1].querySelector('a[href="/portal/activos/7"]')).not.toBeNull();
+  });
+
   it('filtra por estado, tipo, activo y fechas', () => {
     cargar();
     const casos: [string, string, string][] = [

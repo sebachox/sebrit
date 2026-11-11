@@ -705,6 +705,11 @@ class BackupsPortalTests(BasePortal):
         self.backup(self.ajeno)
         self.assertEqual(self.ids(), [nuevo.id, viejo.id])
 
+    def test_backup_antiguo_sin_activo_sale_con_activo_null(self):
+        b = Backup.objects.create(organizacion=self.org_a, activo=None, estado="exitoso")
+        fila = next(f for f in self.filas() if f["id"] == b.id)
+        self.assertIsNone(fila["activo"])
+
     def test_incluye_backups_de_activos_dados_de_baja(self):
         baja = Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="Viejo", de_baja=True)
         b = self.backup(baja)

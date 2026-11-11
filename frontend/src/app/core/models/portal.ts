@@ -60,7 +60,7 @@ export interface ActivoPortalDetalle extends ActivoPortalResumido {
 
 export interface BackupPortal {
   id: number;
-  activo: Referencia;
+  activo: Referencia | null;
   tipo: TipoBackup | null;
   estado: EstadoBackup;
   fecha: string;

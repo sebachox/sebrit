@@ -564,7 +564,7 @@ Nunca se exponen `ip`, `hostname` ni `notas`. El selector de "Abrir ticket" pide
 
 Lista paginada, del más reciente al más antiguo, incluidos los de activos dados de baja. Parámetros: `activo`, `estado`, `tipo`, `desde`, `hasta` (días en hora de Bogotá), `page`, `page_size`. Un `activo` ajeno, inexistente o inválido devuelve la lista vacía.
 
-Cada fila: `id`, `activo` (`{ id, nombre }`), `tipo` (o `null`), `estado`, `fecha`, `tamano_gb` (o `null`). Nunca se exponen `notas` ni `registrado_por`. No hay ficha de backup.
+Cada fila: `id`, `activo` (`{ id, nombre }`, o `null` en backups antiguos registrados sin activo), `tipo` (o `null`), `estado`, `fecha`, `tamano_gb` (o `null`). Nunca se exponen `notas` ni `registrado_por`. No hay ficha de backup.
 
 ## `GET, POST /api/portal/tickets/`
 
