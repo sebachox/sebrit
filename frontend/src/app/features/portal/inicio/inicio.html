@@ -22,7 +22,7 @@
       <app-stat-card titulo="En progreso" [valor]="r.tickets.en_progreso" icono="bi-arrow-repeat" color="warning" ruta="/portal/tickets" />
     </div>
     <div class="col-12 col-lg-4" data-prueba="incidentes">
-      <app-stat-card titulo="Incidentes activos" [valor]="r.incidentes_activos" icono="bi-exclamation-triangle" color="danger" />
+      <app-stat-card titulo="Incidentes activos" [valor]="r.incidentes_activos" icono="bi-exclamation-triangle" color="danger" ruta="/portal/incidentes" />
     </div>
   </div>
 
@@ -33,9 +33,9 @@
     </div>
     <ul class="list-group list-group-flush">
       @for (t of tickets(); track t.id) {
-        <li class="list-group-item d-flex flex-wrap align-items-center gap-2">
-          <a class="numerico fw-semibold text-body text-decoration-none" [routerLink]="['/portal/tickets', t.id]">{{ t.codigo }}</a>
-          <span class="flex-grow-1 text-break">{{ t.titulo }}</span>
+        <li class="list-group-item list-group-item-action fila-enlace d-flex flex-wrap align-items-center gap-2" data-prueba="ticket" (click)="abrir(t.id)">
+          <a class="numerico fw-semibold text-body text-decoration-none" [routerLink]="['/portal/tickets', t.id]" (click)="$event.stopPropagation()">{{ t.codigo }}</a>
+          <span class="flex-grow-1 text-break titulo-ticket">{{ t.titulo }}</span>
           <app-status-badge [valor]="t.estado" />
           <small class="text-muted numerico">{{ t.creado_en | date: 'dd/MM/yyyy' }}</small>
         </li>

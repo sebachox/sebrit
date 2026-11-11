@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { API_URL } from '../../../core/config/api';
 import { BackupPortal } from '../../../core/models/portal';
 import { PortalBackupsLista } from './backups-lista';
@@ -67,6 +67,20 @@ describe('PortalBackupsLista', () => {
     }
   });
 
+  it('tocar cualquier parte de la fila abre el backup', () => {
+    cargar();
+    const navegar = spyOn(TestBed.inject(Router), 'navigate');
+    (el().querySelector('tbody tr td:nth-child(4)') as HTMLElement).click();
+    expect(navegar).toHaveBeenCalledWith(['/portal/backups', 3]);
+  });
+
+  it('el enlace al activo no abre el backup', () => {
+    cargar();
+    const navegar = spyOn(TestBed.inject(Router), 'navigate');
+    (el().querySelector('tbody tr a') as HTMLElement).click();
+    expect(navegar).not.toHaveBeenCalled();
+  });
+
   it('tipo y tamaño vacíos se muestran con una raya', () => {
     cargar([backup({ tipo: null, tamano_gb: null })]);
     expect(el().querySelectorAll('tbody [data-vacio]').length).toBe(2);
@@ -77,7 +91,7 @@ describe('PortalBackupsLista', () => {
     const filas = el().querySelectorAll('tbody tr');
     expect(filas.length).toBe(2);
     expect(filas[0].textContent).toContain('Sin activo');
-    expect(filas[0].querySelector('a')).toBeNull();
+    expect(filas[0].querySelector('a[href^="/portal/activos/"]')).toBeNull();
     expect(filas[1].querySelector('a[href="/portal/activos/7"]')).not.toBeNull();
   });
 

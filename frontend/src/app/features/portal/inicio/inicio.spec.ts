@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { API_URL } from '../../../core/config/api';
 import { PortalInicio } from './inicio';
 
@@ -101,6 +101,18 @@ describe('PortalInicio', () => {
   it('los tickets enlazan a su ficha', () => {
     responder();
     expect(el().querySelector('a[href="/portal/tickets/42"]')?.textContent).toContain('TCK-0042');
+  });
+
+  it('tocar cualquier parte de un ticket lo abre', () => {
+    responder();
+    const navegar = spyOn(TestBed.inject(Router), 'navigate');
+    (el().querySelector('[data-prueba="ticket"] .titulo-ticket') as HTMLElement).click();
+    expect(navegar).toHaveBeenCalledWith(['/portal/tickets', 42]);
+  });
+
+  it('la tarjeta de incidentes enlaza a la lista', () => {
+    responder();
+    expect(el().querySelector('a[href="/portal/incidentes"]')?.textContent).toContain('Incidentes activos');
   });
 
   it('sin tickets abiertos lo dice', () => {

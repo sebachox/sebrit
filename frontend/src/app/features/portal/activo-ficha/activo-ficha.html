@@ -89,8 +89,8 @@
                 </thead>
                 <tbody>
                   @for (b of h.results; track b.id) {
-                    <tr>
-                      <td class="numerico text-nowrap">{{ b.fecha | date: 'dd/MM/yyyy HH:mm' }}</td>
+                    <tr class="fila-enlace" (click)="abrir(b.id)">
+                      <td class="numerico text-nowrap"><a class="text-body text-decoration-none" [routerLink]="['/portal/backups', b.id]" (click)="$event.stopPropagation()">{{ b.fecha | date: 'dd/MM/yyyy HH:mm' }}</a></td>
                       <td>@if (b.tipo) { {{ nombreTipoBackup[b.tipo] }} } @else { <span class="text-muted" data-vacio>—</span> }</td>
                       <td><app-status-badge [valor]="b.estado" /></td>
                       <td class="text-end numerico">@if (b.tamano_gb !== null) { {{ b.tamano_gb | number: '1.0-2' }} GB } @else { <span class="text-muted" data-vacio>—</span> }</td>

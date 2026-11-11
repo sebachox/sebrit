@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { API_URL } from '../../../core/config/api';
 import { ActivoPortalDetalle, BackupPortal } from '../../../core/models/portal';
 import { PortalActivoFicha } from './activo-ficha';
@@ -93,6 +93,13 @@ describe('PortalActivoFicha', () => {
     for (const dato of ['10/11/2026', 'Completo', 'Exitoso', '12.5']) {
       expect(fila).toContain(dato);
     }
+  });
+
+  it('tocar un backup del historial lo abre', () => {
+    cargar();
+    const navegar = spyOn(TestBed.inject(Router), 'navigate');
+    (el().querySelector('[data-prueba="historial"] tbody tr td:nth-child(2)') as HTMLElement).click();
+    expect(navegar).toHaveBeenCalledWith(['/portal/backups', 3]);
   });
 
   it('sin backups lo dice', () => {

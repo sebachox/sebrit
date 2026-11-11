@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, ParamMap, RouterLink } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ESTADOS_ACTIVO, EstadoActivo, TIPOS_ACTIVO, TipoActivo } from '../../../core/models/activo';
 import { Paginado } from '../../../core/models/organizacion';
@@ -20,6 +20,9 @@ const NOMBRE_TIPO: Record<string, string> = Object.fromEntries(TIPOS_ACTIVO.map(
 })
 export class PortalActivosLista implements OnInit, OnDestroy {
   private portal = inject(PortalService);
+  private router = inject(Router);
+  /** Toda la fila abre la ficha; el enlace del código queda para el teclado. */
+  abrir = (id: number) => this.router.navigate(['/portal/activos', id]);
   private route = inject(ActivatedRoute);
 
   readonly tipos = TIPOS_ACTIVO;

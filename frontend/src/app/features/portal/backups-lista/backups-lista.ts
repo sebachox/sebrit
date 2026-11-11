@@ -1,7 +1,7 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { EstadoBackup } from '../../../core/models/activo';
 import { ESTADOS_BACKUP, TIPOS_BACKUP, TipoBackup } from '../../../core/models/backup';
@@ -20,6 +20,9 @@ const NOMBRE_TIPO: Record<string, string> = Object.fromEntries(TIPOS_BACKUP.map(
 })
 export class PortalBackupsLista implements OnInit, OnDestroy {
   private portal = inject(PortalService);
+  private router = inject(Router);
+  /** Toda la fila abre la ficha; el enlace del código queda para el teclado. */
+  abrir = (id: number) => this.router.navigate(['/portal/backups', id]);
 
   readonly estados = ESTADOS_BACKUP;
   readonly tipos = TIPOS_BACKUP;
