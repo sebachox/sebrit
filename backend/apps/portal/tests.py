@@ -14,6 +14,7 @@ from apps.tickets.prioridad import calcular_prioridad
 
 RESUMEN = "/api/portal/resumen/"
 ACTIVOS = "/api/portal/activos/"
+EMPRESA = "/api/portal/empresa/"
 TICKETS = "/api/portal/tickets/"
 
 CLAVES_FILA = {
@@ -47,36 +48,37 @@ class BasePortal(APITestCase):
 
     def entrar_con_token(self, usuario):
         """Token real: cada petición vuelve a cargar al usuario desde la base."""
+        self.client.force_authenticate(None)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {AccessToken.for_user(usuario)}")
 
 
 class PermisoPortalTests(BasePortal):
-    URLS = (RESUMEN, ACTIVOS)
+    URLS = (RESUMEN, ACTIVOS, EMPRESA)
 
     def estados(self):
         return [self.client.get(u).status_code for u in self.URLS]
 
     def test_sin_token_da_401(self):
-        self.assertEqual(self.estados(), [401, 401])
+        self.assertEqual(self.estados(), [401] * len(self.URLS))
 
     def test_personal_interno_da_403(self):
         for usuario in (self.admin, self.tecnico):
             self.entrar(usuario)
-            self.assertEqual(self.estados(), [403, 403])
+            self.assertEqual(self.estados(), [403] * len(self.URLS))
 
     def test_cliente_sin_organizacion_da_403(self):
         self.entrar(Usuario.objects.create_user("solo", rol="cliente"))
-        self.assertEqual(self.estados(), [403, 403])
+        self.assertEqual(self.estados(), [403] * len(self.URLS))
 
     def test_cliente_de_empresa_inactiva_da_403(self):
         self.org_a.activa = False
         self.org_a.save()
         self.entrar(self.cliente_a)
-        self.assertEqual(self.estados(), [403, 403])
+        self.assertEqual(self.estados(), [403] * len(self.URLS))
 
     def test_cliente_da_200(self):
         self.entrar(self.cliente_a)
-        self.assertEqual(self.estados(), [200, 200])
+        self.assertEqual(self.estados(), [200] * len(self.URLS))
 
     def test_desactivar_empresa_tiene_efecto_inmediato(self):
         self.entrar_con_token(self.cliente_a)
@@ -94,6 +96,7 @@ class PermisoPortalTests(BasePortal):
         self.entrar(self.cliente_a)
         self.assertEqual(self.client.post(RESUMEN, {}, format="json").status_code, 405)
         self.assertEqual(self.client.post(ACTIVOS, {}, format="json").status_code, 405)
+        self.assertEqual(self.client.post(EMPRESA, {}, format="json").status_code, 405)
 
 
 class ResumenTests(BasePortal):
@@ -506,3 +509,41 @@ class AislamientoTests(BaseTicketsPortal):
         for metodo, ruta in rutas:
             r = getattr(self.client, metodo)(ruta, {}, format="json") if metodo == "post" else self.client.get(ruta)
             self.assertEqual(r.status_code, 403, ruta)
+
+
+CLAVES_EMPRESA = {
+    "id", "nombre", "nit", "sector", "telefono", "correo", "direccion", "ciudad",
+    "contacto_nombre", "contacto_cargo", "contacto_correo", "contacto_telefono",
+    "plan", "fecha_inicio_contrato", "fecha_fin_contrato",
+}
+
+
+class EmpresaPortalTests(BasePortal):
+    def setUp(self):
+        super().setUp()
+        self.entrar(self.cliente_a)
+
+    def test_claves_exactas_y_datos_propios(self):
+        Organizacion.objects.filter(pk=self.org_a.pk).update(
+            ciudad="Pasto", plan="premium", contacto_nombre="Ana", fecha_inicio_contrato="2026-01-15"
+        )
+        self.entrar_con_token(self.cliente_a)
+        d = self.client.get(EMPRESA).data
+        self.assertEqual(set(d), CLAVES_EMPRESA)
+        self.assertEqual((d["id"], d["nombre"], d["nit"]), (self.org_a.id, "Empresa A", "900000001"))
+        self.assertEqual((d["ciudad"], d["plan"], d["contacto_nombre"]), ("Pasto", "premium", "Ana"))
+        self.assertEqual(d["fecha_inicio_contrato"], "2026-01-15")
+
+    def test_vacios_salen_null(self):
+        d = self.client.get(EMPRESA).data
+        for campo in ("sector", "telefono", "correo", "direccion", "contacto_cargo", "fecha_fin_contrato"):
+            self.assertIsNone(d[campo], campo)
+
+    def test_no_expone_datos_internos(self):
+        d = self.client.get(EMPRESA).data
+        for campo in ("activa", "creado_en", "actualizado_en", "resumen"):
+            self.assertNotIn(campo, d)
+
+    def test_otra_empresa_ve_la_suya(self):
+        self.entrar(self.cliente_b)
+        self.assertEqual(self.client.get(EMPRESA).data["nombre"], "Empresa B")

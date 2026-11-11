@@ -18,7 +18,7 @@ from apps.dashboard.views import AdminDashboardView
 from apps.incidents.views import IncidenteViewSet
 from apps.organizations.views import OrganizacionViewSet
 from apps.portal.views import ActivosView as ActivosPortalView
-from apps.portal.views import ResumenView, TicketPortalViewSet
+from apps.portal.views import EmpresaView, ResumenView, TicketPortalViewSet
 from apps.tickets.views import TicketViewSet
 
 router = DefaultRouter(trailing_slash=True)
@@ -43,6 +43,7 @@ urlpatterns = [
     path("api/organizaciones/<int:org_id>/usuarios/<int:uid>/", UsuarioEmpresaView.as_view()),
     path("api/organizaciones/<int:org_id>/usuarios/<int:uid>/clave/", ClaveUsuarioEmpresaView.as_view()),
     path("api/portal/resumen/", ResumenView.as_view()),
+    path("api/portal/empresa/", EmpresaView.as_view()),
     path("api/portal/activos/", ActivosPortalView.as_view()),
     path("api/", include(router.urls)),
 ]

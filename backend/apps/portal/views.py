@@ -17,6 +17,7 @@ from apps.tickets.servicios import comentar
 
 from .permissions import EsClienteDelPortal
 from .serializers import (
+    EmpresaPortalSerializer,
     EventoPortalSerializer,
     TicketPortalCrearSerializer,
     TicketPortalDetalleSerializer,
@@ -48,6 +49,13 @@ class ResumenView(APIView):
                 },
             }
         )
+
+
+class EmpresaView(APIView):
+    permission_classes = [EsClienteDelPortal]
+
+    def get(self, request):
+        return Response(EmpresaPortalSerializer(request.user.organizacion).data)
 
 
 class ActivosView(APIView):

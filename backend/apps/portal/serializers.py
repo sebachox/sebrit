@@ -7,6 +7,7 @@ from rest_framework import serializers
 from apps.assets.models import Activo
 from apps.assets.serializers import referencia
 from apps.incidents.serializers import errores
+from apps.organizations.models import Organizacion
 from apps.organizations.serializers import VacioComoNullMixin
 from apps.tickets.models import EventoTicket, Ticket
 from apps.tickets.prioridad import calcular_prioridad
@@ -121,3 +122,18 @@ class TicketPortalCrearSerializer(serializers.Serializer):
         )
         registrar_evento(ticket, EventoTicket.Tipo.CREACION, usuario)
         return ticket
+
+
+class EmpresaPortalSerializer(VacioComoNullMixin, serializers.ModelSerializer):
+    texto_opcional = [
+        "nit", "sector", "telefono", "correo", "direccion", "ciudad",
+        "contacto_nombre", "contacto_cargo", "contacto_correo", "contacto_telefono", "plan",
+    ]
+
+    class Meta:
+        model = Organizacion
+        fields = [
+            "id", "nombre", "nit", "sector", "telefono", "correo", "direccion", "ciudad",
+            "contacto_nombre", "contacto_cargo", "contacto_correo", "contacto_telefono",
+            "plan", "fecha_inicio_contrato", "fecha_fin_contrato",
+        ]
