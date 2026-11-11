@@ -568,11 +568,11 @@ Cada fila: `id`, `activo` (`{ id, nombre }`, o `null` en backups antiguos regist
 
 ## `GET /api/portal/incidentes/` y `/{id}/`
 
-Lista paginada, del más reciente al más antiguo. Parámetros: `q` (código o título), `estado`, `abiertos=true`, `page`, `page_size`.
+Lista paginada, del que empezó más recientemente (`fecha_origen`) al más antiguo. Parámetros: `q` (código o título), `estado`, `abiertos=true`, `page`, `page_size`.
 
 Cada fila: `id`, `codigo`, `titulo`, `estado`, `impacto`, `fecha_origen`, `fecha_fin` (o `null`).
 
-La ficha agrega `descripcion`, `fecha_deteccion`, `duracion_minutos`, `tecnico` (nombre), `solucion`, `activos` (`[{ id, nombre }]`, solo de la empresa) y `tickets` (`[{ id, codigo, titulo, estado }]`, solo de la empresa). Vacíos en `null`; listas vacías `[]`. Ajeno o inexistente: 404.
+La ficha (ejemplo: [`docs/examples/portal-incidente.json`](examples/portal-incidente.json)) agrega `descripcion`, `fecha_deteccion`, `duracion_minutos`, `tecnico` (nombre), `solucion`, `activos` (`[{ id, nombre }]`, solo de la empresa) y `tickets` (`[{ id, codigo, titulo, estado }]`, solo de la empresa). Vacíos en `null`; listas vacías `[]`. Ajeno o inexistente: 404.
 
 Nunca se exponen `severidad`, `severidad_manual`, `causa_raiz`, la bitácora (`acciones`) ni `reportado_por`. La `solucion` sí la ve el cliente.
 

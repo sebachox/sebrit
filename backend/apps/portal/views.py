@@ -200,4 +200,4 @@ class IncidentePortalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, v
             qs = qs.filter(estado=p["estado"])
         if p.get("abiertos") == "true":
             qs = qs.filter(estado__in=ACTIVOS)
-        return qs.order_by("-creado_en", "-id")
+        return qs.order_by("-fecha_origen", "-id")

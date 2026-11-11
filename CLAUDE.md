@@ -106,7 +106,7 @@ sebrit/
 │       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, admin/perfil, portal (inicio, tickets, activos, backups, incidentes, empresa), auth/login, errors/sin-permiso
 ├── docs/
 │   ├── api-contract.md      # fuente de verdad del contrato de la API
-│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json, portal-resumen.json, portal-ticket.json, portal-activo.json
+│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json, portal-resumen.json, portal-ticket.json, portal-activo.json, portal-incidente.json
 │   └── superpowers/         # specs/ y plans/ de cada módulo
 ├── docker-compose.yml
 ├── .env.example
@@ -284,7 +284,7 @@ Todo endpoint nuevo debe traer pruebas de permisos (401 / 403 / 200).
 
 ## 8. Contrato de la API
 
-Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`, `incidente.json`, `portal-resumen.json`, `portal-ticket.json`, `portal-activo.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
+Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`, `incidente.json`, `portal-resumen.json`, `portal-ticket.json`, `portal-activo.json`, `portal-incidente.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
 
 ```
 GET /api/dashboard/admin/

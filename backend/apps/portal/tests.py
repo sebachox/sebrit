@@ -876,6 +876,12 @@ class IncidentesPortalTests(BasePortal):
             self.assertEqual(self.client.get(f"{INCIDENTES}{consulta}").status_code, 200, consulta)
         self.assertEqual(self.client.get(f"{INCIDENTES}?page=x").status_code, 404)
 
+    def test_lista_ordena_por_cuando_empezo(self):
+        # Registrado tarde: se detectó ayer pero empezó hace una semana.
+        tardio = self.incidente(fecha_origen="2026-11-01T08:00:00-05:00", creado_en="2026-11-09T10:00:00-05:00")
+        reciente = self.incidente(fecha_origen="2026-11-05T08:00:00-05:00", creado_en="2026-11-05T08:10:00-05:00")
+        self.assertEqual(self.ids(), [reciente.id, tardio.id])
+
     def test_solo_lectura(self):
         i = self.incidente()
         self.assertEqual(self.client.post(INCIDENTES, {}, format="json").status_code, 405)
