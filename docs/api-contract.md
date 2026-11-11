@@ -564,7 +564,17 @@ Nunca se exponen `ip`, `hostname` ni `notas`. El selector de "Abrir ticket" pide
 
 Lista paginada, del más reciente al más antiguo, incluidos los de activos dados de baja. Parámetros: `activo`, `estado`, `tipo`, `desde`, `hasta` (días en hora de Bogotá), `page`, `page_size`. Un `activo` ajeno, inexistente o inválido devuelve la lista vacía.
 
-Cada fila: `id`, `activo` (`{ id, nombre }`, o `null` en backups antiguos registrados sin activo), `tipo` (o `null`), `estado`, `fecha`, `tamano_gb` (o `null`). Nunca se exponen `notas` ni `registrado_por`. No hay ficha de backup.
+Cada fila: `id`, `activo` (`{ id, nombre }`, o `null` en backups antiguos registrados sin activo), `tipo` (o `null`), `estado`, `fecha`, `tamano_gb` (o `null`). Nunca se exponen `notas` ni `registrado_por`. La ficha `GET /api/portal/backups/{id}/` tiene las mismas claves; ajena o inexistente: 404.
+
+## `GET /api/portal/incidentes/` y `/{id}/`
+
+Lista paginada, del más reciente al más antiguo. Parámetros: `q` (código o título), `estado`, `abiertos=true`, `page`, `page_size`.
+
+Cada fila: `id`, `codigo`, `titulo`, `estado`, `impacto`, `fecha_origen`, `fecha_fin` (o `null`).
+
+La ficha agrega `descripcion`, `fecha_deteccion`, `duracion_minutos`, `tecnico` (nombre), `solucion`, `activos` (`[{ id, nombre }]`, solo de la empresa) y `tickets` (`[{ id, codigo, titulo, estado }]`, solo de la empresa). Vacíos en `null`; listas vacías `[]`. Ajeno o inexistente: 404.
+
+Nunca se exponen `severidad`, `severidad_manual`, `causa_raiz`, la bitácora (`acciones`) ni `reportado_por`. La `solucion` sí la ve el cliente.
 
 ## `GET, POST /api/portal/tickets/`
 

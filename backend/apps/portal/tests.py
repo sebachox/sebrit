@@ -7,7 +7,7 @@ from rest_framework_simplejwt.tokens import AccessToken
 
 from apps.accounts.models import Usuario
 from apps.assets.models import Activo, Backup
-from apps.incidents.models import Incidente
+from apps.incidents.models import AccionIncidente, Incidente
 from apps.organizations.models import Organizacion
 from apps.tickets.models import EventoTicket, Ticket
 from apps.tickets.prioridad import calcular_prioridad
@@ -745,10 +745,29 @@ class BackupsPortalTests(BasePortal):
             self.assertEqual(self.client.get(f"{BACKUPS}{consulta}").status_code, 200, consulta)
         self.assertEqual(self.client.get(f"{BACKUPS}?page=x").status_code, 404)
 
-    def test_solo_lectura_y_sin_ficha(self):
+    def test_solo_lectura(self):
         b = self.backup()
         self.assertEqual(self.client.post(BACKUPS, {}, format="json").status_code, 405)
-        self.assertEqual(self.client.get(f"{BACKUPS}{b.id}/").status_code, 404)
+        self.assertEqual(self.client.patch(f"{BACKUPS}{b.id}/", {}, format="json").status_code, 405)
+        self.assertEqual(self.client.delete(f"{BACKUPS}{b.id}/").status_code, 405)
+
+    def test_ficha_con_las_mismas_claves_y_sin_datos_internos(self):
+        b = self.backup(estado="exitoso", tipo="completo", notas="ruta secreta", registrado_por=self.tecnico)
+        r = self.client.get(f"{BACKUPS}{b.id}/")
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(set(r.data), CLAVES_BACKUP)
+        self.assertNotIn("ruta secreta", json.dumps(r.data, default=str))
+
+    def test_ficha_ajena_o_rara_da_404(self):
+        ajeno = self.backup(self.ajeno)
+        for ruta in (f"{BACKUPS}{ajeno.id}/", f"{BACKUPS}abc/", f"{BACKUPS}{'9' * 400}/"):
+            self.assertEqual(self.client.get(ruta).status_code, 404, ruta)
+
+    def test_ficha_permisos(self):
+        b = self.backup()
+        for usuario, esperado in ((None, 401), (self.tecnico, 403), (self.admin, 403), (self.cliente_a, 200)):
+            self.client.force_authenticate(usuario)
+            self.assertEqual(self.client.get(f"{BACKUPS}{b.id}/").status_code, esperado)
 
     def test_lista_sin_n_mas_1(self):
         def consultas():
@@ -761,3 +780,118 @@ class BackupsPortalTests(BasePortal):
         for _ in range(4):
             self.backup(self.red)
         self.assertEqual(consultas(), una)
+
+
+INCIDENTES = "/api/portal/incidentes/"
+CLAVES_FILA_INCIDENTE = {"id", "codigo", "titulo", "estado", "impacto", "fecha_origen", "fecha_fin"}
+CLAVES_FICHA_INCIDENTE = CLAVES_FILA_INCIDENTE | {
+    "descripcion", "fecha_deteccion", "duracion_minutos", "tecnico", "solucion", "activos", "tickets",
+}
+
+
+class IncidentesPortalTests(BasePortal):
+    def setUp(self):
+        super().setUp()
+        self.entrar(self.cliente_a)
+
+    def incidente(self, org=None, **datos):
+        datos.setdefault("titulo", "Caída del correo")
+        datos.setdefault("severidad", "alta")
+        return Incidente.objects.create(organizacion=org or self.org_a, **datos)
+
+    def ficha(self, incidente):
+        return self.client.get(f"{INCIDENTES}{incidente.pk}/")
+
+    def ids(self, consulta=""):
+        return [f["id"] for f in self.client.get(f"{INCIDENTES}{consulta}").data["results"]]
+
+    def test_permisos_de_lista_y_ficha(self):
+        i = self.incidente()
+        for usuario, esperado in ((None, 401), (self.tecnico, 403), (self.admin, 403), (self.cliente_a, 200)):
+            self.client.force_authenticate(usuario)
+            self.assertEqual(self.client.get(INCIDENTES).status_code, esperado)
+            self.assertEqual(self.ficha(i).status_code, esperado)
+
+    def test_claves_exactas(self):
+        i = self.incidente()
+        fila = self.client.get(INCIDENTES).data["results"][0]
+        self.assertEqual(set(fila), CLAVES_FILA_INCIDENTE)
+        self.assertEqual(set(self.ficha(i).data), CLAVES_FICHA_INCIDENTE)
+
+    def test_no_expone_severidad_causa_raiz_ni_bitacora(self):
+        i = self.incidente(severidad="critica", causa_raiz="CAUSA-SECRETA", estado="cerrado", solucion="Se reinició")
+        AccionIncidente.objects.create(incidente=i, tipo="accion", descripcion="BITACORA-SECRETA")
+        texto = json.dumps([self.client.get(INCIDENTES).data, self.ficha(i).data], default=str)
+        for secreto in ("CAUSA-SECRETA", "BITACORA-SECRETA", "critica", "severidad", "causa_raiz", "acciones"):
+            self.assertNotIn(secreto, texto)
+
+    def test_ficha_con_datos_para_el_cliente(self):
+        srv = Activo.objects.create(organizacion=self.org_a, tipo="servidor", nombre="SRV-01")
+        ajeno = Activo.objects.create(organizacion=self.org_b, tipo="servidor", nombre="SRV-B")
+        i = self.incidente(
+            descripcion="Sin correo", tecnico=self.tecnico, estado="resuelto", solucion="Se reinició",
+            fecha_origen="2026-11-10T08:00:00-05:00", fecha_fin="2026-11-10T09:30:00-05:00",
+        )
+        i.activos.set([srv, ajeno])
+        t = Ticket.objects.create(organizacion=self.org_a, titulo="No llega correo", incidente=i)
+        Ticket.objects.create(organizacion=self.org_b, titulo="Ticket ajeno", incidente=i)
+        d = self.ficha(i).data
+        self.assertEqual(d["tecnico"], "Laura Gómez")
+        self.assertEqual(d["solucion"], "Se reinició")
+        self.assertEqual(d["duracion_minutos"], 90)
+        self.assertEqual(d["activos"], [{"id": srv.id, "nombre": "SRV-01"}])
+        self.assertEqual(d["tickets"], [{"id": t.id, "codigo": t.codigo, "titulo": "No llega correo", "estado": "abierto"}])
+        self.assertEqual(d["fecha_deteccion"][:4], "2026")
+
+    def test_vacios_salen_null_y_listas_vacias(self):
+        d = self.ficha(self.incidente()).data
+        for campo in ("descripcion", "tecnico", "solucion", "fecha_fin", "duracion_minutos"):
+            self.assertIsNone(d[campo], campo)
+        self.assertEqual((d["activos"], d["tickets"]), ([], []))
+
+    def test_lista_solo_de_la_empresa_y_del_mas_reciente(self):
+        viejo = self.incidente(creado_en="2026-11-01T10:00:00-05:00")
+        nuevo = self.incidente(creado_en="2026-11-05T10:00:00-05:00")
+        self.incidente(org=self.org_b)
+        self.assertEqual(self.ids(), [nuevo.id, viejo.id])
+
+    def test_filtros(self):
+        a = self.incidente(titulo="Correo caído", estado="abierto")
+        b = self.incidente(titulo="Red lenta", estado="en_progreso")
+        c = self.incidente(titulo="Firewall", estado="cerrado")
+        self.assertEqual(set(self.ids("?abiertos=true")), {a.id, b.id})
+        self.assertEqual(self.ids("?estado=cerrado"), [c.id])
+        self.assertEqual(self.ids("?q=correo"), [a.id])
+        self.assertEqual(self.ids(f"?q={c.codigo}"), [c.id])
+
+    def test_ajeno_e_ids_raros_dan_404(self):
+        ajeno = self.incidente(org=self.org_b)
+        self.assertEqual(self.ficha(ajeno).status_code, 404)
+        for pk in ("abc", "9" * 400, "-1"):
+            self.assertEqual(self.client.get(f"{INCIDENTES}{pk}/").status_code, 404, pk)
+
+    def test_entradas_anomalas_no_fallan(self):
+        self.incidente()
+        for consulta in ("?q=%00", "?estado=x", "?abiertos=x", "?page_size=x"):
+            self.assertEqual(self.client.get(f"{INCIDENTES}{consulta}").status_code, 200, consulta)
+        self.assertEqual(self.client.get(f"{INCIDENTES}?page=x").status_code, 404)
+
+    def test_solo_lectura(self):
+        i = self.incidente()
+        self.assertEqual(self.client.post(INCIDENTES, {}, format="json").status_code, 405)
+        self.assertEqual(self.client.patch(f"{INCIDENTES}{i.pk}/", {}, format="json").status_code, 405)
+
+    def test_ficha_sin_n_mas_1(self):
+        def consultas(i):
+            with CaptureQueriesContext(connection) as c:
+                self.ficha(i)
+            return len(c)
+
+        uno = self.incidente()
+        uno.activos.set([Activo.objects.create(organizacion=self.org_a, tipo="red", nombre="R0")])
+        Ticket.objects.create(organizacion=self.org_a, titulo="t", incidente=uno)
+        varios = self.incidente()
+        varios.activos.set([Activo.objects.create(organizacion=self.org_a, tipo="red", nombre=f"R{n}") for n in range(1, 5)])
+        for _ in range(4):
+            Ticket.objects.create(organizacion=self.org_a, titulo="t", incidente=varios)
+        self.assertEqual(consultas(varios), consultas(uno))

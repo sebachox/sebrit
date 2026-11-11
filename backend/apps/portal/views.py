@@ -21,6 +21,8 @@ from .serializers import (
     ActivoPortalListaSerializer,
     BackupPortalSerializer,
     EmpresaPortalSerializer,
+    IncidentePortalDetalleSerializer,
+    IncidentePortalListaSerializer,
     EventoPortalSerializer,
     TicketPortalCrearSerializer,
     TicketPortalDetalleSerializer,
@@ -139,16 +141,19 @@ class ActivoPortalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, view
         return qs.order_by(*ORDENES_ACTIVOS[orden], "id")
 
 
-class BackupPortalViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
-    """Backups de la empresa, solo lectura y sin ficha propia."""
+class BackupPortalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Backups de la empresa, solo lectura."""
 
     permission_classes = [EsClienteDelPortal]
     pagination_class = PaginacionEstandar
     serializer_class = BackupPortalSerializer
     http_method_names = ["get", "head", "options"]
+    lookup_value_regex = r"\d{1,18}"
 
     def get_queryset(self):
         qs = Backup.objects.filter(organizacion=self.request.user.organizacion).select_related("activo")
+        if self.action != "list":
+            return qs
         p = self.request.query_params
 
         if "activo" in p:
@@ -169,3 +174,30 @@ class BackupPortalViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):
         if hasta:
             qs = qs.filter(fecha__date__lte=hasta)
         return qs.order_by("-fecha", "-id")
+
+
+class IncidentePortalViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets.GenericViewSet):
+    """Incidentes de la empresa, solo lectura: sin severidad, causa raíz ni bitácora."""
+
+    permission_classes = [EsClienteDelPortal]
+    pagination_class = PaginacionEstandar
+    http_method_names = ["get", "head", "options"]
+    lookup_value_regex = r"\d{1,18}"
+
+    def get_serializer_class(self):
+        return IncidentePortalListaSerializer if self.action == "list" else IncidentePortalDetalleSerializer
+
+    def get_queryset(self):
+        qs = Incidente.objects.filter(organizacion=self.request.user.organizacion).select_related("tecnico")
+        if self.action != "list":
+            return qs
+
+        p = self.request.query_params
+        q = p.get("q", "").replace("\x00", "").strip()
+        if q:
+            qs = qs.filter(Q(codigo__icontains=q) | Q(titulo__icontains=q))
+        if p.get("estado") in Incidente.Estado.values:
+            qs = qs.filter(estado=p["estado"])
+        if p.get("abiertos") == "true":
+            qs = qs.filter(estado__in=ACTIVOS)
+        return qs.order_by("-creado_en", "-id")
