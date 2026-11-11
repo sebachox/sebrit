@@ -53,6 +53,21 @@ export const routes: Routes = [
           import('./features/portal/backups-lista/backups-lista').then((m) => m.PortalBackupsLista),
       },
       {
+        path: 'backups/:id',
+        loadComponent: () =>
+          import('./features/portal/backup-ficha/backup-ficha').then((m) => m.PortalBackupFicha),
+      },
+      {
+        path: 'incidentes',
+        loadComponent: () =>
+          import('./features/portal/incidentes-lista/incidentes-lista').then((m) => m.PortalIncidentesLista),
+      },
+      {
+        path: 'incidentes/:id',
+        loadComponent: () =>
+          import('./features/portal/incidente-ficha/incidente-ficha').then((m) => m.PortalIncidenteFicha),
+      },
+      {
         path: 'empresa',
         loadComponent: () => import('./features/portal/empresa/empresa').then((m) => m.PortalEmpresa),
       },
