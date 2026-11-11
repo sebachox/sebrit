@@ -1,7 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, ParamMap, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { ESTADOS_ACTIVO, EstadoActivo, TIPOS_ACTIVO, TipoActivo } from '../../../core/models/activo';
 import { Paginado } from '../../../core/models/organizacion';
@@ -29,8 +29,8 @@ export class PortalActivosLista implements OnInit, OnDestroy {
   estado = signal<'cargando' | 'error' | 'listo'>('cargando');
   datos = signal<Paginado<ActivoPortalResumido> | null>(null);
   q = signal('');
-  tipo = signal<TipoActivo | null>(this.leer('tipo', TIPOS_ACTIVO));
-  filtroEstado = signal<EstadoActivo | null>(this.leer('estado', ESTADOS_ACTIVO));
+  tipo = signal<TipoActivo | null>(null);
+  filtroEstado = signal<EstadoActivo | null>(null);
   pagina = signal(1);
 
   totalPaginas = computed(() => Math.max(1, Math.ceil((this.datos()?.count ?? 0) / TAMANO_PAGINA)));
@@ -40,14 +40,24 @@ export class PortalActivosLista implements OnInit, OnDestroy {
 
   private temporizador?: ReturnType<typeof setTimeout>;
   private peticion?: Subscription;
+  private url?: Subscription;
 
   ngOnInit() {
-    this.cargar();
+    // Angular reutiliza el componente al pasar de ?tipo=servidor a /portal/activos:
+    // los filtros se toman de la URL cada vez que cambia.
+    this.url = this.route.queryParamMap.subscribe((p) => {
+      clearTimeout(this.temporizador);
+      this.q.set('');
+      this.tipo.set(this.leer(p, 'tipo', TIPOS_ACTIVO));
+      this.filtroEstado.set(this.leer(p, 'estado', ESTADOS_ACTIVO));
+      this.reiniciar();
+    });
   }
 
   ngOnDestroy() {
     clearTimeout(this.temporizador);
     this.peticion?.unsubscribe();
+    this.url?.unsubscribe();
   }
 
   cargar() {
@@ -103,8 +113,8 @@ export class PortalActivosLista implements OnInit, OnDestroy {
     this.cargar();
   }
 
-  private leer<T extends string>(clave: string, opciones: { valor: T }[]): T | null {
-    const v = this.route.snapshot.queryParamMap.get(clave);
+  private leer<T extends string>(p: ParamMap, clave: string, opciones: { valor: T }[]): T | null {
+    const v = p.get(clave);
     return opciones.find((o) => o.valor === v)?.valor ?? null;
   }
 }

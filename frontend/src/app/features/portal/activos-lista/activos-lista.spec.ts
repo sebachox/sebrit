@@ -1,7 +1,8 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, ParamMap, convertToParamMap, provideRouter } from '@angular/router';
+import { BehaviorSubject } from 'rxjs';
 import { API_URL } from '../../../core/config/api';
 import { ActivoPortalResumido } from '../../../core/models/portal';
 import { PortalActivosLista } from './activos-lista';
@@ -23,16 +24,18 @@ const pagina = (results: object[], count = results.length) => ({ count, next: nu
 describe('PortalActivosLista', () => {
   let fixture: ComponentFixture<PortalActivosLista>;
   let http: HttpTestingController;
+  let parametros: BehaviorSubject<ParamMap>;
   const el = () => fixture.nativeElement as HTMLElement;
 
   function crear(query: Record<string, string> = {}) {
+    parametros = new BehaviorSubject(convertToParamMap(query));
     TestBed.configureTestingModule({
       imports: [PortalActivosLista],
       providers: [
         provideRouter([]),
         provideHttpClient(),
         provideHttpClientTesting(),
-        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(query) } } },
+        { provide: ActivatedRoute, useValue: { snapshot: { queryParamMap: convertToParamMap(query) }, queryParamMap: parametros } },
       ],
     });
     fixture = TestBed.createComponent(PortalActivosLista);
@@ -97,6 +100,18 @@ describe('PortalActivosLista', () => {
     const fila = el().querySelector('tbody tr')?.textContent ?? '';
     expect(fila).toContain('Sin backups');
     expect(fila).toContain('—');
+  });
+
+  it('si la URL cambia sin filtros, vuelve a la lista completa', () => {
+    crear({ tipo: 'servidor' });
+    expect(peticion().request.params.get('tipo')).toBe('servidor');
+    parametros.next(convertToParamMap({}));
+    fixture.detectChanges();
+    const req = peticion();
+    expect(req.request.params.has('tipo')).toBeFalse();
+    req.flush(pagina([activo()]));
+    fixture.detectChanges();
+    expect((el().querySelector('#tipo') as HTMLSelectElement).value).toBe('');
   });
 
   it('cambiar un filtro vuelve a pedir la primera página', () => {
