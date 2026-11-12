@@ -12,6 +12,7 @@ from apps.organizations.models import Organizacion
 from apps.organizations.permissions import EsAdminOTecnicoLectura
 
 from .models import Usuario
+from .throttles import CambioClaveThrottle, LoginPorIPThrottle, LoginPorUsuarioThrottle, limite_superado
 from .serializers import (
     CambiarClaveSerializer,
     DefinirClaveSerializer,
@@ -25,6 +26,10 @@ from .serializers import (
 
 class LoginView(TokenObtainPairView):
     serializer_class = LoginSerializer
+    throttle_classes = [LoginPorUsuarioThrottle, LoginPorIPThrottle]
+
+    def throttled(self, request, wait):
+        raise limite_superado(wait)
 
 
 class UsuarioActualView(APIView):
@@ -49,6 +54,10 @@ class PerfilView(APIView):
 
 class CambiarClaveView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [CambioClaveThrottle]
+
+    def throttled(self, request, wait):
+        raise limite_superado(wait)
 
     def post(self, request):
         entrada = CambiarClaveSerializer(data=cuerpo(request), context={"usuario": request.user})

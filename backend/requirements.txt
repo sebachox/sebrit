@@ -1,5 +1,10 @@
-Django>=5.1,<5.3
-djangorestframework
-django-cors-headers
-psycopg2-binary
-djangorestframework-simplejwt
+# Versiones fijas: cada build instala exactamente lo mismo. Para actualizar, cambiar aquí
+# (Dependabot propone las subidas) y reconstruir con docker compose up --build.
+Django==5.2.18
+djangorestframework==3.18.3
+djangorestframework_simplejwt==5.5.1
+django-cors-headers==4.9.0
+psycopg2-binary==2.9.13
+PyJWT==2.15.1
+asgiref==3.12.1
+sqlparse==0.6.0
