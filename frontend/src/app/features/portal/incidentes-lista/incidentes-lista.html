@@ -1,0 +1,107 @@
+<h4 class="mb-3">
+  Incidentes
+  @if (datos(); as d) {
+    <span class="text-muted fw-normal fs-6 ms-1 numerico">{{ d.count }}</span>
+  }
+</h4>
+
+<div class="card shadow-sm border-0">
+  <div class="card-body border-bottom">
+    <div class="row g-2">
+      <div class="col-12 col-md-8">
+        <label for="buscar" class="visually-hidden">Buscar incidentes</label>
+        <div class="input-group">
+          <span class="input-group-text"><i class="bi bi-search" aria-hidden="true"></i></span>
+          <input
+            id="buscar"
+            type="search"
+            class="form-control"
+            placeholder="Buscar por código o título"
+            autocomplete="off"
+            [value]="q()"
+            (input)="alEscribir($any($event.target).value)"
+            (keydown.enter)="aplicarBusqueda($any($event.target).value)"
+          />
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <label for="estado" class="visually-hidden">Estado</label>
+        <select id="estado" class="form-select" (change)="cambiarEstado($any($event.target).value)">
+          <option value="abiertos">Activos</option>
+          <option value="todos">Todos</option>
+          @for (e of estados; track e.valor) {
+            <option [value]="e.valor">{{ e.texto }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </div>
+
+  @if (estado() === 'cargando') {
+    <div class="text-center py-5" role="status"><div class="spinner-border text-primary"></div></div>
+  } @else if (estado() === 'error') {
+    <div class="card-body">
+      <div class="alert alert-danger d-flex align-items-center justify-content-between mb-0">
+        <span>No se pudieron cargar los incidentes.</span>
+        <button type="button" class="btn btn-sm btn-outline-danger" (click)="cargar()">Reintentar</button>
+      </div>
+    </div>
+  } @else if (datos(); as d) {
+    @if (d.results.length === 0) {
+      <div class="card-body text-center py-5">
+        @if (hayFiltros()) {
+          <h5 class="mb-1">Sin resultados</h5>
+          <p class="text-muted mb-0">Prueba con otra búsqueda u otro estado.</p>
+        } @else {
+          <p class="text-muted mb-0">No hay incidentes activos.</p>
+        }
+      </div>
+    } @else {
+      <div class="table-responsive">
+        <table class="table table-hover align-middle mb-0">
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Título</th>
+              <th>Estado</th>
+              <th>Impacto</th>
+              <th>Inicio</th>
+              <th>Fin</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (i of d.results; track i.id) {
+              <tr class="fila-enlace" (click)="abrir(i.id)">
+                <td class="numerico text-nowrap">
+                  <a class="fw-semibold text-body text-decoration-none" [routerLink]="['/portal/incidentes', i.id]" (click)="$event.stopPropagation()">{{ i.codigo }}</a>
+                </td>
+                <td>{{ i.titulo }}</td>
+                <td><app-status-badge [valor]="i.estado" /></td>
+                <td>{{ impacto[i.impacto] }}</td>
+                <td class="numerico text-nowrap small">{{ i.fecha_origen | date: 'dd/MM/yyyy HH:mm' }}</td>
+                <td class="numerico text-nowrap small">
+                  @if (i.fecha_fin) { {{ i.fecha_fin | date: 'dd/MM/yyyy HH:mm' }} } @else { <span class="text-muted">En curso</span> }
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+
+      @if (totalPaginas() > 1) {
+        <div class="card-body border-top d-flex flex-wrap justify-content-between align-items-center gap-2">
+          <small class="text-muted numerico">Mostrando {{ desde() }}–{{ hasta() }} de {{ d.count }}</small>
+          <nav aria-label="Paginación de incidentes" class="d-flex align-items-center gap-2">
+            <button type="button" class="btn btn-sm btn-outline-secondary" [disabled]="pagina() === 1" (click)="irAPagina(pagina() - 1)" aria-label="Página anterior">
+              <i class="bi bi-chevron-left" aria-hidden="true"></i>
+            </button>
+            <span class="small numerico">Página {{ pagina() }} de {{ totalPaginas() }}</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" data-prueba="siguiente" [disabled]="pagina() >= totalPaginas()" (click)="irAPagina(pagina() + 1)" aria-label="Página siguiente">
+              <i class="bi bi-chevron-right" aria-hidden="true"></i>
+            </button>
+          </nav>
+        </div>
+      }
+    }
+  }
+</div>

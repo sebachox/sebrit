@@ -2,10 +2,12 @@
 
 from django.db import transaction
 from django.db.models import Q
+from django.db.models.functions import Lower
 from rest_framework import serializers
 
 from apps.assets.models import Activo, Backup
 from apps.assets.serializers import referencia
+from apps.incidents.models import Incidente
 from apps.incidents.serializers import errores
 from apps.organizations.models import Organizacion
 from apps.organizations.serializers import VacioComoNullMixin
@@ -179,3 +181,36 @@ class BackupPortalSerializer(VacioComoNullMixin, serializers.ModelSerializer):
 
     def get_activo(self, backup):
         return referencia(backup.activo)
+
+
+class IncidentePortalListaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Incidente
+        fields = ["id", "codigo", "titulo", "estado", "impacto", "fecha_origen", "fecha_fin"]
+
+
+class IncidentePortalDetalleSerializer(VacioComoNullMixin, IncidentePortalListaSerializer):
+    texto_opcional = ["descripcion", "solucion"]
+
+    fecha_deteccion = serializers.DateTimeField(source="creado_en", read_only=True)
+    duracion_minutos = serializers.IntegerField(read_only=True)
+    tecnico = serializers.SerializerMethodField()
+    activos = serializers.SerializerMethodField()
+    tickets = serializers.SerializerMethodField()
+
+    class Meta(IncidentePortalListaSerializer.Meta):
+        fields = IncidentePortalListaSerializer.Meta.fields + [
+            "descripcion", "fecha_deteccion", "duracion_minutos", "tecnico", "solucion", "activos", "tickets",
+        ]
+
+    def get_tecnico(self, incidente):
+        return nombre_o_null(incidente.tecnico)
+
+    def get_activos(self, incidente):
+        # Solo los de la propia empresa, aunque el equipo haya vinculado otro por error.
+        activos = incidente.activos.filter(organizacion_id=incidente.organizacion_id).order_by(Lower("nombre"), "id")
+        return [{"id": a.id, "nombre": a.nombre} for a in activos]
+
+    def get_tickets(self, incidente):
+        tickets = incidente.tickets.filter(organizacion_id=incidente.organizacion_id).order_by("id")
+        return [{"id": t.id, "codigo": t.codigo, "titulo": t.titulo, "estado": t.estado} for t in tickets]

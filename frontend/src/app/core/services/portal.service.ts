@@ -11,6 +11,9 @@ import {
   EventoPortal,
   FiltrosActivosPortal,
   FiltrosBackupsPortal,
+  FiltrosIncidentesPortal,
+  IncidentePortalDetalle,
+  IncidentePortalResumido,
   FiltrosPortal,
   ResumenPortal,
   TicketPortal,
@@ -45,6 +48,23 @@ export class PortalService {
 
   obtenerActivo(id: number): Observable<ActivoPortalDetalle> {
     return this.http.get<ActivoPortalDetalle>(`${BASE}/activos/${id}/`);
+  }
+
+  obtenerBackup(id: number): Observable<BackupPortal> {
+    return this.http.get<BackupPortal>(`${BASE}/backups/${id}/`);
+  }
+
+  listarIncidentes(f: FiltrosIncidentesPortal): Observable<Paginado<IncidentePortalResumido>> {
+    let params = new HttpParams();
+    if (f.q) params = params.set('q', f.q);
+    if (f.estado) params = params.set('estado', f.estado);
+    if (f.abiertos) params = params.set('abiertos', 'true');
+    if (f.page && f.page > 1) params = params.set('page', f.page);
+    return this.http.get<Paginado<IncidentePortalResumido>>(`${BASE}/incidentes/`, { params });
+  }
+
+  obtenerIncidente(id: number): Observable<IncidentePortalDetalle> {
+    return this.http.get<IncidentePortalDetalle>(`${BASE}/incidentes/${id}/`);
   }
 
   listarBackups(f: FiltrosBackupsPortal): Observable<Paginado<BackupPortal>> {

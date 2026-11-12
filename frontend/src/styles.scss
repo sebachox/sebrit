@@ -167,3 +167,8 @@ $estados: critico, alto, medio, ok, info, neutro, primario;
 ::selection {
   background: rgba(var(--bs-primary-rgb), 0.3);
 }
+
+// Filas de tabla o lista que abren una ficha al tocarlas.
+.fila-enlace {
+  cursor: pointer;
+}

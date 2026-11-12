@@ -49,6 +49,7 @@ describe('PortalLayout', () => {
     expect(el().querySelector('.nav-link[href="/portal/activos"]')?.textContent).toContain('Mis activos');
     expect(el().querySelector('.nav-link[href="/portal/backups"]')?.textContent).toContain('Backups');
     expect(el().querySelector('.nav-link[href="/portal/empresa"]')?.textContent).toContain('Mi empresa');
+    expect(el().querySelector('.nav-link[href="/portal/incidentes"]')?.textContent).toContain('Incidentes');
   });
 
   it('muestra el nombre de la empresa', () => {

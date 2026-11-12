@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { ActivatedRoute, ParamMap, convertToParamMap, provideRouter } from '@angular/router';
+import { ActivatedRoute, ParamMap, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { API_URL } from '../../../core/config/api';
 import { ActivoPortalResumido } from '../../../core/models/portal';
@@ -92,6 +92,14 @@ describe('PortalActivosLista', () => {
     for (const dato of ['Servidor', 'Crítico', 'Rack 2', '10/11/2026', 'Fallido']) {
       expect(fila).toContain(dato);
     }
+  });
+
+  it('tocar cualquier parte de la fila abre el activo', () => {
+    crear();
+    responder();
+    const navegar = spyOn(TestBed.inject(Router), 'navigate');
+    (el().querySelector('tbody tr td:nth-child(3)') as HTMLElement).click();
+    expect(navegar).toHaveBeenCalledWith(['/portal/activos', 7]);
   });
 
   it('sin backups ni ubicación lo dice', () => {
