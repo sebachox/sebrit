@@ -147,6 +147,13 @@ TIME_ZONE = "America/Bogota"
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework_simplejwt.authentication.JWTAuthentication"],
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
+    # La IP de los límites sale de REMOTE_ADDR; con un proxy delante, poner cuántos hay.
+    "NUM_PROXIES": 0,
+    "DEFAULT_THROTTLE_RATES": {
+        "login_usuario": "5/min",
+        "login_ip": "30/min",
+        "cambio_clave": "5/min",
+    },
 }
 
 from datetime import timedelta

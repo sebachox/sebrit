@@ -1,3 +1,4 @@
+from django.core.cache import cache
 from rest_framework.test import APITestCase
 
 from apps.accounts.models import Usuario
@@ -12,6 +13,7 @@ DASHBOARD = "/api/dashboard/admin/"
 
 class LoginTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.admin = Usuario.objects.create_user(
             "admin1", password="clave-segura", rol="admin", first_name="Ana", last_name="Ruiz"
         )
@@ -171,6 +173,7 @@ class PerfilTests(APITestCase):
 
 class CambiarClaveTests(APITestCase):
     def setUp(self):
+        cache.clear()
         self.usuario = Usuario.objects.create_user("tec1", password="clave-segura-1", rol="tecnico")
         self.client.force_authenticate(self.usuario)
 
@@ -243,6 +246,7 @@ class CambiarClaveTests(APITestCase):
 
 class UsuariosEmpresaBase(APITestCase):
     def setUp(self):
+        cache.clear()
         self.org = Organizacion.objects.create(nombre="Empresa A", nit="900000001")
         self.otra = Organizacion.objects.create(nombre="Empresa B", nit="900000002")
         self.admin = Usuario.objects.create_user("adm", rol="admin")
@@ -447,3 +451,74 @@ class UsuariosEmpresaEditarTests(UsuariosEmpresaBase):
         self.assertEqual(r.data["clave_nueva"], ["Escribe la nueva contraseña."])
         self.cliente.refresh_from_db()
         self.assertTrue(self.cliente.check_password("clave-inicial-1"))
+
+
+MSG_LIMITE = "Demasiados intentos. Espera"
+
+
+class LimiteDeIntentosTests(APITestCase):
+    def setUp(self):
+        cache.clear()
+        self.usuario = Usuario.objects.create_user("ana", password="clave-segura-1", rol="cliente")
+
+    def login(self, username="ana", password="mala", **extra):
+        return self.client.post(LOGIN, {"username": username, "password": password}, format="json", **extra)
+
+    def assertLimitado(self, r):
+        self.assertEqual(r.status_code, 429, getattr(r, "data", None))
+        self.assertTrue(str(r.data["detail"]).startswith(MSG_LIMITE), r.data)
+        self.assertIn("Retry-After", r.headers)
+
+    def test_el_sexto_intento_del_mismo_usuario_da_429(self):
+        for _ in range(5):
+            self.assertEqual(self.login().status_code, 401)
+        self.assertLimitado(self.login())
+
+    def test_bloqueado_tampoco_entra_con_la_clave_correcta(self):
+        for _ in range(5):
+            self.login()
+        self.assertLimitado(self.login(password="clave-segura-1"))
+
+    def test_cuenta_igual_sin_distinguir_mayusculas_ni_espacios(self):
+        for nombre in ("ana", "ANA", " Ana ", "aNa", "ana "):
+            self.login(nombre)
+        self.assertLimitado(self.login("Ana"))
+
+    def test_otro_usuario_desde_la_misma_ip_sigue_entrando(self):
+        Usuario.objects.create_user("luis", password="clave-segura-2", rol="cliente")
+        for _ in range(6):
+            self.login()
+        self.assertEqual(self.login("luis", "clave-segura-2").status_code, 200)
+
+    def test_la_cabecera_x_forwarded_for_no_evade_el_limite(self):
+        for n in range(5):
+            self.login(HTTP_X_FORWARDED_FOR=f"10.0.0.{n}")
+        self.assertLimitado(self.login(HTTP_X_FORWARDED_FOR="10.0.0.99"))
+
+    def test_limite_por_ip_con_muchos_usuarios(self):
+        for n in range(30):
+            self.assertEqual(self.login(f"usuario{n}").status_code, 401)
+        self.assertLimitado(self.login("otro"))
+
+    def test_cuerpo_raro_no_da_500(self):
+        r = self.client.post(LOGIN, [1, 2], format="json")
+        self.assertEqual(r.status_code, 400)
+        r = self.client.post(LOGIN, {"username": ["x"], "password": "y"}, format="json")
+        self.assertIn(r.status_code, (400, 401))
+
+    def test_cambiar_clave_se_limita_por_usuario(self):
+        self.client.force_authenticate(self.usuario)
+        for _ in range(5):
+            r = self.client.post(CLAVE, {"clave_actual": "mala", "clave_nueva": "otra-clave-larga-9"}, format="json")
+            self.assertEqual(r.status_code, 400)
+        r = self.client.post(CLAVE, {"clave_actual": "mala", "clave_nueva": "otra-clave-larga-9"}, format="json")
+        self.assertLimitado(r)
+
+    def test_el_limite_de_cambiar_clave_es_por_usuario(self):
+        otro = Usuario.objects.create_user("luis", password="clave-segura-2", rol="cliente")
+        self.client.force_authenticate(self.usuario)
+        for _ in range(6):
+            self.client.post(CLAVE, {"clave_actual": "mala", "clave_nueva": "otra-clave-larga-9"}, format="json")
+        self.client.force_authenticate(otro)
+        r = self.client.post(CLAVE, {"clave_actual": "mala", "clave_nueva": "otra-clave-larga-9"}, format="json")
+        self.assertEqual(r.status_code, 400)
