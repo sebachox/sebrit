@@ -127,6 +127,19 @@ import os
 SECRET_KEY = os.environ["DJANGO_SECRET_KEY"]
 DEBUG = os.getenv("DJANGO_DEBUG", "0") == "1"
 ALLOWED_HOSTS = os.getenv("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+
+# HTTPS obligatorio fuera de desarrollo. DJANGO_HTTPS=0 lo apaga (por ejemplo, para correr pruebas
+# con DJANGO_DEBUG=0 sin certificado); por defecto sigue a DEBUG.
+HTTPS = os.getenv("DJANGO_HTTPS", "0" if DEBUG else "1") == "1"
+if HTTPS:
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    # Empieza en una hora; subirlo (por ejemplo a 31536000) cuando HTTPS esté probado en producción.
+    SECURE_HSTS_SECONDS = int(os.getenv("DJANGO_HSTS_SECONDS", "3600"))
+    # Detrás de un proxy que termina TLS (nginx, balanceador), activar esta cabecera.
+    if os.getenv("DJANGO_PROXY_HTTPS") == "1":
+        SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 INSTALLED_APPS += ["rest_framework", "corsheaders"]
 MIDDLEWARE.insert(0, "corsheaders.middleware.CorsMiddleware")
 DATABASES = {
