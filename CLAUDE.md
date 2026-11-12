@@ -145,6 +145,17 @@ cd frontend && npx ng build
 
 Variables de `.env`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTGRES_HOST` (=`db`), `POSTGRES_PORT`, `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS`.
 
+**Base completa e idéntica para todo el equipo** (`seed_completo`, semilla fija):
+
+```bash
+docker compose exec backend python manage.py seed_completo --reiniciar --clave <clave-usuarios> --clave-admin <clave-admin>
+```
+
+- Carga 8 empresas ficticias (una inactiva), unos 140 activos, unos 2.400 backups de 45 días, unos 210 tickets de 6 meses con su conversación y 22 incidentes con bitácora. Nombres inventados y correos `.example`.
+- `--reiniciar` borra empresas, activos, backups, tickets, incidentes, mantenimientos y usuarios que no sean administradores; conserva admins y superusuarios y reinicia los ids, así los códigos coinciden en todos los equipos. Sin `--reiniciar` no toca una base con datos.
+- `--clave` es la contraseña de los 5 técnicos (`dmartinez`, `arosero`, `cbenavides`, `jortega`, `vpaz`) y de los 16 usuarios del portal (por ejemplo `mrodriguez.clinica`). `--clave-admin` crea o actualiza el superusuario `admin`. Las contraseñas nunca van al repo.
+- Las fechas se calculan desde el día en que se corre.
+
 Datos de `seed_demo` (idempotente: no hace nada si ya hay organizaciones): 3 organizaciones con NIT, ciudad y plan (una inactiva), 25 servidores y 15 equipos de red, 20 backups, 28 tickets abiertos y 5 cerrados, 5 incidentes (3 críticos activos, uno sin técnico, uno resuelto y uno cerrado). Los números se parecen al JSON de ejemplo pero no son iguales (por ejemplo 2 clientes activos, no 12).
 
 ### Usuarios en la base local de Seb
