@@ -19,7 +19,7 @@ services:
       db:
         condition: service_healthy
     ports:
-      - "8000:8000"
+      - "127.0.0.1:8000:8000"
     volumes:
       - ./backend:/app
 
@@ -27,7 +27,7 @@ services:
     build: ./frontend
 
     ports:
-      - "4200:4200"
+      - "127.0.0.1:4200:4200"
     volumes:
       - ./frontend:/app
       - /app/node_modules

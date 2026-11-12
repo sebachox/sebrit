@@ -41,4 +41,26 @@ describe('Login', () => {
     expect(component.error()).toContain('Credenciales incorrectas');
     expect(component.enviando()).toBeFalse();
   });
+
+  it('ante demasiados intentos muestra el aviso del servidor', () => {
+    component.form.setValue({ username: 'admin', password: 'mala' });
+    component.ingresar();
+    http
+      .expectOne(`${API_URL}/auth/login/`)
+      .flush(
+        { detail: 'Demasiados intentos. Espera 42 segundos e intenta de nuevo.' },
+        { status: 429, statusText: 'Too Many Requests' },
+      );
+
+    expect(component.error()).toBe('Demasiados intentos. Espera 42 segundos e intenta de nuevo.');
+    expect(component.enviando()).toBeFalse();
+  });
+
+  it('un 429 sin detalle usa un aviso propio', () => {
+    component.form.setValue({ username: 'admin', password: 'mala' });
+    component.ingresar();
+    http.expectOne(`${API_URL}/auth/login/`).flush(null, { status: 429, statusText: 'Too Many Requests' });
+
+    expect(component.error()).toBe('Demasiados intentos. Espera un minuto e intenta de nuevo.');
+  });
 });

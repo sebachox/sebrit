@@ -55,6 +55,13 @@ export class Login {
       },
       error: (e: HttpErrorResponse) => {
         this.enviando.set(false);
+        if (e.status === 429) {
+          const detalle = e.error?.detail;
+          this.error.set(
+            typeof detalle === 'string' ? detalle : 'Demasiados intentos. Espera un minuto e intenta de nuevo.',
+          );
+          return;
+        }
         this.error.set(
           e.status === 401
             ? 'Credenciales incorrectas. Revisa tu usuario y contraseña.'
