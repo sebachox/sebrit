@@ -151,7 +151,7 @@ Variables de `.env`: `POSTGRES_DB`, `POSTGRES_USER`, `POSTGRES_PASSWORD`, `POSTG
 docker compose exec backend python manage.py seed_completo --reiniciar --clave <clave-usuarios> --clave-admin <clave-admin>
 ```
 
-- Carga 8 empresas ficticias (una inactiva), unos 140 activos, unos 1.900 backups de 45 días, unos 210 tickets de 6 meses con su conversación y 22 incidentes con bitácora. Nombres inventados y correos `.example`.
+- Carga 8 empresas ficticias (una inactiva), unos 140 activos, unos 2.400 backups de 45 días, unos 210 tickets de 6 meses con su conversación y 22 incidentes con bitácora. Nombres inventados y correos `.example`.
 - `--reiniciar` borra empresas, activos, backups, tickets, incidentes, mantenimientos y usuarios que no sean administradores; conserva admins y superusuarios y reinicia los ids, así los códigos coinciden en todos los equipos. Sin `--reiniciar` no toca una base con datos.
 - `--clave` es la contraseña de los 5 técnicos (`dmartinez`, `arosero`, `cbenavides`, `jortega`, `vpaz`) y de los 16 usuarios del portal (por ejemplo `mrodriguez.clinica`). `--clave-admin` crea o actualiza el superusuario `admin`. Las contraseñas nunca van al repo.
 - Las fechas se calculan desde el día en que se corre.
