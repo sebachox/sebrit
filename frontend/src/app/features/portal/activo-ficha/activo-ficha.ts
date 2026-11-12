@@ -1,7 +1,7 @@
 import { DatePipe, DecimalPipe } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, computed, inject, signal } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { TIPOS_ACTIVO } from '../../../core/models/activo';
 import { TIPOS_BACKUP } from '../../../core/models/backup';
 import { Paginado } from '../../../core/models/organizacion';
@@ -22,6 +22,9 @@ type ClaveDato = 'ubicacion' | 'fabricante' | 'modelo' | 'sistema_operativo' | '
 })
 export class PortalActivoFicha implements OnInit {
   private portal = inject(PortalService);
+  private router = inject(Router);
+  /** Toda la fila abre la ficha; el enlace del código queda para el teclado. */
+  abrir = (id: number) => this.router.navigate(['/portal/backups', id]);
   private route = inject(ActivatedRoute);
   private readonly id = Number(this.route.snapshot.paramMap.get('id'));
 

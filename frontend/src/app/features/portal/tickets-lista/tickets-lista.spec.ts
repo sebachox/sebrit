@@ -1,7 +1,7 @@
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { API_URL } from '../../../core/config/api';
 import { PortalTicketsLista } from './tickets-lista';
 
@@ -64,6 +64,13 @@ describe('PortalTicketsLista', () => {
     expect(texto).toContain('Software');
     expect(texto).toContain('En progreso');
     expect(texto).toContain('Laura Gómez');
+  });
+
+  it('tocar cualquier parte de la fila abre el ticket', () => {
+    responder();
+    const navegar = spyOn(TestBed.inject(Router), 'navigate');
+    (el().querySelector('tbody tr td:nth-child(2)') as HTMLElement).click();
+    expect(navegar).toHaveBeenCalledWith(['/portal/tickets', 42]);
   });
 
   it('sin técnico muestra Sin asignar', () => {

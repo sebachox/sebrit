@@ -75,9 +75,9 @@
           </thead>
           <tbody>
             @for (t of d.results; track t.id) {
-              <tr>
+              <tr class="fila-enlace" (click)="abrir(t.id)">
                 <td class="numerico text-nowrap">
-                  <a class="fw-semibold text-body text-decoration-none" [routerLink]="['/portal/tickets', t.id]">{{ t.codigo }}</a>
+                  <a class="fw-semibold text-body text-decoration-none" [routerLink]="['/portal/tickets', t.id]" (click)="$event.stopPropagation()">{{ t.codigo }}</a>
                 </td>
                 <td>{{ t.titulo }}</td>
                 <td><app-status-badge [valor]="t.estado" /></td>

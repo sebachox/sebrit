@@ -109,7 +109,7 @@
           <label for="solucion" class="form-label fw-semibold">¿Cómo se restableció el servicio?</label>
           <textarea id="solucion" rows="3" class="form-control" [class.is-invalid]="solucionInvalida()" [value]="solucion()" (input)="solucion.set($any($event.target).value); solucionInvalida.set(false)"></textarea>
           <div class="invalid-feedback">Describe cómo se restableció el servicio.</div>
-          <p class="small text-muted mt-2 mb-0"><i class="bi bi-eye me-1" aria-hidden="true"></i>El cliente verá este texto en sus tickets asociados.</p>
+          <p class="small text-muted mt-2 mb-0"><i class="bi bi-eye me-1" aria-hidden="true"></i>El cliente verá este texto en el portal y en sus tickets asociados.</p>
           @if (avisoTickets(); as aviso) {
             <p class="small text-muted mt-2 mb-0"><i class="bi bi-info-circle me-1"></i>{{ aviso }}</p>
           }

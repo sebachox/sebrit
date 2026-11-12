@@ -1,6 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit, inject, signal } from '@angular/core';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { forkJoin } from 'rxjs';
 import { ResumenPortal, TicketPortalResumido } from '../../../core/models/portal';
 import { PortalService } from '../../../core/services/portal.service';
@@ -18,6 +18,9 @@ import { StatusBadge } from '../../../shared/components/status-badge/status-badg
 })
 export class PortalInicio implements OnInit {
   private portal = inject(PortalService);
+  private router = inject(Router);
+  /** Toda la fila abre la ficha; el enlace del código queda para el teclado. */
+  abrir = (id: number) => this.router.navigate(['/portal/tickets', id]);
 
   estado = signal<'cargando' | 'error' | 'listo'>('cargando');
   resumen = signal<ResumenPortal | null>(null);

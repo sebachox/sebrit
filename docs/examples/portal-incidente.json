@@ -1,0 +1,16 @@
+{
+  "id": 5,
+  "codigo": "INC-0005",
+  "titulo": "Caída del correo",
+  "estado": "resuelto",
+  "impacto": "total",
+  "fecha_origen": "2026-11-10T08:00:00-05:00",
+  "fecha_fin": "2026-11-10T09:30:00-05:00",
+  "descripcion": "No entran ni salen mensajes en toda la empresa.",
+  "fecha_deteccion": "2026-11-10T08:10:00-05:00",
+  "duracion_minutos": 90,
+  "tecnico": "Laura Gómez",
+  "solucion": "Se reinició el servidor de correo y se vació la cola de mensajes.",
+  "activos": [{ "id": 7, "nombre": "SRV-01" }],
+  "tickets": [{ "id": 9, "codigo": "TCK-0009", "titulo": "No llega el correo", "estado": "resuelto" }]
+}

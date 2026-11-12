@@ -18,7 +18,7 @@ Principio clave: **la autorización se hace en el backend**. Ocultar opciones en
 | 04 | Tickets y soporte | Hecho (prioridad automática, flujo de estados y línea de tiempo; admin y técnico). El portal para que el cliente abra tickets va con la vista del cliente |
 | 05 | Incidentes | Hecho (interrupciones del servicio: tiempos, activos, bitácora, causa raíz, severidad automática y vínculo con tickets; admin y técnico) |
 | 06 | Mantenimientos | Descartado (2026-11-08): no se construye. El modelo y su tabla quedan sin uso |
-| — | Vista del cliente (portal) | Hecho (inicio con resumen; tickets: abrir, seguir y comentar; empresa, activos y backups en solo lectura; aislado por organización). Usuarios gestionados desde la ficha del cliente |
+| — | Vista del cliente (portal) | Hecho (inicio con resumen; tickets: abrir, seguir y comentar; empresa, activos, backups e incidentes en solo lectura; aislado por organización). Usuarios gestionados desde la ficha del cliente |
 | 07 | Reportes y SLA | Pendiente (las reglas de SLA no están definidas) |
 | 08 | Monitoreo y alertas (integraciones externas) | Pendiente, módulo posterior |
 
@@ -103,10 +103,10 @@ sebrit/
 │   └── src/app/
 │       ├── core/            # auth/permisos.ts, config/api.ts, models, services, interceptors, guards, layout
 │       ├── shared/components/   # stat-card, status-badge
-│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, admin/perfil, portal (inicio, tickets, activos, backups, empresa), auth/login, errors/sin-permiso
+│       └── features/        # admin/dashboard, admin/clientes, admin/activos, admin/backups, admin/tickets, admin/incidentes, admin/perfil, portal (inicio, tickets, activos, backups, incidentes, empresa), auth/login, errors/sin-permiso
 ├── docs/
 │   ├── api-contract.md      # fuente de verdad del contrato de la API
-│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json, portal-resumen.json, portal-ticket.json, portal-activo.json
+│   ├── examples/            # dashboard-admin.json, organizacion.json, activo.json, backup.json, ticket.json, incidente.json, portal-resumen.json, portal-ticket.json, portal-activo.json, portal-incidente.json
 │   └── superpowers/         # specs/ y plans/ de cada módulo
 ├── docker-compose.yml
 ├── .env.example
@@ -227,7 +227,8 @@ El admin de Django (`accounts/admin.py`) permite elegir rol y organización al c
 | POST | `/api/organizaciones/{id}/usuarios/{uid}/clave/` | Solo admin. Define una contraseña nueva; 204 |
 | GET | `/api/portal/resumen/`, `/api/portal/empresa/` | Cliente de empresa activa. Resumen en números y datos de la empresa |
 | GET | `/api/portal/activos/`, `/{id}/` | Cliente de empresa activa. Lista paginada sin dados de baja (`q`, `tipo`, `estado`, `ordering`); la ficha abre también los dados de baja. Sin IP, hostname ni notas |
-| GET | `/api/portal/backups/` | Cliente de empresa activa. Lista paginada (`activo`, `estado`, `tipo`, `desde`, `hasta`); activo ajeno: lista vacía. Sin notas ni quién lo registró |
+| GET | `/api/portal/backups/` | Cliente de empresa activa. Lista paginada (`activo`, `estado`, `tipo`, `desde`, `hasta`); activo ajeno: lista vacía. Ficha `/{id}/` con las mismas claves. Sin notas ni quién lo registró |
+| GET | `/api/portal/incidentes/`, `/{id}/` | Cliente de empresa activa. Lista (`q`, `estado`, `abiertos`) y ficha con equipos y tickets de la empresa. Sin severidad, causa raíz, bitácora ni `reportado_por` |
 | GET, POST | `/api/portal/tickets/`, `/{id}/` | Cliente de empresa activa. Lista: `q`, `estado`, `abiertos`. Ticket ajeno: 404. PUT, PATCH y DELETE 405 |
 | POST | `/api/portal/tickets/{id}/comentarios/` | Cliente de empresa activa. Siempre visible; cerrado 400 |
 
@@ -256,6 +257,8 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 - El cliente no cambia estados. Puede comentar salvo en tickets cerrados.
 - Los comentarios del equipo son internos salvo que se marque `visible_cliente`.
 - Empresa, activos y backups son de solo lectura. Nunca se exponen `ip`, `hostname`, `notas` ni `registrado_por`. Hay backups antiguos sin activo: `activo` sale `null`.
+- Incidentes: el cliente ve impacto, tiempos, técnico, solución, equipos y tickets; nunca severidad, causa raíz ni bitácora. El formulario de resolver avisa que la solución la verá el cliente.
+- En las listas del portal toda la fila abre la ficha (clase global `.fila-enlace`); el código sigue siendo un enlace para el teclado.
 
 ### Reglas de incidentes
 
@@ -275,13 +278,13 @@ El login usa `LoginSerializer` (`accounts/serializers.py`), que además agrega e
 
 - `apps/incidents/tests.py` (107): regla de severidad, código automático, migración de datos, seed, permisos, crear/editar, recálculo, flujo de estados, corrección, bitácora, resolución en cascada, asociar y escalar, filtros, orden y consultas sin N+1.
 
-- `apps/portal/tests.py` (85): permisos, efecto inmediato de desactivar o mover, resumen, listas blancas, crear, línea de tiempo filtrada, comentarios, empresa, activos, backups y aislamiento con dos empresas.
+- `apps/portal/tests.py` (99): permisos, efecto inmediato de desactivar o mover, resumen, listas blancas, crear, línea de tiempo filtrada, comentarios, empresa, activos, backups, incidentes y aislamiento con dos empresas.
 
 Todo endpoint nuevo debe traer pruebas de permisos (401 / 403 / 200).
 
 ## 8. Contrato de la API
 
-Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`, `incidente.json`, `portal-resumen.json`, `portal-ticket.json`, `portal-activo.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
+Fuente de verdad: **`docs/api-contract.md`** y **`docs/examples/`** (`dashboard-admin.json`, `organizacion.json`, `activo.json`, `backup.json`, `ticket.json`, `incidente.json`, `portal-resumen.json`, `portal-ticket.json`, `portal-activo.json`, `portal-incidente.json`). Cualquier cambio se refleja en el contrato, backend, frontend, mock y pruebas.
 
 ```
 GET /api/dashboard/admin/
@@ -344,7 +347,8 @@ Estilo de consola de monitoreo con **dos temas**: oscuro (por defecto) y claro. 
 | Portal: mis tickets, abrir ticket y ficha con conversación | `/portal/tickets`, `/portal/tickets/nuevo`, `/portal/tickets/:id` | `/api/portal/tickets/` y `/activos/` |
 | Portal: mi empresa (solo lectura) | `/portal/empresa` | `/api/portal/empresa/` |
 | Portal: mis activos (acepta `?tipo=` y `?estado=`) y ficha con historial de backups y "Abrir ticket sobre este equipo" | `/portal/activos`, `/portal/activos/:id` | `/api/portal/activos/`, `/api/portal/backups/?activo=` |
-| Portal: backups con filtros | `/portal/backups` | `/api/portal/backups/` |
+| Portal: backups con filtros y ficha | `/portal/backups`, `/portal/backups/:id` | `/api/portal/backups/` |
+| Portal: incidentes (por defecto activos) y ficha con tiempos, equipos y tickets | `/portal/incidentes`, `/portal/incidentes/:id` | `/api/portal/incidentes/` |
 | Portal: Mi perfil (misma pantalla del panel) | `/portal/perfil` | `/api/auth/perfil/` |
 | Sin permiso (nombre y rol del usuario, botón "Ingresar con otra cuenta") | `/sin-permiso` | Usuario de la sesión |
 | Clientes: lista con búsqueda, filtros y paginación | `/admin/clientes` | `GET /api/organizaciones/` |
@@ -412,7 +416,7 @@ Objetivo: versión vertical mínima, desde el login hasta los datos reales del d
 
 1. ~~Vista del cliente~~ hecha. El técnico no tendrá dashboard propio: usa el del admin con sus permisos.
 2. ~~CRUD de clientes~~ (módulo 02), ~~activos y backups~~ (módulo 03), ~~tickets~~ (módulo 04) e ~~incidentes~~ (módulo 05) hechos; los mantenimientos (módulo 06) se descartaron.
-3. ~~Aislamiento por organización en el backend~~ hecho en el portal. Activos y backups ya están en el portal, en solo lectura. Si se agregan incidentes, decidir qué de la bitácora y la causa raíz puede ver el cliente.
+3. ~~Aislamiento por organización en el backend~~ hecho en el portal. Activos, backups e incidentes ya están en el portal, en solo lectura (incidentes sin severidad, causa raíz ni bitácora).
 4. Reportes y SLA cuando se definan las reglas de negocio.
 5. Monitoreo y alertas con integraciones externas.
 6. CI con GitHub Actions (pruebas en cada PR). Cuando se agregue, exigir aprobación para workflows de forks (repo público).

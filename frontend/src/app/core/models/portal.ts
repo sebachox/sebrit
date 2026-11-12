@@ -1,3 +1,4 @@
+import { EstadoIncidente, ImpactoIncidente } from './incidente';
 import { ConteoActivos, ConteoBackups } from './dashboard-admin';
 import { AlcanceTicket, CategoriaTicket, EstadoTicket } from './ticket';
 import { EstadoActivo, EstadoBackup, Referencia, TipoActivo } from './activo';
@@ -132,4 +133,31 @@ export interface FiltrosPortal {
   abiertos?: boolean;
   page?: number;
   pageSize?: number;
+}
+
+export interface IncidentePortalResumido {
+  id: number;
+  codigo: string;
+  titulo: string;
+  estado: EstadoIncidente;
+  impacto: ImpactoIncidente;
+  fecha_origen: string;
+  fecha_fin: string | null;
+}
+
+export interface IncidentePortalDetalle extends IncidentePortalResumido {
+  descripcion: string | null;
+  fecha_deteccion: string;
+  duracion_minutos: number | null;
+  tecnico: string | null;
+  solucion: string | null;
+  activos: Referencia[];
+  tickets: { id: number; codigo: string; titulo: string; estado: EstadoTicket }[];
+}
+
+export interface FiltrosIncidentesPortal {
+  q?: string;
+  estado?: EstadoIncidente | null;
+  abiertos?: boolean;
+  page?: number;
 }
