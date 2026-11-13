@@ -522,3 +522,18 @@ class LimiteDeIntentosTests(APITestCase):
         self.client.force_authenticate(otro)
         r = self.client.post(CLAVE, {"clave_actual": "mala", "clave_nueva": "otra-clave-larga-9"}, format="json")
         self.assertEqual(r.status_code, 400)
+
+
+class CorsTests(APITestCase):
+    def preflight(self, origen):
+        return self.client.options(
+            LOGIN, HTTP_ORIGIN=origen, HTTP_ACCESS_CONTROL_REQUEST_METHOD="POST",
+            HTTP_ACCESS_CONTROL_REQUEST_HEADERS="content-type",
+        )
+
+    def test_el_frontend_local_se_acepta_por_localhost_y_por_127_0_0_1(self):
+        for origen in ("http://localhost:4200", "http://127.0.0.1:4200"):
+            self.assertEqual(self.preflight(origen).headers.get("Access-Control-Allow-Origin"), origen, origen)
+
+    def test_otro_origen_no_se_acepta(self):
+        self.assertIsNone(self.preflight("http://evil.example").headers.get("Access-Control-Allow-Origin"))

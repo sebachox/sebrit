@@ -188,7 +188,7 @@ Conexión: host `localhost`, puerto `5433`, base y usuario de `POSTGRES_DB` / `P
 - `TIME_ZONE = "America/Bogota"`: las fechas salen con `-05:00` y "hoy" es hoy en Colombia.
 - `REST_FRAMEWORK`: autenticación `JWTAuthentication` y permiso por defecto `IsAuthenticated`.
 - `SIMPLE_JWT`: token de acceso de 60 minutos.
-- CORS permitido solo para `http://localhost:4200` (el origen debe coincidir exactamente).
+- CORS permitido solo para `http://localhost:4200` y `http://127.0.0.1:4200` (el origen debe coincidir exactamente).
 - Las apps se importan como `apps.<nombre>` (el `name` en cada `apps.py` es `apps.<nombre>`).
 
 ### Modelos
